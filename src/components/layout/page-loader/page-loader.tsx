@@ -1,0 +1,467 @@
+"use client";
+
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import AtelierLogo from "@/components/icons/atelier-logo";
+import ByWord from "@/components/icons/by-word";
+import ReefWord from "@/components/icons/reef-word";
+import Star from "@/components/icons/star";
+import Link from "next/link";
+
+interface PageLoaderProps {
+  active: boolean;
+  onComplete?: () => void;
+}
+
+function trackRealProgress(onProgress: (p: number) => void) {
+  const resources = performance.getEntriesByType("resource");
+  const total = Math.max(resources.length, 1);
+  let loaded = 0;
+
+  const observer = new PerformanceObserver((list) => {
+    loaded += list.getEntries().length;
+    onProgress(Math.min(90, Math.round((loaded / total) * 100)));
+  });
+
+  observer.observe({ entryTypes: ["resource"] });
+
+  const safety = setTimeout(() => onProgress(90), 800);
+
+  return () => {
+    observer.disconnect();
+    clearTimeout(safety);
+  };
+}
+
+const NOISE_BG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E")`;
+
+const NOISE_BG_FOR_BUTTON = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.22'/%3E%3C/svg%3E")`;
+
+const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
+  const router = useRouter();
+  const targetProgress = useRef(0);
+  const [progress, setProgress] = useState(0);
+
+  const [navKey, setNavKey] = useState(0);
+
+  const finishedRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.documentElement.style.overflowY = "hidden";
+
+    return () => {
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.documentElement.style.overflowY = "";
+      window.scrollTo(0, 0);
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    finishedRef.current = false;
+    targetProgress.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProgress(0);
+    setNavKey((k) => k + 1);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    return trackRealProgress((p) => {
+      targetProgress.current = Math.max(targetProgress.current, p);
+    });
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const tick = () => {
+      setProgress((v) => {
+        const delta = targetProgress.current - v;
+        if (delta <= 0) return v;
+
+        return Math.min(
+          v + Math.max(0.3, delta * 0.08),
+          targetProgress.current,
+        );
+      });
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    if (targetProgress.current >= 90 && progress >= 89) {
+      targetProgress.current = 100;
+    }
+  }, [progress, active]);
+
+  const handleStartExperience = () => {
+    onComplete?.();
+    setTimeout(() => {
+      router.push("/projects");
+    }, 80);
+  };
+
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          key={navKey}
+          initial={{ opacity: 1, backgroundColor: "#00272D" }}
+          animate={{
+            opacity: 1,
+            backgroundColor: "#000000",
+          }}
+          exit={{ opacity: 0 }}
+          transition={{
+            opacity: { duration: 0.85, ease: [0.4, 0, 0.2, 1] },
+            backgroundColor: {
+              delay: 3.8,
+              duration: 1.0,
+              ease: [0.22, 1, 0.36, 1],
+            },
+          }}
+          className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden"
+          style={{
+            backgroundImage: NOISE_BG,
+            backgroundRepeat: "repeat",
+            backgroundSize: "180px 180px",
+          }}
+        >
+          {/* Radial overlay */}
+          <div
+            className="pointer-events-none absolute inset-0 z-0 bg-transparent!"
+            style={{
+              background:
+                "radial-gradient(circle at center, rgba(0, 39, 45, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%)",
+            }}
+          />
+
+          {/* ───────────────────────────────────────────────
+              STAGE 1–2 • Logo + "by REEF" (center → top-center of 3*3)
+          ─────────────────────────────────────────────── */}
+          <motion.div
+            className="absolute left-1/2 flex flex-col items-center"
+            initial={{ x: "-50%", top: "50%", y: "-50%", scale: 1.2 }}
+            animate={{
+              x: "-50%",
+              top: ["50%", "50%", "30%", "16.666%"],
+              y: "-50%",
+              scale: [1.2, 1.2, 0.9, 0.75],
+            }}
+            transition={{
+              duration: 3.5,
+              times: [0, 0.5, 0.76, 1],
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            {/* Atelier wordmark */}
+            <motion.div
+              initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <AtelierLogo className="h-10.5 w-auto text-[#F5F0E8] sm:h-13" />
+            </motion.div>
+
+            {/* "by REEF" */}
+            <motion.div
+              className="mt-2 flex flex-col items-center gap-1.5"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.55,
+                duration: 0.7,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <ByWord className="h-2.75 w-auto text-[#F5F0E8]/opacity-80" />
+              <ReefWord className="h-3.25 w-auto text-[#F5F0E8]" />
+            </motion.div>
+          </motion.div>
+
+          {/* ───────────────────────────────────────────────
+              STAGE 3 • Crosshair + central star
+          ─────────────────────────────────────────────── */}
+          {/* Vertical line */}
+          <motion.div
+            className="absolute left-1/2 top-0 h-full w-px origin-center bg-[#f2e9d880]/15"
+            style={{ x: "-50%" }}
+            initial={{ scaleY: 0, opacity: 1 }}
+            animate={{ scaleY: 1, opacity: 0 }}
+            transition={{
+              scaleY: {
+                delay: 1.85,
+                duration: 1.1,
+                ease: [0.22, 1, 0.36, 1],
+              },
+              opacity: {
+                delay: 2.55,
+                duration: 0.35,
+                ease: [0.4, 0, 0.2, 1],
+              },
+            }}
+          />
+
+          {/* Horizontal line */}
+          <motion.div
+            className="absolute left-0 top-1/2 h-px w-full origin-center bg-[#f2e9d880]/15"
+            style={{ y: "-50%" }}
+            initial={{ scaleX: 0, opacity: 1 }}
+            animate={{ scaleX: 1, opacity: 0 }}
+            transition={{
+              scaleX: {
+                delay: 1.85,
+                duration: 1.1,
+              },
+              opacity: {
+                delay: 2.55,
+                duration: 0.35,
+              },
+            }}
+          />
+
+          {/* Central star */}
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{
+              delay: 2.15,
+              duration: 0.9,
+              // times: [0, 0.22, 1],
+              // ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <Star className="h-5.5 w-5.5 text-[#F5F0E8]" />
+          </motion.div>
+
+          {/* ───────────────────────────────────────────────
+              STAGE 4  •  Lines + stars expand outward from center
+          ─────────────────────────────────────────────── */}
+          {/* Outer vertical guides – travel from center to its final positions */}
+          <motion.div
+            className="absolute top-0 h-full w-px bg-[#f2e9d880]/18 -z-9999"
+            initial={{ left: "50%", scaleY: 0, opacity: 0 }}
+            animate={{ left: "28%", scaleY: 1, opacity: 1 }}
+            transition={{
+              delay: 2.65,
+              duration: 0.95,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          />
+          <motion.div
+            className="absolute top-0 h-full w-px bg-[#f2e9d880]/18 -z-9999"
+            initial={{ left: "50%", scaleY: 0, opacity: 0 }}
+            animate={{ left: "72%", scaleY: 1, opacity: 1 }}
+            transition={{
+              delay: 2.65,
+              duration: 0.95,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          />
+
+          {/* Outer horizontal guides – travel from center to its final positions */}
+          <motion.div
+            className="absolute left-0 h-px w-full bg-[#f2e9d880]/18 -z-9999"
+            initial={{ top: "50%", scaleX: 0, opacity: 0 }}
+            animate={{ top: "32%", scaleX: 1, opacity: 1 }}
+            transition={{
+              delay: 2.65,
+              duration: 0.95,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          />
+          <motion.div
+            className="absolute left-0 h-px w-full bg-[#f2e9d880]/18 -z-9999"
+            initial={{ top: "50%", scaleX: 0, opacity: 0 }}
+            animate={{ top: "68%", scaleX: 1, opacity: 1 }}
+            transition={{
+              delay: 2.65,
+              duration: 0.95,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          />
+
+          {[
+            { left: "28%", top: "32%" },
+            { left: "72%", top: "32%" },
+            { left: "28%", top: "68%" },
+            { left: "72%", top: "68%" },
+          ].map((s, i) => (
+            <motion.div
+              key={i}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pl-px pt-px"
+              initial={{
+                left: "50%",
+                top: "50%",
+                opacity: 0,
+                scale: 0.2,
+              }}
+              animate={{
+                left: s.left,
+                top: s.top,
+                opacity: 1,
+                scale: 1,
+              }}
+              transition={{
+                delay: 2.65,
+                duration: 0.95,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <Star className="h-5.5 w-5.5 text-[#F5F0E8]/90" />
+            </motion.div>
+          ))}
+
+          {/* ───────────────────────────────────────────────
+              STAGE 5  •  Headline
+          ─────────────────────────────────────────────── */}
+          <motion.div
+            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              // delay: 3.15,
+              delay: 2.95,
+              duration: 0.85,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <span className="font-libre-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
+              STEP INTO
+            </span>
+            <span className="font-snell-roundhand text-[42px] leading-none text-[#F5F0E8] sm:text-[52px]">
+              Personalized
+            </span>
+            <span className="mt-2 font-libre-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
+              LUXURY
+            </span>
+          </motion.div>
+
+          {/* ───────────────────────────────────────────────
+              STAGE 6  •  CTA button
+          ─────────────────────────────────────────────── */}
+          <motion.div
+            className="absolute bottom-[10%]! min-[2000px]:bottom-[11%]! left-1/2 -translate-x-1/2"
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              delay: 3.55,
+              duration: 0.7,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <motion.button
+              type="button"
+              onClick={handleStartExperience}
+              className="ticket-notch relative z-10 border border-white/40 mx-8 py-5 font-libre-baskerville text-[12px] tracking-[0.32625rem] text-white uppercase backdrop-blur-[15px] sm:px-14 sm:text-[13px] xl:text-lg cursor-pointer lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800!"
+              initial={{ opacity: 0, backgroundColor: "rgba(20, 62, 71, 0.4)" }}
+              animate={{
+                opacity: 1,
+                backgroundColor: "rgba(0, 0, 0, 0.55)",
+              }}
+              transition={{
+                opacity: { delay: 3.85, duration: 0.5 },
+                backgroundColor: {
+                  delay: 3.8,
+                  duration: 1.0,
+                  ease: [0.22, 1, 0.36, 1],
+                },
+              }}
+              style={{
+                backgroundImage: NOISE_BG_FOR_BUTTON,
+                backgroundRepeat: "repeat",
+                backgroundSize: "180px 180px",
+              }}
+            >
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  delay: 4.2,
+                  duration: 0.7,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                Start Your Experience
+              </motion.span>
+            </motion.button>
+          </motion.div>
+
+          {/* ───────────────────────────────────────────────
+              STAGE 7  •  paragraph
+          ─────────────────────────────────────────────── */}
+          <motion.p
+            className="absolute bottom-[10%] right-[1%]! md:right-[2%]! xl:right-[5%]! max-w-50 font-general-sans text-[11px] leading-relaxed text-white/60 lg:max-w-67.5 sm:text-sm max-lg:pl-10"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              delay: 3.9,
+              duration: 0.75,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            Where ideas, insights, and stories come together. Explore the latest
+            from REEF, market perspectives, design thinking, and updates across
+            our developments.
+          </motion.p>
+
+          {/* Links */}
+          <motion.nav
+            className="absolute top-[3%] right-[2%] z-10 flex gap-6 font-general-sans text-[10px] uppercase tracking-[0.22em] text-[#F5F0E8]/55"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              delay: 4.5,
+              duration: 0.6,
+              ease: "easeOut",
+            }}
+          >
+            {[
+              { href: "/about", label: "ABOUT" },
+              { href: "/projects", label: "PROJECTS" },
+              { href: "/reference-number", label: "REFERENCE NUMBER" },
+            ].map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onComplete?.();
+                  setTimeout(() => {
+                    router.push(href);
+                  }, 80);
+                }}
+              >
+                {label}
+              </Link>
+            ))}
+          </motion.nav>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default PageLoader;
