@@ -1,4 +1,3 @@
-// src/components/configurator/selections-sheet.tsx
 "use client";
 
 import type { SelectionEntry } from "@/types/configurator";
@@ -65,9 +64,7 @@ export default function SelectionsSheet({
       </div>
       <footer className="cfg-sheet-footer">
         {typeof price === "number" && (
-          <p className="cfg-sheet-price">
-            Est. AED {price.toLocaleString()}
-          </p>
+          <p className="cfg-sheet-price">Est. AED {price.toLocaleString()}</p>
         )}
         {!viewOnly && onSubmit && (
           <button type="button" className="cfg-primary-btn" onClick={onSubmit}>

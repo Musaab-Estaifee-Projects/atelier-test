@@ -1,4 +1,3 @@
-// src/lib/configurator/resolve-camera-index.ts
 import type {
   CameraRule,
   ConfiguratorCamera,

@@ -1,4 +1,3 @@
-// src/lib/configurator/pricing.ts
 import type {
   ConfiguratorSession,
   SelectionEntry,

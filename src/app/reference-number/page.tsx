@@ -1,5 +1,14 @@
-const page = () => {
-  return <div>Reference Number</div>;
+import type { Metadata } from "next";
+import SelectProject from "@/components/pages/projects/select-project";
+
+export const metadata: Metadata = {
+  title: "ATELIER · Return to your configuration",
+  description:
+    "Enter the reference from your quotation PDF to return to a saved configuration.",
 };
 
-export default page;
+const ReferenceNumberPage = () => {
+  return <SelectProject initialReturn />;
+};
+
+export default ReferenceNumberPage;

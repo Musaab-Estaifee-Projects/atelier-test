@@ -1,4 +1,3 @@
-// src/lib/stream-pixel/suppress-sdk-noise.ts
 /**
  * StreamPixel bundles Mixpanel; ad blockers / CORS often yield
  * `Mixpanel error: "Bad HTTP status: 0 "` which Next overlays as a console error.
@@ -9,9 +8,7 @@ export function suppressStreamPixelConsoleNoise(): () => void {
 
   const originalError = console.error.bind(console);
   console.error = (...args: unknown[]) => {
-    const text = args
-      .map((a) => (typeof a === "string" ? a : ""))
-      .join(" ");
+    const text = args.map((a) => (typeof a === "string" ? a : "")).join(" ");
     if (
       text.includes("Mixpanel error") ||
       text.includes("Bad HTTP status: 0")

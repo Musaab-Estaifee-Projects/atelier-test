@@ -1,10 +1,10 @@
-// src/hooks/configurator/use-selection-map.ts
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { estimatePriceFromSession } from "@/lib/configurator/pricing";
 import {
   clearDraft,
+  ensureCustomizationRef,
   isUsingMemoryOnlyStorage,
   loadDraft,
   mapToSelections,
@@ -35,7 +35,6 @@ export function useSelectionMap(args: {
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const hydratedKeyRef = useRef<string | null>(null);
-  const saveTimerRef = useRef<number | null>(null);
 
   const hydrateFromStorage = useCallback(() => {
     if (viewOnly || !unitId || !session) return;
@@ -57,9 +56,7 @@ export function useSelectionMap(args: {
     const meshOk = new Set(session.meshes.map((m) => m.id));
     const matOk = new Set(session.materials.map((m) => m.id));
     const cleaned = draft.selections.filter(
-      (s) =>
-        meshOk.has(s.meshId) &&
-        (!s.materialId || matOk.has(s.materialId)),
+      (s) => meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId)),
     );
     setMap(selectionsToMap(cleaned));
     setSaveStatus(cleaned.length ? "saved" : "unsaved");
@@ -83,8 +80,7 @@ export function useSelectionMap(args: {
       const matOk = new Set(session.materials.map((m) => m.id));
       const cleaned = selections.filter(
         (s) =>
-          meshOk.has(s.meshId) &&
-          (!s.materialId || matOk.has(s.materialId)),
+          meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId)),
       );
       setMap(selectionsToMap(cleaned));
       setSaveStatus("saved");
@@ -97,26 +93,23 @@ export function useSelectionMap(args: {
     (next: SelectionMap) => {
       if (viewOnly || !unitId || !session) return;
       setSaveStatus("saving");
+      const ueLoadId = ensureCustomizationRef(
+        streamProjectId,
+        unitId,
+        session.levelName,
+      );
       const draft = {
         version: 1 as const,
         streamProjectId,
         unitId,
         levelName: session.levelName,
         selections: mapToSelections(next),
+        ueLoadId,
         updatedAt: new Date().toISOString(),
       };
       const result = saveDraft(draft);
-      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = window.setTimeout(() => {
-        setSaveStatus(
-          result.ok
-            ? draft.selections.length
-              ? "saved"
-              : "unsaved"
-            : "unsaved",
-        );
-      }, 280);
       if (!result.ok) {
+        setSaveStatus("unsaved");
         setStorageWarning(
           result.reason === "quota"
             ? "Storage full — continuing in memory only."
@@ -167,8 +160,18 @@ export function useSelectionMap(args: {
     setMap({});
     setHydrated(true);
     setSaveStatus("unsaved");
-    if (unitId) clearDraft(streamProjectId, unitId);
-  }, [streamProjectId, unitId]);
+    if (!unitId) return;
+    const ref = loadDraft(streamProjectId, unitId)?.ueLoadId;
+    saveDraft({
+      version: 1,
+      streamProjectId,
+      unitId,
+      levelName: session?.levelName ?? "",
+      selections: [],
+      ueLoadId: ref,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [streamProjectId, unitId, session?.levelName]);
 
   const clearAfterSubmit = useCallback(() => {
     if (unitId) clearDraft(streamProjectId, unitId);
@@ -181,6 +184,14 @@ export function useSelectionMap(args: {
     return estimatePriceFromSession(session, map);
   }, [session, map]);
 
+  const markSaveStatus = useCallback((status: SaveStatus) => {
+    setSaveStatus(status);
+  }, []);
+
+  const customizationRef = unitId
+    ? (loadDraft(streamProjectId, unitId)?.ueLoadId ?? null)
+    : null;
+
   return {
     map,
     selections,
@@ -188,6 +199,8 @@ export function useSelectionMap(args: {
     optimisticPrice,
     storageWarning,
     saveStatus,
+    customizationRef,
+    markSaveStatus,
     hydrateFromStorage,
     hydrateFromDesign,
     /** @deprecated use select — kept for call-site compatibility */

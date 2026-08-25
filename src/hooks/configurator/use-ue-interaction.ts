@@ -1,4 +1,3 @@
-// src/hooks/configurator/useUeInteraction.ts
 "use client";
 
 import { UeInteractionPayload } from "@/lib/stream-pixel/ue-protocol";
@@ -48,7 +47,8 @@ export function useUeInteraction(
         return false;
       }
       if (!streamReadyRef.current) {
-        if (!isProbe) warnThrottled("[UE] Stream not ready; interaction ignored");
+        if (!isProbe)
+          warnThrottled("[UE] Stream not ready; interaction ignored");
         return false;
       }
       try {

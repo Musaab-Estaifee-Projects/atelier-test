@@ -1,4 +1,3 @@
-// src/hooks/configurator/useCameraZone.ts
 "use client";
 
 import { useCallback, useRef, useState } from "react";

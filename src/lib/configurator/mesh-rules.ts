@@ -1,5 +1,3 @@
-// src/lib/configurator/mesh-rules.ts
-
 import type {
   CameraRule,
   MeshOption,

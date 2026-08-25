@@ -1,4 +1,5 @@
-// src/hooks/configurator/use-final-design.ts
+/* eslint-disable react-hooks/immutability */
+/* eslint-disable react-hooks/refs */
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -311,7 +312,12 @@ export function useFinalDesign({
         );
       }
 
-      if (event.cameraName || event.image || event.file || event.cameraIndex != null) {
+      if (
+        event.cameraName ||
+        event.image ||
+        event.file ||
+        event.cameraIndex != null
+      ) {
         applyCameraStill(
           {
             name:
@@ -343,12 +349,22 @@ export function useFinalDesign({
         const pendingRooms = roomsRef.current.some(
           (r) => r.status !== "completed" && r.status !== "error",
         );
-        if (job && (missing.length || pendingRooms) && event.kind === "completed") {
+        if (
+          job &&
+          (missing.length || pendingRooms) &&
+          event.kind === "completed"
+        ) {
           requestUpload(job);
         }
       }
     },
-    [applyCameraStill, commitRooms, failRoomsMissingImages, missingStillFiles, requestUpload],
+    [
+      applyCameraStill,
+      commitRooms,
+      failRoomsMissingImages,
+      missingStillFiles,
+      requestUpload,
+    ],
   );
 
   const ingestUeResponse = useCallback(
@@ -457,7 +473,11 @@ export function useFinalDesign({
       attempt: 0,
       imageUrl: undefined,
       error: undefined,
-      stills: c.stills.map((s) => ({ ...s, imageUrl: undefined, file: undefined })),
+      stills: c.stills.map((s) => ({
+        ...s,
+        imageUrl: undefined,
+        file: undefined,
+      })),
     }));
     commitRooms(nextRooms);
     setGlobalError(null);
@@ -574,7 +594,11 @@ export function useFinalDesign({
           .filter((s) => !s.imageUrl && s.file)
           .map((s) => s.file!);
         if (files.length) {
-          void emit({ Function: "UploadScreenshots", JobId: retryJob, Files: files });
+          void emit({
+            Function: "UploadScreenshots",
+            JobId: retryJob,
+            Files: files,
+          });
         }
       });
       schedule(FINAL_STARTED_MS + FINAL_UPLOAD_MS, () => {

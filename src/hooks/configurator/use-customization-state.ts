@@ -1,4 +1,3 @@
-// src/hooks/configurator/useCustomizationState.ts
 "use client";
 
 import { useCallback, useState } from "react";

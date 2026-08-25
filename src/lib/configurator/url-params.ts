@@ -1,9 +1,5 @@
-/** URL helpers for configurator share params. */
-
 /** Real zone only — empty / whitespace never belong in the URL. */
-export function normalizeZone(
-  zone: string | null | undefined,
-): string | null {
+export function normalizeZone(zone: string | null | undefined): string | null {
   if (zone == null) return null;
   const trimmed = String(zone).trim();
   return trimmed.length > 0 ? trimmed : null;

@@ -1,4 +1,3 @@
-// src/hooks/configurator/useShareableParams.ts
 "use client";
 
 import { useCallback, useEffect, useMemo } from "react";
@@ -41,8 +40,7 @@ export function useShareableParams(projectIdFromRoute: string) {
 
   // Strip legacy mesh/material and empty zone from the URL
   useEffect(() => {
-    const hasLegacy =
-      searchParams.has("mesh") || searchParams.has("material");
+    const hasLegacy = searchParams.has("mesh") || searchParams.has("material");
     const rawZone = searchParams.get("zone");
     const emptyZone =
       searchParams.has("zone") && normalizeZone(rawZone) == null;

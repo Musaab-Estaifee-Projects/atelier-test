@@ -1,4 +1,3 @@
-// src/lib/configurator/ue-load-id.ts
 /**
  * Bridge between UE SaveCustomization responses and localStorage.
  */

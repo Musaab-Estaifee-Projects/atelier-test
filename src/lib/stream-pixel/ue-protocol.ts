@@ -1,5 +1,3 @@
-// src/lib/streampixel/ue-protocol.ts
-
 /**
  * Unreal Engine UI interaction contract.
  * These Function names must match the Blueprints exposed via emitUIInteraction.

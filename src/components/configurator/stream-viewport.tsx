@@ -1,4 +1,3 @@
-// src/components/configurator/StreamViewport.tsx
 "use client";
 
 import { forwardRef } from "react";

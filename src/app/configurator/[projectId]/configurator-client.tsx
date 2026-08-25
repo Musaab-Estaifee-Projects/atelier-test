@@ -1,9 +1,16 @@
-// src/app/configurator/[projectId]/ConfiguratorClient.tsx
 "use client";
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { suppressStreamPixelConsoleNoise } from "@/lib/stream-pixel/suppress-sdk-noise";
+import { ConfiguratorBootOverlay } from "@/components/configurator/loading-overlay";
+import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
+
+function bootSubtitle(): string {
+  if (typeof window === "undefined") return "Your residence";
+  const query = new URLSearchParams(window.location.search);
+  return reviewUnitSubtitle(query.get("unit"), query.get("level"));
+}
 
 /**
  * StreamPixel is browser-only (WebRTC + DOM).
@@ -13,20 +20,14 @@ const ConfiguratorShell = dynamic(
   () => import("@/components/configurator/configurator-shell"),
   {
     ssr: false,
-    loading: () => (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#18181A] text-white/70">
-        Loading configurator…
-      </div>
-    ),
+    loading: () => <ConfiguratorBootOverlay unitSubtitle={bootSubtitle()} />,
   },
 );
 
-export default function ConfiguratorClient({
-  projectId,
-}: {
-  projectId: string;
-}) {
+const ConfiguratorClient = ({ projectId }: { projectId: string }) => {
   useEffect(() => suppressStreamPixelConsoleNoise(), []);
 
   return <ConfiguratorShell projectId={projectId} />;
-}
+};
+
+export default ConfiguratorClient;

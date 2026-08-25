@@ -1,4 +1,3 @@
-// src/lib/configurator/apply-ue.ts
 /**
  * Paint UE from the FE selection map.
  * Atelier Blueprints apply in the active camera/zone context, so restore
@@ -23,10 +22,7 @@ import {
   beginAwaitingUeLoadId,
   waitForUeLoadId,
 } from "@/lib/configurator/ue-load-id";
-import {
-  delay,
-  sendUntilAccepted,
-} from "@/lib/stream-pixel/share-restore";
+import { delay, sendUntilAccepted } from "@/lib/stream-pixel/share-restore";
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
@@ -223,7 +219,7 @@ async function applyGrouped(
     ...[...groups.keys()].filter((z) => !zoneOrder.includes(z)),
   ];
 
-  let pending: SelectionEntry[] = [];
+  const pending: SelectionEntry[] = [];
   for (const zone of orderedZones) {
     const entries = groups.get(zone) ?? [];
     opts?.onProgress?.(
@@ -263,7 +259,11 @@ export async function saveCustomizationToUe(
   const selections = opts.selections ?? [];
 
   if (opts.mockLog) {
-    console.info("[mock UE] SaveCustomization", { unitId, existing, selections });
+    console.info("[mock UE] SaveCustomization", {
+      unitId,
+      existing,
+      selections,
+    });
     return existing ?? unitId ?? null;
   }
 
@@ -460,19 +460,16 @@ export async function applyOneSelectionToUe(
     const camIndex =
       opts?.cameraIndex ?? enrichEntry(entry).cameraIndex ?? null;
     if (camIndex != null) {
-      await switchCameraOnUe(
-        send,
-        { ...entry, cameraIndex: camIndex },
-        zone,
-        { mockLog: opts?.mockLog },
-      );
+      await switchCameraOnUe(send, { ...entry, cameraIndex: camIndex }, zone, {
+        mockLog: opts?.mockLog,
+      });
     }
     await paintEntry(send, entry, { mockLog: opts?.mockLog });
   });
 
   if (opts?.streamProjectId && opts.unitId) {
-    const selections =
-      loadDraft(opts.streamProjectId, opts.unitId)?.selections ?? [entry];
+    const selections = loadDraft(opts.streamProjectId, opts.unitId)
+      ?.selections ?? [entry];
     void saveCustomizationToUe(send, {
       unitId: opts.unitId,
       streamProjectId: opts.streamProjectId,

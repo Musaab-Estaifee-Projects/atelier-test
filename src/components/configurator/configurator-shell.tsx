@@ -28,14 +28,15 @@ import {
   zoneUrlPatch,
 } from "@/lib/configurator/url-params";
 import {
-  CONFIGURATOR_ZONES,
   camerasForZone,
   matchZoneId,
   moveZoneName,
+  shortSurfaceLabel,
   ueZoneName,
   zoneCamerasForUi,
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
+import { materialThumb } from "@/lib/configurator/chrome";
 import { slotFromMeshId } from "@/mocks/configurator/session";
 import type {
   CameraRule,
@@ -59,9 +60,11 @@ import {
   extractCustomizationEvent,
 } from "@/lib/stream-pixel/parse-ue-response";
 import { noteUeLoadId } from "@/lib/configurator/ue-load-id";
+import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
 import StreamViewport from "./stream-viewport";
-import LoadingOverlay from "./loading-overlay";
+import LoadingOverlay, { streamOverlayKind } from "./loading-overlay";
+import QuotationDialog from "./quotation-dialog";
 import ZoneTopBar from "./zone-top-bar";
 import ZoneSidePanel, { cameraKey } from "./zone-side-panel";
 import ConfiguratorDock from "./configurator-dock";
@@ -73,6 +76,8 @@ import FinalDesignPrompt from "./final-design/final-design-prompt";
 import FinalDesignProgress from "./final-design/final-design-progress";
 import FinalDesignViewer from "./final-design/final-design-viewer";
 import FinalDesignReview from "./final-design/final-design-review";
+import ReviewSelections from "./review-selections";
+import SelectStyle from "@/components/pages/styles/select-style";
 
 const MOCK_UE =
   process.env.NEXT_PUBLIC_MOCK_UE === "true" ||
@@ -116,6 +121,10 @@ export default function ConfiguratorShell({
   const [design, setDesign] = useState<StoredDesign | null>(null);
   const [designError, setDesignError] = useState<string | null>(null);
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [streamOverlayDismissed, setStreamOverlayDismissed] = useState(false);
+  const [browseStylesOpen, setBrowseStylesOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitPending, setSubmitPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -223,6 +232,10 @@ export default function ConfiguratorShell({
     videoContainerRef,
     fullscreenTargetRef: shellRef,
   });
+
+  useEffect(() => {
+    if (!stream.isLoading) setStreamOverlayDismissed(false);
+  }, [stream.isLoading]);
 
   const { sendUEInteraction } = useUeInteraction(
     stream.pixelStreamingRef,
@@ -529,8 +542,18 @@ export default function ConfiguratorShell({
     return camerasForZone(activeZoneId, sceneConfig);
   }, [activeZoneId, session, sceneConfig]);
 
-  const zoneLabel =
-    CONFIGURATOR_ZONES.find((z) => z.id === activeZoneId)?.label ?? "Zone";
+  const dockSelections = useMemo(() => {
+    if (!session) return [];
+    const byId = new Map(session.materials.map((m) => [m.id, m]));
+    return selections.selections.slice(-3).map((entry) => {
+      const mat = byId.get(entry.materialId);
+      return {
+        slot: entry.slot,
+        label: shortSurfaceLabel(session.slotLabels[entry.slot] ?? entry.slot),
+        thumbnailUrl: materialThumb(entry.materialId, mat?.thumbnailUrl),
+      };
+    });
+  }, [session, selections.selections]);
 
   const panelMeshes = useMemo(() => {
     if (!activeRule) return [];
@@ -556,7 +579,7 @@ export default function ConfiguratorShell({
       if (!session) return;
 
       setActiveZoneId(zoneId);
-      setSidePanelOpen(true);
+      setSidePanelOpen(false);
       setFreeCameraActive(false);
       freeModeRef.current = false;
 
@@ -658,6 +681,38 @@ export default function ConfiguratorShell({
     },
     [params.zone, activeZoneId, cameraZone, setParams, send],
   );
+
+  const handleShowMaterials = useCallback(() => {
+    if (!session) return;
+    freeModeRef.current = false;
+    setFreeCameraActive(false);
+
+    if (activeZoneId && activeRule) {
+      setSidePanelOpen(true);
+      return;
+    }
+
+    if (activeZoneId && zoneCameras[0]) {
+      handleSelectCamera(zoneCameras[0]);
+      return;
+    }
+
+    const fallbackZone = activeZoneId ?? "LivingArea";
+    if (!activeZoneId) {
+      handleSelectZone(fallbackZone);
+    }
+    const first = camerasForZone(fallbackZone, sceneConfig)[0];
+    if (first) handleSelectCamera(first);
+    else setSidePanelOpen(true);
+  }, [
+    session,
+    activeZoneId,
+    activeRule,
+    zoneCameras,
+    sceneConfig,
+    handleSelectCamera,
+    handleSelectZone,
+  ]);
 
   const handleSelectMesh = useCallback(
     (mesh: MeshOption) => {
@@ -803,6 +858,8 @@ export default function ConfiguratorShell({
         selections.clearAfterSubmit();
         setSuccess(result);
         setSubmitOpen(false);
+        setReviewOpen(false);
+        finalDesign.backToCustomize();
         setParams(
           {
             designCode: result.designCode,
@@ -821,7 +878,15 @@ export default function ConfiguratorShell({
         setSubmitPending(false);
       }
     },
-    [session, unitId, projectId, params, selections, setParams],
+    [
+      session,
+      unitId,
+      projectId,
+      params,
+      selections,
+      setParams,
+      finalDesign.backToCustomize,
+    ],
   );
 
   const handleStartOwn = useCallback(() => {
@@ -834,6 +899,17 @@ export default function ConfiguratorShell({
   const displayPrice = viewOnly
     ? (design?.price ?? selections.optimisticPrice)
     : selections.optimisticPrice;
+
+  const overlayKind = streamOverlayKind({
+    queuePosition: stream.queuePosition,
+    loadingTitle: stream.loadingTitle,
+  });
+  const streamBlocking =
+    stream.isLoading ||
+    overlayKind === "queue" ||
+    overlayKind === "disconnected";
+  const showStreamOverlay =
+    (streamBlocking || sessionLoading) && !streamOverlayDismissed;
 
   if (designError) {
     return (
@@ -869,18 +945,37 @@ export default function ConfiguratorShell({
     <div className="configurator-shell" ref={shellRef}>
       <StreamViewport ref={videoContainerRef} />
 
-      {(stream.isLoading || sessionLoading) && (
+      {showStreamOverlay ? (
         <LoadingOverlay
-          title={sessionLoading ? "Loading catalog…" : stream.loadingTitle}
-          subtitle={
-            stream.queuePosition != null
-              ? `You are in queue at position ${stream.queuePosition}`
-              : stream.loadingSubtitle
+          kind={overlayKind}
+          progress={
+            overlayKind === "loading"
+              ? Math.max(sessionLoading ? 12 : 0, stream.loadingProgress || 0)
+              : stream.loadingProgress
           }
-          status={stream.loadingStatus}
-          progress={sessionLoading ? 20 : stream.loadingProgress}
+          unitSubtitle={reviewUnitSubtitle(
+            unitId,
+            params.level || session?.levelName,
+          )}
+          queuePosition={stream.queuePosition}
+          selectionCount={selections.selections.length}
+          onReconnect={() => window.location.reload()}
+          onContinueToSummary={() => {
+            setStreamOverlayDismissed(true);
+            setQuoteDialogOpen(false);
+            setReviewOpen(true);
+          }}
+          onBrowseStyles={() => setBrowseStylesOpen(true)}
         />
-      )}
+      ) : null}
+
+      {browseStylesOpen ? (
+        <SelectStyle
+          overlay
+          onStartCustomizing={() => setBrowseStylesOpen(false)}
+          onSelectStyle={() => setBrowseStylesOpen(false)}
+        />
+      ) : null}
 
       {ueSyncStatus && !stream.isLoading && (
         <div className="cfg-sync-overlay" aria-live="polite">
@@ -938,13 +1033,20 @@ export default function ConfiguratorShell({
           <ZoneTopBar
             activeZoneId={activeZoneId}
             freeCameraActive={freeCameraActive}
-            onSelectZone={handleSelectZone}
-            onFreeCamera={handleFreeCamera}
+            onSelectZone={(zoneId) => {
+              if (zoneId === activeZoneId && !freeCameraActive) {
+                handleFreeCamera();
+                return;
+              }
+              handleSelectZone(zoneId);
+            }}
+            cameras={zoneCameras}
+            activeCameraKey={activeCameraKey}
+            onSelectCamera={handleSelectCamera}
           />
 
           {sidePanelOpen && activeZoneId && !freeCameraActive && (
             <ZoneSidePanel
-              zoneLabel={zoneLabel}
               cameras={zoneCameras}
               activeCameraKey={activeCameraKey}
               onSelectCamera={handleSelectCamera}
@@ -953,12 +1055,9 @@ export default function ConfiguratorShell({
               onSelectMesh={handleSelectMesh}
               getMaterials={getMaterials}
               onSelectMaterial={handleSelectMaterial}
+              onRemoveSelection={handleRemoveSelection}
               viewOnly={viewOnly}
-              onClose={() => {
-                setSidePanelOpen(false);
-                freeModeRef.current = true;
-                setFreeCameraActive(true);
-              }}
+              onClose={() => setSidePanelOpen(false)}
             />
           )}
 
@@ -982,17 +1081,18 @@ export default function ConfiguratorShell({
             onChangeResolution={handleChangeResolution}
             resolutionEnabled={stream.resolutionEnabled}
             viewOnly={viewOnly}
-            selectionCount={selections.selections.length}
-            levels={[]}
-            activeLevel={params.level || session.levelName}
-            onLoadLevel={handleLoadLevel}
-            onFinalDesign={() => {
+            materialsOpen={sidePanelOpen && !freeCameraActive}
+            onShowMaterials={handleShowMaterials}
+            onQuote={() => {
               setSelectionsOpen(false);
               setSettingsOpen(false);
               setSidePanelOpen(false);
-              finalDesign.openConfirm();
+              setQuoteDialogOpen(true);
             }}
-            finalDesignDisabled={stream.isLoading || sessionLoading}
+            selectedItems={dockSelections}
+            levels={[]}
+            activeLevel={params.level || session.levelName}
+            onLoadLevel={handleLoadLevel}
           />
 
           <SelectionsSheet
@@ -1003,7 +1103,7 @@ export default function ConfiguratorShell({
             onClose={() => setSelectionsOpen(false)}
             onSubmit={() => {
               setSelectionsOpen(false);
-              setSubmitOpen(true);
+              setReviewOpen(true);
             }}
             onRemove={handleRemoveSelection}
             viewOnly={viewOnly}
@@ -1030,6 +1130,30 @@ export default function ConfiguratorShell({
 
       {session ? (
         <>
+          <QuotationDialog
+            open={quoteDialogOpen && !viewOnly}
+            onBack={() => setQuoteDialogOpen(false)}
+            onGoToSummary={() => {
+              setQuoteDialogOpen(false);
+              setReviewOpen(true);
+            }}
+          />
+          <ReviewSelections
+            open={reviewOpen && !viewOnly}
+            session={session}
+            selections={selections.selections}
+            unitId={unitId}
+            onBack={() => {
+              setReviewOpen(false);
+              setQuoteDialogOpen(false);
+            }}
+            onConfirm={() => {
+              setReviewOpen(false);
+              setQuoteDialogOpen(false);
+              setSubmitOpen(false);
+              finalDesign.startCapture();
+            }}
+          />
           <FinalDesignPrompt
             open={finalDesign.phase === "confirm"}
             onBack={finalDesign.backToCustomize}
@@ -1038,14 +1162,20 @@ export default function ConfiguratorShell({
           <FinalDesignProgress
             open={finalDesign.phase === "capturing"}
             rooms={finalDesign.rooms}
-            completedCount={finalDesign.completedCount}
-            progressPct={finalDesign.progressPct}
-            allReady={finalDesign.canReview}
+            unitSubtitle={reviewUnitSubtitle(
+              unitId,
+              params.level || session.levelName,
+            )}
             error={finalDesign.globalError}
-            onBack={finalDesign.backToCustomize}
-            onReview={finalDesign.goReview}
+            submitPending={submitPending}
+            submitError={submitError}
+            onBack={() => {
+              finalDesign.backToCustomize();
+              setReviewOpen(true);
+            }}
             onView={finalDesign.openViewer}
             onRetry={finalDesign.retryRoom}
+            onSubmit={handleSubmit}
           />
           <FinalDesignViewer
             key={finalDesign.viewerRoom?.zoneId ?? "none"}
@@ -1060,7 +1190,7 @@ export default function ConfiguratorShell({
             onBack={finalDesign.backToCustomize}
             onQuote={() => {
               finalDesign.backToCustomize();
-              setSubmitOpen(true);
+              setReviewOpen(true);
             }}
           />
         </>

@@ -1,5 +1,3 @@
-// src/types/configurator.ts
-
 /** Camera coming from UE cameraZone events (or local overrides). */
 export type ConfiguratorCamera = {
   name: string;

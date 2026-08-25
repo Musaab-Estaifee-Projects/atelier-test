@@ -1,5 +1,3 @@
-// src/app/configurator/[projectId]/page.tsx
-
 import type { Metadata } from "next";
 import ConfiguratorClient from "./configurator-client";
 
@@ -13,7 +11,9 @@ type PageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export default async function ConfiguratorPage({ params }: PageProps) {
+const ConfiguratorPage = async ({ params }: PageProps) => {
   const { projectId } = await params;
   return <ConfiguratorClient projectId={projectId} />;
-}
+};
+
+export default ConfiguratorPage;

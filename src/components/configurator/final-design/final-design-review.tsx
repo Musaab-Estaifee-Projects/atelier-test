@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   ConfiguratorSession,
   RoomRenderCard,
@@ -132,12 +133,12 @@ export default function FinalDesignReview({
         </div>
 
         <div className="fd-actions fd-actions-end">
-          <button type="button" className="fd-btn fd-btn-ghost" onClick={onBack}>
+          <Button type="button" variant="pill-outline" size="pill" onClick={onBack}>
             Back to customize
-          </button>
-          <button type="button" className="fd-btn fd-btn-solid" onClick={onQuote}>
+          </Button>
+          <Button type="button" variant="pill-solid" size="pill" onClick={onQuote}>
             Request quote
-          </button>
+          </Button>
         </div>
       </div>
     </div>

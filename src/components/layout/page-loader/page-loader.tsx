@@ -8,6 +8,7 @@ import ByWord from "@/components/icons/by-word";
 import ReefWord from "@/components/icons/reef-word";
 import Star from "@/components/icons/star";
 import Link from "next/link";
+import { pageNoiseStyle } from "@/lib/ui/page-noise";
 
 interface PageLoaderProps {
   active: boolean;
@@ -33,10 +34,6 @@ function trackRealProgress(onProgress: (p: number) => void) {
     clearTimeout(safety);
   };
 }
-
-const NOISE_BG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E")`;
-
-const NOISE_BG_FOR_BUTTON = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.22'/%3E%3C/svg%3E")`;
 
 const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
   const router = useRouter();
@@ -142,11 +139,7 @@ const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
             },
           }}
           className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden"
-          style={{
-            backgroundImage: NOISE_BG,
-            backgroundRepeat: "repeat",
-            backgroundSize: "180px 180px",
-          }}
+          style={pageNoiseStyle(0.12)}
         >
           {/* Radial overlay */}
           <div
@@ -389,11 +382,7 @@ const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
                   ease: [0.22, 1, 0.36, 1],
                 },
               }}
-              style={{
-                backgroundImage: NOISE_BG_FOR_BUTTON,
-                backgroundRepeat: "repeat",
-                backgroundSize: "180px 180px",
-              }}
+              style={pageNoiseStyle(0.22)}
             >
               <motion.span
                 initial={{ opacity: 0 }}

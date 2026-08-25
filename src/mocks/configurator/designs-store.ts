@@ -1,4 +1,3 @@
-// src/mocks/configurator/designs-store.ts
 import type { StoredDesign } from "@/types/configurator";
 
 const MEMORY = new Map<string, StoredDesign>();

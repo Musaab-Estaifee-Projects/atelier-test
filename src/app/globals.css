@@ -208,3 +208,36 @@ html.lenis body {
   mask-composite: intersect;
 }
 /* End of Ticket Notch Style */
+
+/* Scrollbar Styling */
+.hidden-scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+}
+
+.hidden-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hidden-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+
+.hidden-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: transparent;
+}
+
+/* Firefox */
+.hidden-scrollbar {
+  scrollbar-width: none;
+  scrollbar-color: transparent;
+}
+
+.hidden-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+/* End of Scrollbar Styling */

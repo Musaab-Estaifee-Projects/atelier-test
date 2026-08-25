@@ -1,4 +1,3 @@
-// src/lib/configurator/sync-to-ue.ts
 /**
  * Restore localStorage / design selections onto UE after reload or stream drop.
  * 1) LoadCustomization (UE snapshot)
@@ -15,10 +14,7 @@ import {
   saveCustomizationToUe,
 } from "@/lib/configurator/apply-ue";
 import { normalizeZone } from "@/lib/configurator/url-params";
-import {
-  delay,
-  sendUntilAccepted,
-} from "@/lib/stream-pixel/share-restore";
+import { delay, sendUntilAccepted } from "@/lib/stream-pixel/share-restore";
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
@@ -135,9 +131,8 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
 
     const freshList = readLatest();
     const loadId =
-      (args.unitId
-        ? getUeLoadId(args.streamProjectId, args.unitId)
-        : null) ?? args.unitId;
+      (args.unitId ? getUeLoadId(args.streamProjectId, args.unitId) : null) ??
+      args.unitId;
 
     if (freshList.length && loadId) {
       args.onProgress?.("Loading saved customization…");

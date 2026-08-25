@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { RoomRenderCard } from "@/types/configurator";
 
 type Props = {
@@ -39,23 +40,25 @@ export default function FinalDesignViewer({ room, onClose }: Props) {
         </div>
         {stills.length > 1 ? (
           <div className="fd-viewer-nav">
-            <button
+            <Button
               type="button"
-              className="fd-btn fd-btn-ghost"
+              variant="pill-outline"
+              size="pill"
               onClick={() => setIndex((i) => (i - 1 + stills.length) % stills.length)}
             >
               Previous
-            </button>
+            </Button>
             <span>
               {index + 1} / {stills.length}
             </span>
-            <button
+            <Button
               type="button"
-              className="fd-btn fd-btn-ghost"
+              variant="pill-outline"
+              size="pill"
               onClick={() => setIndex((i) => (i + 1) % stills.length)}
             >
               Next
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

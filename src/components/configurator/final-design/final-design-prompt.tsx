@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 type Props = {
   open: boolean;
   onBack: () => void;
@@ -21,12 +23,12 @@ export default function FinalDesignPrompt({ open, onBack, onStart }: Props) {
           requesting your final quote.
         </p>
         <div className="fd-actions">
-          <button type="button" className="fd-btn fd-btn-ghost" onClick={onBack}>
+          <Button type="button" variant="pill-outline" size="pill" onClick={onBack}>
             Back to customize
-          </button>
-          <button type="button" className="fd-btn fd-btn-solid" onClick={onStart}>
+          </Button>
+          <Button type="button" variant="pill-solid" size="pill" onClick={onStart}>
             Start rendering
-          </button>
+          </Button>
         </div>
       </div>
     </div>

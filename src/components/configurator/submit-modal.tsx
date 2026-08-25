@@ -1,8 +1,8 @@
-// src/components/configurator/submit-modal.tsx
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
+import { OverlayDialog } from "@/components/ui/overlay-dialog";
 
 export type SubmitContactForm = {
   name: string;
@@ -30,8 +30,6 @@ export default function SubmitModal({
   const [phone, setPhone] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
-  if (!open || typeof document === "undefined") return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !phone.trim()) {
@@ -46,16 +44,20 @@ export default function SubmitModal({
     onSubmit({ name: name.trim(), email: email.trim(), phone: phone.trim() });
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="submit-title"
+  return (
+    <OverlayDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="Submit your design"
+      blur={false}
+      overlayClassName="z-[80] bg-black/60"
+      contentClassName="z-[80] w-[min(100%-2rem,28rem)]"
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-xl border border-white/10 bg-[#1a1a1c] p-5 text-[#f5f0e8]"
+        className="w-full rounded-xl border border-white/10 bg-[#1a1a1c] p-5 text-[#f5f0e8]"
       >
         <h2 id="submit-title" className="mb-1 text-base font-medium">
           Submit your design
@@ -99,24 +101,24 @@ export default function SubmitModal({
           <p className="mb-3 text-sm text-[#ff8a8a]">{localError || error}</p>
         )}
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
-            className="rounded-lg bg-white/10 px-3 py-2 text-sm"
+            variant="ghost"
+            className="h-auto rounded-lg bg-white/10 px-3 py-2 text-sm text-[#f5f0e8] hover:bg-white/20 hover:text-[#f5f0e8]"
             onClick={onClose}
             disabled={pending}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="rounded-lg bg-[#4e9cff] px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="h-auto rounded-lg bg-[#4e9cff] px-3 py-2 text-sm text-white hover:bg-[#4e9cff]/90"
             disabled={pending}
           >
             {pending ? "Submitting…" : "Submit"}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>,
-    document.body,
+    </OverlayDialog>
   );
 }

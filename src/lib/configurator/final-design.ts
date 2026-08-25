@@ -1,4 +1,3 @@
-// src/lib/configurator/final-design.ts
 /**
  * Final Design stills: room grouping from UE CaptureCamerasHighRes.
  * Map by camera NAME (UE capture indexes ≠ mesh-rules indexes).

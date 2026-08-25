@@ -8,10 +8,12 @@ import ByWord from "@/components/icons/by-word";
 import ReefWord from "@/components/icons/reef-word";
 import Star from "@/components/icons/star";
 import Link from "next/link";
+import { pageNoiseStyle } from "@/lib/ui/page-noise";
 
-const NOISE_BG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E")`;
-
-const NOISE_BG_FOR_BUTTON = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.22'/%3E%3C/svg%3E")`;
+const FH = 808;
+const ROW_T = 273;
+const ROW_M = 262;
+const Y_BOTTOM = `${((ROW_T + ROW_M + ROW_T / 2) / FH) * 100}%`;
 
 export default function HomeIntro() {
   const router = useRouter();
@@ -46,11 +48,7 @@ export default function HomeIntro() {
             },
           }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
-          style={{
-            backgroundImage: NOISE_BG,
-            backgroundRepeat: "repeat",
-            backgroundSize: "180px 180px",
-          }}
+          style={pageNoiseStyle(0.12)}
         >
           {/* Radial overlay */}
           <div
@@ -264,7 +262,7 @@ export default function HomeIntro() {
               initial={{ opacity: 0, backgroundColor: "rgba(20, 62, 71, 0.4)" }}
               animate={{
                 opacity: 1,
-                backgroundColor: "rgba(0, 0, 0, 0.55)",
+                backgroundColor: "rgb(29, 38, 39)",
               }}
               transition={{
                 opacity: { delay: 3.85, duration: 0.5 },
@@ -275,9 +273,7 @@ export default function HomeIntro() {
                 },
               }}
               style={{
-                backgroundImage: NOISE_BG_FOR_BUTTON,
-                backgroundRepeat: "repeat",
-                backgroundSize: "180px 180px",
+                ...pageNoiseStyle(0.13),
               }}
             >
               <motion.span
@@ -314,7 +310,7 @@ export default function HomeIntro() {
           </motion.p>
 
           <motion.nav
-            className="absolute top-[3%] right-[2%] z-10 flex gap-6 font-general-sans text-[10px] uppercase tracking-[0.22em] text-[#F5F0E8]/55"
+            className="absolute top-[3%] right-[2%] z-10 flex gap-6 font-general-sans text-[10px] uppercase tracking-[0.22em] text-white"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{

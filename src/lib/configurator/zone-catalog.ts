@@ -1,4 +1,3 @@
-// src/lib/configurator/zone-catalog.ts
 /**
  * Zones + cameras aligned with mock mesh-rules / UE URL values.
  * Zone ids match real stream query values (e.g. LivingArea, bedroom-1).
@@ -36,10 +35,10 @@ export const CONFIGURATOR_ZONES: ZoneDefinition[] = [
     ueZone: "LivingArea",
     aliases: ["living", "livingarea", "living-area", "living room", "lv"],
     cameras: [
-      { name: "CAM-LV-TV", mode: "Living TVWall" },
-      { name: "CAM-LV-CL", mode: "LivingCeiling" },
       { name: "CAM-LV-FL", mode: "LivingFloor" },
+      { name: "CAM-LV-TV", mode: "Living TVWall" },
       { name: "CAM-LV-SW", mode: "LivingSofaWall" },
+      { name: "CAM-LV-CL", mode: "LivingCeiling" },
     ],
   },
   {
@@ -80,7 +79,10 @@ export const CONFIGURATOR_ZONES: ZoneDefinition[] = [
 ];
 
 function norm(s: string): string {
-  return s.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
 }
 
 export function matchZoneId(zone: string | null | undefined): string | null {
@@ -102,10 +104,18 @@ export function zoneIdFromCamera(
   const name = (camera.name ?? "").toUpperCase();
   const mode = (camera.mode ?? "").toLowerCase();
 
-  if (name.includes("BR-01") || name.includes("BR_01") || mode.includes("bedroom 01")) {
+  if (
+    name.includes("BR-01") ||
+    name.includes("BR_01") ||
+    mode.includes("bedroom 01")
+  ) {
     return "bedroom-1";
   }
-  if (name.includes("BR-02") || name.includes("BR_02") || mode.includes("bedroom 02")) {
+  if (
+    name.includes("BR-02") ||
+    name.includes("BR_02") ||
+    mode.includes("bedroom 02")
+  ) {
     return "bedroom-2";
   }
   if (
@@ -191,6 +201,84 @@ export function cameraDisplayLabel(camera: {
   return (camera.name ?? "Camera").replace(/^CAM-/, "");
 }
 
+/** Stable key for the active camera chip / panel. */
+export function cameraKey(c: {
+  name?: string;
+  mode?: string;
+  index?: number;
+}): string {
+  return `${c.name ?? ""}|${c.mode ?? ""}|${c.index ?? ""}`;
+}
+
+/** Figma surface chips: Floor, TV Wall, Sofa Wall, Ceiling, … */
+export function surfaceDisplayLabel(camera: {
+  name?: string;
+  mode?: string;
+}): string {
+  const name = (camera.name ?? "").toUpperCase();
+  const mode = (camera.mode ?? "").toLowerCase();
+
+  if (name.includes("-SW") || mode.includes("sofa")) return "Sofa Wall";
+  if (name.includes("-FL") || mode.includes("floor")) return "Floor";
+  if (name.includes("-CL") || mode.includes("ceiling")) return "Ceiling";
+  if (name.includes("-HB") || mode.includes("headboard")) return "Headboard";
+  if (name.includes("-WD") || mode.includes("wardrobe")) return "Wardrobe";
+  if (
+    name.includes("-PT") ||
+    mode.includes("partition") ||
+    mode.includes("glass")
+  ) {
+    return "Glass Partition";
+  }
+  if (name.includes("-KT") || mode.includes("kitchen")) return "Kitchen";
+  if (name.includes("-TV") || mode.includes("tv")) return "TV Wall";
+  return cameraDisplayLabel(camera);
+}
+
+/** Dock / review shorthand: "Living Floor" → "Floor". */
+export function shortSurfaceLabel(label: string): string {
+  return (
+    label
+      .replace(/^Living\s+/i, "")
+      .replace(/^Bedroom\s+0?\d\s+/i, "")
+      .replace(/\s+Cabinets$/i, "")
+      .replace(/\s+unit wall$/i, " Wall")
+      .trim() || label
+  );
+}
+
+/** Finish-type row label (mesh). Prefer a human name over raw MSH-* ids. */
+export function finishTypeDisplayName(mesh: {
+  id: string;
+  displayName?: string;
+}): string {
+  const raw = mesh.displayName?.trim();
+  if (raw && raw !== mesh.id && !raw.startsWith("MSH-")) return raw;
+
+  const id = mesh.id.toLowerCase();
+  if (id.includes("-kt-cb")) return "Cabinets";
+  if (id.includes("-kt-is")) return "Island";
+  if (id.includes("-kt-pt")) return "Partition";
+  if (id.includes("-wd")) return "Wardrobe";
+
+  const isWall =
+    id.includes("-tv") || id.includes("sofa") || id.includes("-hb");
+  if (isWall && (id.endsWith("-0002") || id.endsWith("-0001")))
+    return "Stripped";
+  if (isWall && id.endsWith("-0003")) return "Grooved";
+  if (isWall && id.endsWith("-0004")) return "Wallpaper";
+
+  if (id.includes("-fl-0002") || id.endsWith("-fl-0001")) return "Parquet";
+  if (id.includes("-fl-0003")) return "Marble";
+  if (id.includes("-fl-0004")) return "Porcelain";
+
+  if (id.includes("-cl-0001")) return "White";
+  if (id.includes("-cl-0002")) return "Soft";
+  if (id.includes("-cl-0003")) return "Warm";
+
+  return raw || mesh.id.replace(/^MSH-/, "");
+}
+
 export function ueZoneName(zoneId: string): string {
   return CONFIGURATOR_ZONES.find((z) => z.id === zoneId)?.ueZone ?? zoneId;
 }
@@ -222,9 +310,7 @@ export function heroCameraForZone(
 ): CameraRule | null {
   const cams = camerasForZone(zoneId, rules);
   return (
-    cams.find(
-      (c) => c.index != null && !Number.isNaN(Number(c.index)),
-    ) ?? null
+    cams.find((c) => c.index != null && !Number.isNaN(Number(c.index))) ?? null
   );
 }
 

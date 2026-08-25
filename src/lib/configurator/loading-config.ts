@@ -1,5 +1,3 @@
-// src/lib/configurator/loading-config.ts
-
 export const LOADING_CONFIG = {
   backgroundColor: "#18181A",
   accentColor: "#4e9cff",

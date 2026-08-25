@@ -1,5 +1,8 @@
-// src/lib/configurator/storage.ts
-import type { LocalDraft, SelectionEntry, SelectionMap } from "@/types/configurator";
+import type {
+  LocalDraft,
+  SelectionEntry,
+  SelectionMap,
+} from "@/types/configurator";
 
 export function draftStorageKey(
   streamProjectId: string,
@@ -12,7 +15,7 @@ export type StorageWriteResult =
   | { ok: true }
   | { ok: false; reason: "quota" | "unavailable" | "parse" };
 
-let memoryFallback: Record<string, LocalDraft> = {};
+const memoryFallback: Record<string, LocalDraft> = {};
 let storageWarned = false;
 
 export function isUsingMemoryOnlyStorage(): boolean {
@@ -92,6 +95,18 @@ export function getUeLoadId(
 ): string | null {
   if (!unitId) return null;
   return loadDraft(streamProjectId, unitId)?.ueLoadId?.trim() || null;
+}
+
+/**
+ * Reuse the stored UE LoadCustomization id for this unit.
+ * Does not invent a LoadID — that arrives from SaveCustomization.
+ */
+export function ensureCustomizationRef(
+  streamProjectId: string,
+  unitId: string,
+  _levelName?: string,
+): string | undefined {
+  return getUeLoadId(streamProjectId, unitId) ?? undefined;
 }
 
 export function selectionsToMap(list: SelectionEntry[]): SelectionMap {

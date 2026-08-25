@@ -1,8 +1,8 @@
-// src/components/configurator/design-success.tsx
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
+import { OverlayDialog } from "@/components/ui/overlay-dialog";
 
 type Props = {
   open: boolean;
@@ -22,7 +22,6 @@ export default function DesignSuccess({
   onClose,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  if (!open || typeof document === "undefined") return null;
 
   const copy = async () => {
     try {
@@ -34,13 +33,18 @@ export default function DesignSuccess({
     }
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
+  return (
+    <OverlayDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="Design submitted"
+      blur={false}
+      overlayClassName="z-[80] bg-black/60"
+      contentClassName="z-[80] w-[min(100%-2rem,28rem)]"
     >
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#1a1a1c] p-5 text-[#f5f0e8]">
+      <div className="w-full rounded-xl border border-white/10 bg-[#1a1a1c] p-5 text-[#f5f0e8]">
         <h2 className="mb-2 text-base font-medium">Design submitted</h2>
         <p className="mb-1 text-sm opacity-70">Design Code</p>
         <p className="mb-3 font-mono text-xl tracking-wide">{designCode}</p>
@@ -52,23 +56,23 @@ export default function DesignSuccess({
         </p>
         <p className="mb-2 break-all text-xs opacity-60">{shareUrl}</p>
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
-            className="rounded-lg bg-white/10 px-3 py-2 text-sm"
+            variant="ghost"
+            className="h-auto rounded-lg bg-white/10 px-3 py-2 text-sm text-[#f5f0e8] hover:bg-white/20 hover:text-[#f5f0e8]"
             onClick={copy}
           >
             {copied ? "Copied" : "Copy share link"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="rounded-lg bg-[#4e9cff] px-3 py-2 text-sm text-white"
+            className="h-auto rounded-lg bg-[#4e9cff] px-3 py-2 text-sm text-white hover:bg-[#4e9cff]/90"
             onClick={onClose}
           >
             View design
-          </button>
+          </Button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </OverlayDialog>
   );
 }

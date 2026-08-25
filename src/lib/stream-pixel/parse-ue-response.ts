@@ -1,5 +1,3 @@
-// src/lib/streampixel/parse-ue-response.ts
-
 import type { ConfiguratorCamera } from "@/types/configurator";
 
 export type CameraZoneEvent = {

@@ -1,4 +1,3 @@
-// src/lib/configurator/api.ts
 /**
  * Configurator API façade.
  * // MOCK: replace function bodies with real fetch() — keep signatures stable.
@@ -67,7 +66,11 @@ export async function submitDesign(args: {
   await delay(250);
 
   const { contact, configuration, session, streamProjectId, unitId } = args;
-  if (!contact.name?.trim() || !contact.email?.trim() || !contact.phone?.trim()) {
+  if (
+    !contact.name?.trim() ||
+    !contact.email?.trim() ||
+    !contact.phone?.trim()
+  ) {
     throw new ApiError("Name, email, and phone are required", 400);
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) {

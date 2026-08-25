@@ -1,5 +1,3 @@
-/* src/app/configurator/configurator.css */
-
 /* Full-bleed stream shell — overrides Lenis height:auto on html/body */
 html.configurator-active,
 html.configurator-active body,
@@ -435,25 +433,9 @@ html.configurator-active body > div {
   word-break: break-word;
 }
 
-/* ── New chrome: zone bar, side panel, dock ───────────────────────── */
+/* ── Chrome hooks (layout/visuals live in the React components) ───── */
 .cfg-zone-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
   z-index: 28;
-  display: flex;
-  justify-content: center;
-  padding: 12px 16px 10px;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(8, 10, 14, 0.55),
-    rgba(8, 10, 14, 0.2),
-    transparent
-  );
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 .cfg-zone-bar-list {
   pointer-events: auto;
@@ -497,21 +479,7 @@ html.configurator-active body > div {
 }
 
 .cfg-side-panel {
-  position: absolute;
-  top: 72px;
-  left: 16px;
   z-index: 30;
-  width: min(320px, calc(100vw - 32px));
-  max-height: calc(100dvh - 160px);
-  overflow: auto;
-  border-radius: 16px;
-  padding: 14px 14px 18px;
-  color: #f5f0e8;
-  background: rgba(12, 14, 18, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 .cfg-side-panel-header {
   display: flex;
@@ -639,25 +607,7 @@ html.configurator-active body > div {
 }
 
 .cfg-dock-wrap {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 32;
-  pointer-events: none;
-}
-.cfg-dock {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: rgba(12, 14, 18, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 .cfg-dock-btn {
   position: relative;
@@ -841,14 +791,6 @@ html.configurator-active body > div {
 }
 
 @media (max-width: 640px) {
-  .cfg-side-panel {
-    top: auto;
-    bottom: 88px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-height: 42dvh;
-  }
   .cfg-dock-btn {
     padding: 8px 10px;
     font-size: 11px;
@@ -1315,7 +1257,7 @@ html.configurator-active body > div {
 .fd-viewer {
   position: absolute;
   inset: 0;
-  z-index: 60;
+  z-index: 70;
   display: flex;
   align-items: center;
   justify-content: center;

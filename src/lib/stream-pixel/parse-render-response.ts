@@ -1,4 +1,3 @@
-// src/lib/stream-pixel/parse-render-response.ts
 import { parseUeResponse } from "@/lib/stream-pixel/parse-ue-response";
 
 export type RenderCameraPayload = {
@@ -110,7 +109,11 @@ function parseRenderPayload(raw: unknown): RenderEvent | null {
     return null;
   }
   // OpeningLevel and cameraZone must never be treated as renders
-  if (type === "camerazone" || type === "camera_zone" || type === "openinglevel") {
+  if (
+    type === "camerazone" ||
+    type === "camera_zone" ||
+    type === "openinglevel"
+  ) {
     return null;
   }
 
@@ -128,7 +131,11 @@ function parseRenderPayload(raw: unknown): RenderEvent | null {
   else if (looksCompleted) kind = "completed";
   else if (status === "error" || status === "failed") kind = "error";
   else if (status === "uploaded" || type === "uploaded") kind = "uploaded";
-  else if (status === "capturing" || status === "capture" || type === "render") {
+  else if (
+    status === "capturing" ||
+    status === "capture" ||
+    type === "render"
+  ) {
     kind = "capturing";
   }
 
