@@ -6,7 +6,13 @@ import {
 
 export type StreamPixelInitConfig = Pick<
   StreamPixelConfig,
-  "appId" | "AutoConnect" | "streamerId" | "sfuHost" | "sfuPlayer" | "forceTurn"
+  | "appId"
+  | "AutoConnect"
+  | "streamerId"
+  | "sfuHost"
+  | "sfuPlayer"
+  | "forceTurn"
+  | "afktimeout"
 >;
 
 /** SDK can return null, {}, or a codec array — not only the success shape. */
@@ -31,6 +37,7 @@ export function streamPixelInitKey(config: StreamPixelInitConfig): string {
     config.streamerId ?? "",
     String(config.sfuHost ?? "false"),
     String(config.sfuPlayer ?? "false"),
+    String(config.afktimeout ?? ""),
   ].join("|");
 }
 

@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
+import type { StreamOverlayKind } from "@/lib/configurator/loading-config";
 
-export type StreamOverlayKind = "loading" | "queue" | "disconnected";
+export type { StreamOverlayKind };
 
 type Props = {
   kind: StreamOverlayKind;
@@ -14,6 +16,7 @@ type Props = {
   selectionCount?: number;
   onReconnect?: () => void;
   onContinueToSummary?: () => void;
+  onBackHome?: () => void;
   onBrowseStyles?: () => void;
   /** Full-viewport lock for the pre-shell boot state. */
   layout?: "absolute" | "fixed";
@@ -41,19 +44,21 @@ export default function LoadingOverlay({
   selectionCount = 0,
   onReconnect,
   onContinueToSummary,
+  onBackHome,
   onBrowseStyles,
   layout = "absolute",
 }: Props) {
-  const bg =
-    kind === "disconnected"
-      ? "/images/session/bg-disconnected.png"
-      : "/images/session/bg-loading.png";
+  const ended = kind === "disconnected" || kind === "idle";
+  const bg = ended
+    ? "/images/session/bg-disconnected.png"
+    : "/images/session/bg-loading.png";
 
   return (
     <div
       className={`${layout === "fixed" ? "fixed" : "absolute"} inset-0 z-[70] overflow-hidden bg-[#00272d] text-white`}
-      role="status"
-      aria-live="polite"
+      role={ended ? "alertdialog" : "status"}
+      aria-modal={ended || undefined}
+      aria-live={ended ? "assertive" : "polite"}
     >
       <SessionBackdrop src={bg} />
 
@@ -75,10 +80,24 @@ export default function LoadingOverlay({
           ) : null}
 
           {kind === "disconnected" ? (
-            <ConnectionLost
+            <SessionEnded
+              eyebrow="Connection lost"
+              title="The 3D session dropped"
               selectionCount={selectionCount}
+              secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
-              onContinueToSummary={onContinueToSummary}
+              onSecondary={onContinueToSummary}
+            />
+          ) : null}
+
+          {kind === "idle" ? (
+            <SessionEnded
+              eyebrow="Session ended"
+              title="The 3D session ended due to inactivity"
+              selectionCount={selectionCount}
+              secondaryLabel="Back to home page"
+              onReconnect={onReconnect}
+              onSecondary={onBackHome}
             />
           ) : null}
         </div>
@@ -105,10 +124,10 @@ function LoadingUnit({
         {unitSubtitle}
       </p>
       <div className="mt-6 h-[2px] w-full max-w-[467px] overflow-hidden bg-white/10">
-        <div
-          className="h-full bg-[#ada599] transition-[width] duration-300"
-          style={{ width: `${pct}%` }}
-        />
+          <div
+            className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%` }}
+          />
       </div>
 
       <div className="mt-8 grid w-full max-w-[450px] grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
@@ -189,14 +208,20 @@ function QueueWait({
   );
 }
 
-function ConnectionLost({
+function SessionEnded({
+  eyebrow,
+  title,
   selectionCount,
+  secondaryLabel,
   onReconnect,
-  onContinueToSummary,
+  onSecondary,
 }: {
+  eyebrow: string;
+  title: string;
   selectionCount: number;
+  secondaryLabel: string;
   onReconnect?: () => void;
-  onContinueToSummary?: () => void;
+  onSecondary?: () => void;
 }) {
   const saved =
     selectionCount > 0
@@ -204,7 +229,7 @@ function ConnectionLost({
       : "Your selections are saved. Nothing was lost.";
 
   return (
-    <div className="flex w-full max-w-[520px] flex-col items-center px-2">
+    <div className="flex w-full max-w-[720px] flex-col items-center px-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/session/cloud-slash.svg"
@@ -212,10 +237,10 @@ function ConnectionLost({
         className="mb-6 h-[51px] w-[60px]"
       />
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#e29584] uppercase">
-        Connection lost
+        {eyebrow}
       </p>
       <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
-        The 3D session dropped
+        {title}
       </h1>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -240,24 +265,25 @@ function ConnectionLost({
         variant="pill-outline"
         size="pill"
         className="mt-4 w-full max-w-[284px] whitespace-normal"
-        onClick={onContinueToSummary}
+        onClick={onSecondary}
       >
-        Continue to the summary page
+        {secondaryLabel}
       </Button>
     </div>
   );
 }
 
 export function streamOverlayKind(args: {
+  streamPhase?: StreamOverlayKind;
   queuePosition: number | null;
   loadingTitle: string;
 }): StreamOverlayKind {
-  if (args.queuePosition != null) return "queue";
-  if (
-    /disconnected|failed|session ended|reconnect failed/i.test(
-      args.loadingTitle,
-    )
-  ) {
+  if (args.streamPhase === "idle") return "idle";
+  if (args.streamPhase === "disconnected") return "disconnected";
+  if (args.streamPhase === "queue") return "queue";
+  if (args.queuePosition != null && args.queuePosition > 0) return "queue";
+  if (/inactiv|session ended/i.test(args.loadingTitle)) return "idle";
+  if (/disconnected|failed|reconnect failed/i.test(args.loadingTitle)) {
     return "disconnected";
   }
   return "loading";
@@ -269,11 +295,20 @@ export function ConfiguratorBootOverlay({
 }: {
   unitSubtitle?: string;
 }) {
+  const [progress, setProgress] = useState(10);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setProgress((p) => (p >= 22 ? p : p + 0.35));
+    }, 180);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
     <LoadingOverlay
       layout="fixed"
       kind="loading"
-      progress={12}
+      progress={progress}
       unitSubtitle={unitSubtitle}
     />
   );

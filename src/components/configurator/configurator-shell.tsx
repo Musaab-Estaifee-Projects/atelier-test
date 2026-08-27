@@ -23,10 +23,7 @@ import {
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
 import { getMaterialsForMesh } from "@/lib/configurator/materials";
 import { loadDraft, saveUeLoadId } from "@/lib/configurator/storage";
-import {
-  normalizeZone,
-  zoneUrlPatch,
-} from "@/lib/configurator/url-params";
+import { normalizeZone, zoneUrlPatch } from "@/lib/configurator/url-params";
 import {
   camerasForZone,
   matchZoneId,
@@ -64,6 +61,7 @@ import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
 import StreamViewport from "./stream-viewport";
 import LoadingOverlay, { streamOverlayKind } from "./loading-overlay";
+import AfkWarningOverlay from "./afk-warning-overlay";
 import QuotationDialog from "./quotation-dialog";
 import ZoneTopBar from "./zone-top-bar";
 import ZoneSidePanel, { cameraKey } from "./zone-side-panel";
@@ -133,8 +131,8 @@ export default function ConfiguratorShell({
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
   const [ueSyncNonce, setUeSyncNonce] = useState(0);
 
-  const [activeZoneId, setActiveZoneId] = useState<string | null>(
-    () => matchZoneId(params.zone),
+  const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
+    matchZoneId(params.zone),
   );
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [freeCameraActive, setFreeCameraActive] = useState(
@@ -144,7 +142,8 @@ export default function ConfiguratorShell({
   const [activeRule, setActiveRule] = useState<CameraRule | null>(null);
   const [selectionsOpen, setSelectionsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentResolution, setCurrentResolution] = useState("Auto (Dashboard)");
+  const [currentResolution, setCurrentResolution] =
+    useState("Auto (Dashboard)");
 
   const appliedReadyRef = useRef(false);
   const loadedLevelRef = useRef<string | null>(null);
@@ -275,7 +274,11 @@ export default function ConfiguratorShell({
   }, [stream.pixelStreamingRef, stream.streamReadyRef]);
 
   const runUeSync = useCallback(
-    async (opts?: { force?: boolean; skipLoadLevel?: boolean; forceLoadLevel?: boolean }) => {
+    async (opts?: {
+      force?: boolean;
+      skipLoadLevel?: boolean;
+      forceLoadLevel?: boolean;
+    }) => {
       if (!session) return;
       if (viewOnly && !design) return;
 
@@ -404,8 +407,7 @@ export default function ConfiguratorShell({
           const sess = await getConfiguratorSession({
             unitId: unit,
             streamProjectId: projectId,
-            levelName:
-              params.level || stored.configuration.levelName,
+            levelName: params.level || stored.configuration.levelName,
           });
           if (cancelled) return;
           setSession(sess);
@@ -529,13 +531,7 @@ export default function ConfiguratorShell({
     return () => {
       cancelled = true;
     };
-  }, [
-    params.level,
-    stream.isLoading,
-    session,
-    selections.hydrated,
-    send,
-  ]);
+  }, [params.level, stream.isLoading, session, selections.hydrated, send]);
 
   const zoneCameras = useMemo(() => {
     if (!activeZoneId || !session) return [];
@@ -725,9 +721,9 @@ export default function ConfiguratorShell({
       const materialId =
         mats.length === 0
           ? ""
-          : (prevMat && mats.some((m) => m.id === prevMat)
+          : ((prevMat && mats.some((m) => m.id === prevMat)
               ? prevMat
-              : mats[0]?.id) ?? "";
+              : mats[0]?.id) ?? "");
 
       const entry: SelectionEntry = {
         slot,
@@ -768,7 +764,16 @@ export default function ConfiguratorShell({
         streamProjectId: projectId,
       });
     },
-    [viewOnly, selections, session, send, params.zone, params.camera, unitId, projectId],
+    [
+      viewOnly,
+      selections,
+      session,
+      send,
+      params.zone,
+      params.camera,
+      unitId,
+      projectId,
+    ],
   );
 
   const handleLoadLevel = useCallback(
@@ -901,15 +906,30 @@ export default function ConfiguratorShell({
     : selections.optimisticPrice;
 
   const overlayKind = streamOverlayKind({
+    streamPhase: stream.streamPhase,
     queuePosition: stream.queuePosition,
     loadingTitle: stream.loadingTitle,
   });
   const streamBlocking =
     stream.isLoading ||
     overlayKind === "queue" ||
-    overlayKind === "disconnected";
+    overlayKind === "disconnected" ||
+    overlayKind === "idle";
   const showStreamOverlay =
     (streamBlocking || sessionLoading) && !streamOverlayDismissed;
+  const showAfkWarning =
+    stream.afkWarning && !showStreamOverlay && overlayKind !== "idle";
+
+  useEffect(() => {
+    if (overlayKind !== "idle" && overlayKind !== "disconnected") return;
+    if (overlayKind === "idle") setStreamOverlayDismissed(false);
+    setQuoteDialogOpen(false);
+    setSubmitOpen(false);
+    setReviewOpen(false);
+    setSelectionsOpen(false);
+    setSettingsOpen(false);
+    setBrowseStylesOpen(false);
+  }, [overlayKind]);
 
   if (designError) {
     return (
@@ -965,6 +985,9 @@ export default function ConfiguratorShell({
             setQuoteDialogOpen(false);
             setReviewOpen(true);
           }}
+          onBackHome={() => {
+            window.location.assign("/");
+          }}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
         />
       ) : null}
@@ -999,21 +1022,12 @@ export default function ConfiguratorShell({
         </div>
       )}
 
-      {stream.afkWarning && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
-          <div className="rounded-lg bg-[#1a1a1c] p-6 text-center text-white">
-            <p className="mb-2 text-sm opacity-70">Inactivity warning</p>
-            <p className="mb-4 text-2xl font-medium">{stream.afkCountdown}s</p>
-            <button
-              type="button"
-              className="rounded bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
-              onClick={stream.dismissAfk}
-            >
-              Stay connected
-            </button>
-          </div>
-        </div>
-      )}
+      {showAfkWarning ? (
+        <AfkWarningOverlay
+          countdown={stream.afkCountdown}
+          onStay={stream.dismissAfk}
+        />
+      ) : null}
 
       {viewOnly && params.designCode && (
         <ViewOnlyBanner
@@ -1029,7 +1043,7 @@ export default function ConfiguratorShell({
       )}
 
       {!stream.isLoading && session && (
-        <>
+        <div inert={showAfkWarning ? true : undefined}>
           <ZoneTopBar
             activeZoneId={activeZoneId}
             freeCameraActive={freeCameraActive}
@@ -1108,7 +1122,7 @@ export default function ConfiguratorShell({
             onRemove={handleRemoveSelection}
             viewOnly={viewOnly}
           />
-        </>
+        </div>
       )}
 
       <SubmitModal

@@ -53,8 +53,8 @@ html.configurator-active body > div {
   inset: 0 !important;
   top: 0 !important;
   left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+  width: 100vw !important;
+  height: 100vh !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0 !important;
@@ -76,18 +76,38 @@ html.configurator-active body > div {
   background: #000;
 }
 
+/* Epic Pixel Streaming connection chrome — we use our own overlay */
+.stream-viewport #connectOverlay,
+.stream-viewport #connectStatus,
+.stream-viewport #playOverlay,
+.stream-viewport #infoOverlay,
+.stream-viewport #videoPlayOverlay,
+.stream-viewport #uiFeatures,
+.stream-viewport #afkOverlay,
+.stream-viewport .clickToPlayOverlay,
+html.configurator-active #afkOverlay {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .stream-viewport:fullscreen,
 .stream-viewport:-webkit-full-screen,
 .configurator-shell:fullscreen,
 .configurator-shell:-webkit-full-screen {
-  width: 100% !important;
-  height: 100% !important;
+  width: 100vw !important;
+  height: 100vh !important;
   max-width: none !important;
   max-height: none !important;
   background: #000;
   position: fixed !important;
   inset: 0 !important;
   overflow: hidden;
+}
+
+.stream-viewport video {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
 }
 
 .configurator-shell:fullscreen .stream-viewport,
@@ -459,7 +479,9 @@ html.configurator-active body > div {
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.78);
   background: transparent;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .cfg-zone-chip:hover {
   color: #fff;
@@ -553,7 +575,9 @@ html.configurator-active body > div {
   color: rgba(255, 255, 255, 0.78);
   background: transparent;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .cfg-mesh-btn:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -1048,8 +1072,7 @@ html.configurator-active body > div {
 }
 .fd-thumb-empty {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
-    #071c20;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), #071c20;
 }
 .fd-room-card-title {
   display: flex;

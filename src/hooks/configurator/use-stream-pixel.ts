@@ -4,14 +4,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LOADING_CONFIG } from "@/lib/configurator/loading-config";
+import {
+  LOADING_CONFIG,
+  LOADING_PROGRESS,
+  type StreamOverlayKind,
+} from "@/lib/configurator/loading-config";
 import {
   ensureStreamPixelApplication,
   isStreamPixelSuccess,
   markStreamPixelDisposed,
   streamPixelInitKey,
 } from "@/lib/stream-pixel/ensure-application";
-import { fitStreamDom, toggleFullscreen } from "@/lib/stream-pixel/fit-stream";
+import { fitStreamDom, toggleFullscreen, waitForVideoFrame } from "@/lib/stream-pixel/fit-stream";
+import {
+  AFK_CONFIG,
+  STREAM_PIXEL_AFK_TIMEOUT_SECS,
+  enableStreamPixelAfk,
+} from "@/lib/stream-pixel/afk";
 
 const SHOW_DEV_TOOLS = process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === "true";
 
@@ -56,6 +65,8 @@ export function useStreamPixel({
   onUeResponseRef.current = onUeResponse;
 
   const [isLoading, setIsLoading] = useState(true);
+  const [streamPhase, setStreamPhase] =
+    useState<StreamOverlayKind>("loading");
   const [loadingTitle, setLoadingTitle] = useState<string>(
     LOADING_CONFIG.title,
   );
@@ -65,22 +76,39 @@ export function useStreamPixel({
   const [loadingStatus, setLoadingStatus] = useState<string>(
     LOADING_CONFIG.statusMessages.initializing,
   );
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState<number>(
+    LOADING_PROGRESS.initializing,
+  );
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const failedRef = useRef(false);
+  const revealingRef = useRef(false);
   const [isMuted, setIsMuted] = useState(true);
   const [afkWarning, setAfkWarning] = useState(false);
   const [afkCountdown, setAfkCountdown] = useState(0);
   const dismissAfkRef = useRef<(() => void) | null>(null);
+  const resetAfkWatchdogRef = useRef<(() => void) | null>(null);
+  const idleTimedOutRef = useRef(false);
+  const afkWarningRef = useRef(false);
   const [resolutionEnabled, setResolutionEnabled] = useState(false);
 
   const safeHideDefaultUi = useCallback((appStream: any) => {
     try {
+      const root = appStream?.rootElement as HTMLElement | null | undefined;
       const candidates: Array<HTMLElement | null | undefined> = [
         appStream?.uiFeaturesElement,
-        appStream?.rootElement?.querySelector?.("#uiFeatures"),
-        appStream?.rootElement?.querySelector?.("[id='uiFeatures']"),
+        root?.querySelector?.("#uiFeatures"),
+        root?.querySelector?.("[id='uiFeatures']"),
+        root?.querySelector?.("#connectOverlay"),
+        root?.querySelector?.("#playOverlay"),
+        root?.querySelector?.("#infoOverlay"),
+        root?.querySelector?.("#videoPlayOverlay"),
+        root?.querySelector?.("#streamingStateOverlay"),
+        root?.querySelector?.("#afkOverlay"),
         typeof document !== "undefined"
           ? (document.getElementById("uiFeatures") as HTMLElement | null)
+          : null,
+        typeof document !== "undefined"
+          ? (document.getElementById("afkOverlay") as HTMLElement | null)
           : null,
       ];
 
@@ -111,6 +139,31 @@ export function useStreamPixel({
     }
   }, []);
 
+  // Keep the bar moving between StreamPixel events so it never sits still.
+  useEffect(() => {
+    if (!isLoading) return;
+    if (
+      streamPhase === "disconnected" ||
+      streamPhase === "queue" ||
+      streamPhase === "idle"
+    )
+      return;
+
+    const id = window.setInterval(() => {
+      setLoadingProgress((p) => {
+        if (p >= LOADING_PROGRESS.awaitingVideo) return p;
+        const ceiling = Math.min(
+          LOADING_PROGRESS.awaitingVideo,
+          Math.floor(p / 10) * 10 + 9,
+        );
+        if (p >= ceiling) return p;
+        return Math.min(ceiling, p + 0.45);
+      });
+    }, 180);
+
+    return () => window.clearInterval(id);
+  }, [isLoading, streamPhase]);
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -121,6 +174,7 @@ export function useStreamPixel({
       sfuHost: sfuHost ?? "false",
       sfuPlayer: sfuPlayer ?? "false",
       forceTurn: true as const,
+      afktimeout: STREAM_PIXEL_AFK_TIMEOUT_SECS,
     };
     const initKey = streamPixelInitKey(initConfig);
     activeInitKey = initKey;
@@ -134,8 +188,24 @@ export function useStreamPixel({
     mountedRef.current = true;
     let cancelled = false;
 
-    const fail = (title: string, status: string) => {
+    const fail = (
+      title: string,
+      status: string,
+      kind: Extract<StreamOverlayKind, "disconnected" | "idle"> = "disconnected",
+    ) => {
       if (cancelled || !mountedRef.current) return;
+      // AFK timeout is terminal until the user reloads — don't let
+      // webRtcDisconnected / reconnectStream replace the inactivity screen.
+      if (idleTimedOutRef.current && kind !== "idle") return;
+      if (kind === "idle") idleTimedOutRef.current = true;
+      failedRef.current = true;
+      streamReadyRef.current = false;
+      isReconnecting.current = false;
+      afkWarningRef.current = false;
+      setAfkWarning(false);
+      dismissAfkRef.current = null;
+      setQueuePosition(null);
+      setStreamPhase(kind);
       setIsLoading(true);
       setLoadingTitle(title);
       setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
@@ -144,11 +214,20 @@ export function useStreamPixel({
     };
 
     const start = async () => {
+      failedRef.current = false;
+      idleTimedOutRef.current = false;
+      isReconnecting.current = false;
+      revealingRef.current = false;
+      afkWarningRef.current = false;
+      setAfkWarning(false);
+      dismissAfkRef.current = null;
+      setStreamPhase("loading");
+      setQueuePosition(null);
       setIsLoading(true);
       setLoadingTitle(LOADING_CONFIG.title);
       setLoadingSubtitle(LOADING_CONFIG.subtitle);
       setLoadingStatus(LOADING_CONFIG.statusMessages.connecting);
-      setLoadingProgress(10);
+      setLoadingProgress(LOADING_PROGRESS.initializing);
 
       try {
         const result = await ensureStreamPixelApplication(initConfig);
@@ -205,37 +284,71 @@ export function useStreamPixel({
         }
 
         safeHideDefaultUi(appStream);
+        enableStreamPixelAfk(
+          pixelStreaming,
+          appStream,
+          STREAM_PIXEL_AFK_TIMEOUT_SECS,
+        );
 
-        const finishVideoReady = () => {
-          if (cancelled || !mountedRef.current) return;
+        const findVideoElement = (): HTMLVideoElement | null => {
+          const root = appStream.rootElement as HTMLElement | null | undefined;
+          const found =
+            appStream.stream?.videoElementParent?.querySelector?.("video") ??
+            root?.querySelector?.("video") ??
+            videoContainerRef.current?.querySelector?.("video");
+          return found instanceof HTMLVideoElement ? found : null;
+        };
+
+        const revealStream = () => {
+          if (cancelled || !mountedRef.current || failedRef.current) return;
+          streamReadyRef.current = true;
+          setLoadingProgress(LOADING_PROGRESS.ready);
+          registerUeListeners(pixelStreaming);
+          window.setTimeout(() => {
+            if (cancelled || !mountedRef.current || failedRef.current) return;
+            setStreamPhase("loading");
+            setIsLoading(false);
+            setQueuePosition(null);
+            setLoadingTitle(LOADING_CONFIG.title);
+            setLoadingSubtitle(LOADING_CONFIG.subtitle);
+            isReconnecting.current = false;
+            revealingRef.current = false;
+          }, 700);
+        };
+
+        const finishVideoReady = async () => {
+          if (cancelled || !mountedRef.current || failedRef.current) return;
+          if (revealingRef.current) return;
+          revealingRef.current = true;
 
           try {
-            streamReadyRef.current = true;
-
             const container = videoContainerRef.current;
             const root = appStream.rootElement;
 
-            // Mount only if not already under our container
-            if (container && root) {
-              if (root.parentElement !== container) {
-                container.appendChild(root);
-              }
+            if (container && root && root.parentElement !== container) {
+              container.appendChild(root);
             }
 
             safeHideDefaultUi(appStream);
             fitStreamDom(container, appStream, pixelStreaming);
+            setLoadingProgress((p) =>
+              Math.max(p, LOADING_PROGRESS.awaitingVideo),
+            );
+            setLoadingStatus(LOADING_CONFIG.statusMessages.playingStream);
 
-            // Prefer optional chaining — SDK video tree can lag one frame
-            const videoElement =
-              appStream.stream?.videoElementParent?.querySelector?.("video") ??
-              root?.querySelector?.("video");
+            let videoElement = findVideoElement();
+            const waitUntil = Date.now() + 12000;
+            while (!videoElement && Date.now() < waitUntil) {
+              if (cancelled || !mountedRef.current || failedRef.current) return;
+              await new Promise((r) => window.setTimeout(r, 120));
+              videoElement = findVideoElement();
+            }
 
             if (videoElement) {
               videoElement.muted = true;
               videoElement.autoplay = true;
               videoElement.playsInline = true;
               videoElement.tabIndex = 0;
-              // play() can reject without a user gesture — ignore
               videoElement.play?.().catch(() => {});
               try {
                 videoElement.focus?.();
@@ -249,7 +362,6 @@ export function useStreamPixel({
                 ?.audioElement;
             if (audioEl) audioEl.muted = true;
 
-            // Refit after layout / decoder settle
             window.setTimeout(() => {
               if (cancelled || !mountedRef.current) return;
               fitStreamDom(
@@ -258,29 +370,33 @@ export function useStreamPixel({
                 pixelStreaming,
               );
             }, 100);
-            window.setTimeout(() => {
-              if (cancelled || !mountedRef.current) return;
-              fitStreamDom(
-                videoContainerRef.current,
-                appStream,
-                pixelStreaming,
+
+            const painted = await waitForVideoFrame(videoElement, 25000);
+            if (cancelled || !mountedRef.current || failedRef.current) return;
+
+            safeHideDefaultUi(appStream);
+            enableStreamPixelAfk(
+              pixelStreaming,
+              appStream,
+              STREAM_PIXEL_AFK_TIMEOUT_SECS,
+            );
+            fitStreamDom(
+              videoContainerRef.current,
+              appStream,
+              pixelStreaming,
+            );
+
+            if (!painted) {
+              console.warn(
+                "[StreamPixel] video element present but no frame yet — revealing anyway",
               );
-            }, 500);
+            }
 
-            setLoadingProgress(100);
-            registerUeListeners(pixelStreaming);
-
-            window.setTimeout(() => {
-              if (cancelled || !mountedRef.current) return;
-              setIsLoading(false);
-              setQueuePosition(null);
-              setLoadingTitle(LOADING_CONFIG.title);
-              setLoadingSubtitle(LOADING_CONFIG.subtitle);
-              isReconnecting.current = false;
-            }, 300);
+            revealStream();
           } catch (err) {
             console.error("[StreamPixel] onVideoInitialized error", err);
-            // Stream may still be usable — don't hard-fail
+            revealingRef.current = false;
+            setStreamPhase("loading");
             setIsLoading(false);
             streamReadyRef.current = true;
           }
@@ -289,32 +405,53 @@ export function useStreamPixel({
         // ── Reconnect lifecycle ──────────────────────────────────────
         reconnectStream?.on?.("state", (data: { status: string }) => {
           if (cancelled || !mountedRef.current) return;
+          if (idleTimedOutRef.current) return;
 
           switch (data?.status) {
             case "connecting":
             case "reconnecting":
+              failedRef.current = false;
+              revealingRef.current = false;
               streamReadyRef.current = false;
+              isReconnecting.current = true;
+              setStreamPhase("loading");
+              setQueuePosition(null);
               setIsLoading(true);
               setIsMuted(true);
               setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
               setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
               setLoadingStatus(LOADING_CONFIG.statusMessages.reconnecting);
-              setLoadingProgress(20);
+              setLoadingProgress(LOADING_PROGRESS.reconnecting);
+              break;
+            case "retrying":
+              failedRef.current = false;
               isReconnecting.current = true;
+              setStreamPhase("loading");
+              setIsLoading(true);
+              setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
+              setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
+              setLoadingStatus(LOADING_CONFIG.statusMessages.retrying);
+              setLoadingProgress((p) =>
+                Math.max(p, LOADING_PROGRESS.retrying),
+              );
               break;
             case "connected":
+              failedRef.current = false;
+              setStreamPhase("loading");
+              setIsLoading(true);
               setLoadingTitle(LOADING_CONFIG.reconnectedTitle);
               setLoadingSubtitle(LOADING_CONFIG.subtitle);
               setLoadingStatus(LOADING_CONFIG.statusMessages.reconnected);
-              setLoadingProgress(70);
+              setLoadingProgress((p) =>
+                Math.max(p, LOADING_PROGRESS.reconnected),
+              );
               break;
             case "disconnected":
-              setIsLoading(true);
               if (!isReconnecting.current) {
-                setLoadingTitle("Disconnected");
-                setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
-                setLoadingStatus(LOADING_CONFIG.statusMessages.disconnected);
-                setLoadingProgress(0);
+                fail(
+                  "Disconnected",
+                  LOADING_CONFIG.statusMessages.disconnected,
+                );
               }
               break;
             case "failed":
@@ -329,9 +466,9 @@ export function useStreamPixel({
         });
 
         const progress = (status: string, pct: number) => {
-          if (cancelled || !mountedRef.current) return;
+          if (cancelled || !mountedRef.current || failedRef.current) return;
           setLoadingStatus(status);
-          setLoadingProgress(pct);
+          setLoadingProgress((p) => Math.max(p, pct));
         };
 
         const on = (event: string, handler: (e?: any) => void) => {
@@ -346,51 +483,93 @@ export function useStreamPixel({
         };
 
         on("webRtcAutoConnect", () =>
-          progress(LOADING_CONFIG.statusMessages.connecting, 15),
+          progress(
+            LOADING_CONFIG.statusMessages.connecting,
+            LOADING_PROGRESS.autoConnect,
+          ),
         );
         on("webRtcConnecting", () =>
-          progress(LOADING_CONFIG.statusMessages.webRtcConnecting, 30),
+          progress(
+            LOADING_CONFIG.statusMessages.webRtcConnecting,
+            LOADING_PROGRESS.webRtcConnecting,
+          ),
         );
         on("webRtcSdp", () =>
-          progress(LOADING_CONFIG.statusMessages.sdpNegotiation, 50),
+          progress(
+            LOADING_CONFIG.statusMessages.sdpNegotiation,
+            LOADING_PROGRESS.sdpNegotiation,
+          ),
         );
         on("webRtcConnected", () =>
-          progress(LOADING_CONFIG.statusMessages.webRtcConnected, 70),
+          progress(
+            LOADING_CONFIG.statusMessages.webRtcConnected,
+            LOADING_PROGRESS.webRtcConnected,
+          ),
         );
         on("streamLoading", () =>
-          progress(LOADING_CONFIG.statusMessages.streamLoading, 80),
+          progress(
+            LOADING_CONFIG.statusMessages.streamLoading,
+            LOADING_PROGRESS.streamLoading,
+          ),
         );
         on("playStream", () =>
-          progress(LOADING_CONFIG.statusMessages.playingStream, 90),
+          progress(
+            LOADING_CONFIG.statusMessages.playingStream,
+            LOADING_PROGRESS.playingStream,
+          ),
         );
 
         on("webRtcFailed", () => {
+          if (idleTimedOutRef.current) return;
           fail("Connection Failed", LOADING_CONFIG.statusMessages.failed);
         });
 
         on("webRtcDisconnected", () => {
           streamReadyRef.current = false;
+          if (idleTimedOutRef.current) return;
+          if (afkWarningRef.current) {
+            fail(
+              LOADING_CONFIG.idleTitle,
+              LOADING_CONFIG.statusMessages.idleTimedOut,
+              "idle",
+            );
+            return;
+          }
           if (!isReconnecting.current) {
             fail("Disconnected", LOADING_CONFIG.statusMessages.disconnected);
           }
         });
 
         on("afkWarningActivate", (e: any) => {
+          if (cancelled || !mountedRef.current || failedRef.current) return;
+          if (idleTimedOutRef.current) return;
+          const n = Number(e?.data?.countDown);
+          afkWarningRef.current = true;
           setAfkWarning(true);
-          setAfkCountdown(e?.data?.countDown ?? 0);
-          dismissAfkRef.current = e?.data?.dismissAfk ?? null;
+          setAfkCountdown(
+            Number.isFinite(n) && n > 0 ? n : AFK_CONFIG.countdownSeconds,
+          );
+          dismissAfkRef.current =
+            typeof e?.data?.dismissAfk === "function"
+              ? e.data.dismissAfk
+              : null;
         });
         on("afkWarningUpdate", (e: any) => {
-          setAfkCountdown(e?.data?.countDown ?? 0);
+          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
+          const n = Number(e?.data?.countDown);
+          if (Number.isFinite(n)) setAfkCountdown(n);
         });
         on("afkWarningDeactivate", () => {
+          afkWarningRef.current = false;
           setAfkWarning(false);
           dismissAfkRef.current = null;
         });
         on("afkTimedOut", () => {
-          setAfkWarning(false);
-          dismissAfkRef.current = null;
-          fail("Session Ended", "You were disconnected due to inactivity.");
+          fail(
+            LOADING_CONFIG.idleTitle,
+            LOADING_CONFIG.statusMessages.idleTimedOut,
+            "idle",
+          );
         });
 
         // ── Video ready ──────────────────────────────────────────────
@@ -398,6 +577,18 @@ export function useStreamPixel({
 
         appStream.onDisconnect = () => {
           streamReadyRef.current = false;
+          if (idleTimedOutRef.current) return;
+          if (afkWarningRef.current) {
+            fail(
+              LOADING_CONFIG.idleTitle,
+              LOADING_CONFIG.statusMessages.idleTimedOut,
+              "idle",
+            );
+            return;
+          }
+          if (!isReconnecting.current) {
+            fail("Disconnected", LOADING_CONFIG.statusMessages.disconnected);
+          }
         };
 
         // Cached reuse: video may already be initialized — remount now
@@ -412,8 +603,17 @@ export function useStreamPixel({
         // Queue updates (optional API)
         try {
           queueHandler?.((msg: { position: number }) => {
-            if (cancelled || !mountedRef.current) return;
-            setQueuePosition(msg.position);
+            if (cancelled || !mountedRef.current || failedRef.current) return;
+            if (idleTimedOutRef.current || streamReadyRef.current) return;
+            const position = Number(msg?.position);
+            if (!Number.isFinite(position) || position <= 0) {
+              setQueuePosition(null);
+              setStreamPhase("loading");
+              return;
+            }
+            setQueuePosition(position);
+            setStreamPhase("queue");
+            setIsLoading(true);
             setLoadingStatus(LOADING_CONFIG.statusMessages.inQueue);
           });
         } catch (err) {
@@ -541,12 +741,141 @@ export function useStreamPixel({
     });
   }, [refit, videoContainerRef, fullscreenTargetRef]);
 
+  const endDueToIdle = useCallback(() => {
+    if (idleTimedOutRef.current) return;
+    idleTimedOutRef.current = true;
+    failedRef.current = true;
+    streamReadyRef.current = false;
+    isReconnecting.current = false;
+    afkWarningRef.current = false;
+    setAfkWarning(false);
+    dismissAfkRef.current = null;
+    setQueuePosition(null);
+    setStreamPhase("idle");
+    setIsLoading(true);
+    setLoadingTitle(LOADING_CONFIG.idleTitle);
+    setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
+    setLoadingStatus(LOADING_CONFIG.statusMessages.idleTimedOut);
+    setLoadingProgress(0);
+    try {
+      pixelStreamingRef.current?.disconnect?.();
+    } catch {
+      /* already gone */
+    }
+  }, []);
+
+  // Client idle watchdog — Epic's AFK timer never starts if afktimeout is
+  // missing, and any data-channel send (UE commands) resets it.
+  useEffect(() => {
+    if (
+      isLoading ||
+      streamPhase === "disconnected" ||
+      streamPhase === "idle" ||
+      streamPhase === "queue"
+    ) {
+      return;
+    }
+
+    const idleMs = AFK_CONFIG.idleSeconds * 1000;
+    const countdownSecs = AFK_CONFIG.countdownSeconds;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let tickTimer: ReturnType<typeof setInterval> | null = null;
+    let remaining = countdownSecs;
+    let warning = false;
+
+    const stopIdle = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    };
+    const stopTick = () => {
+      if (tickTimer) {
+        clearInterval(tickTimer);
+        tickTimer = null;
+      }
+    };
+
+    const startCountdown = () => {
+      if (idleTimedOutRef.current || failedRef.current) return;
+      warning = true;
+      remaining = countdownSecs;
+      afkWarningRef.current = true;
+      setAfkCountdown(remaining);
+      setAfkWarning(true);
+      stopTick();
+      tickTimer = setInterval(() => {
+        remaining -= 1;
+        setAfkCountdown(remaining);
+        if (remaining <= 0) {
+          stopTick();
+          stopIdle();
+          warning = false;
+          endDueToIdle();
+        }
+      }, 1000);
+    };
+
+    const armIdle = () => {
+      stopIdle();
+      idleTimer = setTimeout(startCountdown, idleMs);
+    };
+
+    const onActivity = (event?: Event) => {
+      if (idleTimedOutRef.current || failedRef.current) return;
+      if (warning && event?.type === "pointermove") return;
+      if (warning) {
+        warning = false;
+        stopTick();
+        afkWarningRef.current = false;
+        setAfkWarning(false);
+        dismissAfkRef.current?.();
+      }
+      armIdle();
+    };
+
+    resetAfkWatchdogRef.current = () => onActivity();
+
+    const opts: AddEventListenerOptions = { capture: true, passive: true };
+    const events = [
+      "pointerdown",
+      "pointermove",
+      "keydown",
+      "touchstart",
+      "wheel",
+    ] as const;
+    for (const event of events) {
+      window.addEventListener(event, onActivity, opts);
+    }
+    armIdle();
+    if (process.env.NODE_ENV !== "production") {
+      console.info(
+        `[AFK] idle watchdog armed (${AFK_CONFIG.idleSeconds}s, then ${AFK_CONFIG.countdownSeconds}s warning)`,
+      );
+    }
+
+    return () => {
+      resetAfkWatchdogRef.current = null;
+      stopIdle();
+      stopTick();
+      for (const event of events) {
+        window.removeEventListener(event, onActivity, opts);
+      }
+    };
+  }, [isLoading, streamPhase, endDueToIdle]);
+
+  const dismissAfk = useCallback(() => {
+    dismissAfkRef.current?.();
+    resetAfkWatchdogRef.current?.();
+  }, []);
+
   return {
     pixelStreamingRef,
     appStreamRef,
     uiControlRef,
     streamReadyRef,
     isLoading,
+    streamPhase,
     loadingTitle,
     loadingSubtitle,
     loadingStatus,
@@ -557,7 +886,7 @@ export function useStreamPixel({
     requestFullscreen,
     afkWarning,
     afkCountdown,
-    dismissAfk: () => dismissAfkRef.current?.(),
+    dismissAfk,
     resolutionEnabled,
   };
 }

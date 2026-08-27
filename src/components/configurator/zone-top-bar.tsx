@@ -9,6 +9,7 @@ import {
   surfaceDisplayLabel,
   zoneDisplayLabel,
 } from "@/lib/configurator/zone-catalog";
+import ByWord from "../icons/by-word";
 
 type Props = {
   activeZoneId: string | null;
@@ -41,8 +42,9 @@ export default function ZoneTopBar({
   return (
     <div className="cfg-zone-bar pointer-events-none absolute inset-x-0 top-0 z-[28] flex flex-col items-center gap-1.5 px-3 pt-[max(10px,env(safe-area-inset-top))] sm:gap-2 sm:pt-[max(14px,env(safe-area-inset-top))]">
       <div className="flex flex-col items-center">
-        <AtelierLogo className="h-[22px] w-auto sm:h-[28px]" />
-        <ReefWord className="mt-1 h-[9px] w-auto sm:mt-1.5 sm:h-[11px]" />
+        <AtelierLogo className="h-[1.6rem] w-auto" />
+        <ByWord className="mt-0.5 h-[5px] w-auto" />
+        <ReefWord className="mt-0.5 h-[0.4rem] w-auto" />
       </div>
 
       <nav className={glassPill} aria-label="Apartment zones">
