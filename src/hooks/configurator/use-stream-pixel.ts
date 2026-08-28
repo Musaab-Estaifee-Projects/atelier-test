@@ -21,13 +21,103 @@ import {
   STREAM_PIXEL_AFK_TIMEOUT_SECS,
   enableStreamPixelAfk,
 } from "@/lib/stream-pixel/afk";
+import {
+  DISCONNECT_COPY,
+  isRetryableDisconnect,
+  overlayCopyForDisconnect,
+  overlayCopyForQueueMessage,
+  type DisconnectOverlayCopy,
+} from "@/lib/stream-pixel/disconnect-reason";
 
 const SHOW_DEV_TOOLS = process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === "true";
 
 /** Delayed teardown so React Strict Mode remounts can cancel disconnect. */
 const TEARDOWN_DELAY_MS = 100;
+const DISCONNECT_GRACE_MS = 500;
 let teardownTimer: ReturnType<typeof setTimeout> | null = null;
 let activeInitKey: string | null = null;
+let streamEventsBound = false;
+
+type ReconnectStateData = {
+  status: string;
+  code?: number;
+  reason?: string;
+};
+
+type QueueStateData = {
+  position: number;
+  message?: string;
+};
+
+type StreamEventHandlers = {
+  onReconnectState: (data: ReconnectStateData) => void;
+  onQueue: (msg: QueueStateData) => void;
+  onProgress: (event: string) => void;
+  onWebRtcFailed: () => void;
+  onWebRtcDisconnected: () => void;
+  onAfkActivate: (e: any) => void;
+  onAfkUpdate: (e: any) => void;
+  onAfkDeactivate: () => void;
+  onAfkTimedOut: () => void;
+};
+
+const streamEventHandlers: StreamEventHandlers = {
+  onReconnectState: () => {},
+  onQueue: () => {},
+  onProgress: () => {},
+  onWebRtcFailed: () => {},
+  onWebRtcDisconnected: () => {},
+  onAfkActivate: () => {},
+  onAfkUpdate: () => {},
+  onAfkDeactivate: () => {},
+  onAfkTimedOut: () => {},
+};
+
+function bindStreamEvents(
+  pixelStreaming: any,
+  reconnectStream: any,
+  queueHandler: any,
+) {
+  if (streamEventsBound) return;
+  streamEventsBound = true;
+
+  const on = (event: string, handler: (e?: any) => void) => {
+    try {
+      pixelStreaming.addEventListener?.(event, handler);
+    } catch (err) {
+      console.warn(`[StreamPixel] addEventListener(${event}) failed`, err);
+    }
+  };
+
+  on("webRtcAutoConnect", () => streamEventHandlers.onProgress("webRtcAutoConnect"));
+  on("webRtcConnecting", () => streamEventHandlers.onProgress("webRtcConnecting"));
+  on("webRtcSdp", () => streamEventHandlers.onProgress("webRtcSdp"));
+  on("webRtcConnected", () => streamEventHandlers.onProgress("webRtcConnected"));
+  on("streamLoading", () => streamEventHandlers.onProgress("streamLoading"));
+  on("playStream", () => streamEventHandlers.onProgress("playStream"));
+  on("webRtcFailed", () => streamEventHandlers.onWebRtcFailed());
+  on("webRtcDisconnected", () => streamEventHandlers.onWebRtcDisconnected());
+  on("afkWarningActivate", (e: any) => streamEventHandlers.onAfkActivate(e));
+  on("afkWarningUpdate", (e: any) => streamEventHandlers.onAfkUpdate(e));
+  on("afkWarningDeactivate", () => streamEventHandlers.onAfkDeactivate());
+  on("afkTimedOut", () => streamEventHandlers.onAfkTimedOut());
+
+  try {
+    reconnectStream?.on?.("state", (data: ReconnectStateData) => {
+      streamEventHandlers.onReconnectState(data);
+    });
+  } catch (err) {
+    console.warn("[StreamPixel] reconnectStream.on failed", err);
+  }
+
+  try {
+    queueHandler?.((msg: QueueStateData) => {
+      streamEventHandlers.onQueue(msg);
+    });
+  } catch (err) {
+    console.warn("[StreamPixel] queueHandler failed", err);
+  }
+}
 
 type UseStreamPixelArgs = {
   projectId: string;
@@ -89,6 +179,11 @@ export function useStreamPixel({
   const resetAfkWatchdogRef = useRef<(() => void) | null>(null);
   const idleTimedOutRef = useRef(false);
   const afkWarningRef = useRef(false);
+  const hasEverBeenReadyRef = useRef(false);
+  const disconnectGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [endedCopy, setEndedCopy] = useState<DisconnectOverlayCopy>(
+    DISCONNECT_COPY.dropped,
+  );
   const [resolutionEnabled, setResolutionEnabled] = useState(false);
 
   const safeHideDefaultUi = useCallback((appStream: any) => {
@@ -189,15 +284,16 @@ export function useStreamPixel({
     let cancelled = false;
 
     const fail = (
-      title: string,
-      status: string,
+      copy: DisconnectOverlayCopy,
       kind: Extract<StreamOverlayKind, "disconnected" | "idle"> = "disconnected",
     ) => {
       if (cancelled || !mountedRef.current) return;
-      // AFK timeout is terminal until the user reloads — don't let
-      // webRtcDisconnected / reconnectStream replace the inactivity screen.
       if (idleTimedOutRef.current && kind !== "idle") return;
       if (kind === "idle") idleTimedOutRef.current = true;
+      if (disconnectGraceRef.current) {
+        clearTimeout(disconnectGraceRef.current);
+        disconnectGraceRef.current = null;
+      }
       failedRef.current = true;
       streamReadyRef.current = false;
       isReconnecting.current = false;
@@ -207,10 +303,39 @@ export function useStreamPixel({
       setQueuePosition(null);
       setStreamPhase(kind);
       setIsLoading(true);
-      setLoadingTitle(title);
-      setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
-      setLoadingStatus(status);
+      if (kind === "idle") {
+        setLoadingTitle(LOADING_CONFIG.idleTitle);
+        setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
+        setLoadingStatus(LOADING_CONFIG.statusMessages.idleTimedOut);
+      } else {
+        setEndedCopy(copy);
+        setLoadingTitle(copy.title);
+        setLoadingSubtitle(LOADING_CONFIG.disconnectedSubtitle);
+        setLoadingStatus(copy.status);
+      }
       setLoadingProgress(0);
+    };
+
+    const beginReconnecting = (
+      status: string = LOADING_CONFIG.statusMessages.reconnecting,
+      progress: number = LOADING_PROGRESS.reconnecting,
+    ) => {
+      if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
+      if (disconnectGraceRef.current) {
+        clearTimeout(disconnectGraceRef.current);
+        disconnectGraceRef.current = null;
+      }
+      failedRef.current = false;
+      revealingRef.current = false;
+      streamReadyRef.current = false;
+      isReconnecting.current = true;
+      setStreamPhase("reconnecting");
+      setQueuePosition(null);
+      setIsLoading(true);
+      setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
+      setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
+      setLoadingStatus(status);
+      setLoadingProgress(progress);
     };
 
     const start = async () => {
@@ -251,7 +376,7 @@ export function useStreamPixel({
               result,
             );
           }
-          fail("Connection Failed", LOADING_CONFIG.statusMessages.failed);
+          fail(DISCONNECT_COPY.dropped);
           return;
         }
 
@@ -306,6 +431,7 @@ export function useStreamPixel({
           registerUeListeners(pixelStreaming);
           window.setTimeout(() => {
             if (cancelled || !mountedRef.current || failedRef.current) return;
+            hasEverBeenReadyRef.current = true;
             setStreamPhase("loading");
             setIsLoading(false);
             setQueuePosition(null);
@@ -402,145 +528,76 @@ export function useStreamPixel({
           }
         };
 
-        // ── Reconnect lifecycle ──────────────────────────────────────
-        reconnectStream?.on?.("state", (data: { status: string }) => {
-          if (cancelled || !mountedRef.current) return;
-          if (idleTimedOutRef.current) return;
+        const PROGRESS_BY_EVENT: Record<string, { status: string; pct: number }> =
+          {
+            webRtcAutoConnect: {
+              status: LOADING_CONFIG.statusMessages.connecting,
+              pct: LOADING_PROGRESS.autoConnect,
+            },
+            webRtcConnecting: {
+              status: LOADING_CONFIG.statusMessages.webRtcConnecting,
+              pct: LOADING_PROGRESS.webRtcConnecting,
+            },
+            webRtcSdp: {
+              status: LOADING_CONFIG.statusMessages.sdpNegotiation,
+              pct: LOADING_PROGRESS.sdpNegotiation,
+            },
+            webRtcConnected: {
+              status: LOADING_CONFIG.statusMessages.webRtcConnected,
+              pct: LOADING_PROGRESS.webRtcConnected,
+            },
+            streamLoading: {
+              status: LOADING_CONFIG.statusMessages.streamLoading,
+              pct: LOADING_PROGRESS.streamLoading,
+            },
+            playStream: {
+              status: LOADING_CONFIG.statusMessages.playingStream,
+              pct: LOADING_PROGRESS.playingStream,
+            },
+          };
 
-          switch (data?.status) {
-            case "connecting":
-            case "reconnecting":
-              failedRef.current = false;
-              revealingRef.current = false;
-              streamReadyRef.current = false;
-              isReconnecting.current = true;
-              setStreamPhase("loading");
-              setQueuePosition(null);
-              setIsLoading(true);
-              setIsMuted(true);
-              setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
-              setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
-              setLoadingStatus(LOADING_CONFIG.statusMessages.reconnecting);
-              setLoadingProgress(LOADING_PROGRESS.reconnecting);
-              break;
-            case "retrying":
-              failedRef.current = false;
-              isReconnecting.current = true;
-              setStreamPhase("loading");
-              setIsLoading(true);
-              setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
-              setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
-              setLoadingStatus(LOADING_CONFIG.statusMessages.retrying);
-              setLoadingProgress((p) =>
-                Math.max(p, LOADING_PROGRESS.retrying),
-              );
-              break;
-            case "connected":
-              failedRef.current = false;
-              setStreamPhase("loading");
-              setIsLoading(true);
-              setLoadingTitle(LOADING_CONFIG.reconnectedTitle);
-              setLoadingSubtitle(LOADING_CONFIG.subtitle);
-              setLoadingStatus(LOADING_CONFIG.statusMessages.reconnected);
-              setLoadingProgress((p) =>
-                Math.max(p, LOADING_PROGRESS.reconnected),
-              );
-              break;
-            case "disconnected":
-              if (!isReconnecting.current) {
-                fail(
-                  "Disconnected",
-                  LOADING_CONFIG.statusMessages.disconnected,
-                );
-              }
-              break;
-            case "failed":
-              fail(
-                LOADING_CONFIG.reconnectFailedTitle,
-                LOADING_CONFIG.statusMessages.reconnectFailed,
-              );
-              break;
-            default:
-              break;
-          }
-        });
-
-        const progress = (status: string, pct: number) => {
-          if (cancelled || !mountedRef.current || failedRef.current) return;
-          setLoadingStatus(status);
-          setLoadingProgress((p) => Math.max(p, pct));
-        };
-
-        const on = (event: string, handler: (e?: any) => void) => {
-          try {
-            pixelStreaming.addEventListener?.(event, handler);
-          } catch (err) {
-            console.warn(
-              `[StreamPixel] addEventListener(${event}) failed`,
-              err,
-            );
-          }
-        };
-
-        on("webRtcAutoConnect", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.connecting,
-            LOADING_PROGRESS.autoConnect,
-          ),
-        );
-        on("webRtcConnecting", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.webRtcConnecting,
-            LOADING_PROGRESS.webRtcConnecting,
-          ),
-        );
-        on("webRtcSdp", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.sdpNegotiation,
-            LOADING_PROGRESS.sdpNegotiation,
-          ),
-        );
-        on("webRtcConnected", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.webRtcConnected,
-            LOADING_PROGRESS.webRtcConnected,
-          ),
-        );
-        on("streamLoading", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.streamLoading,
-            LOADING_PROGRESS.streamLoading,
-          ),
-        );
-        on("playStream", () =>
-          progress(
-            LOADING_CONFIG.statusMessages.playingStream,
-            LOADING_PROGRESS.playingStream,
-          ),
-        );
-
-        on("webRtcFailed", () => {
-          if (idleTimedOutRef.current) return;
-          fail("Connection Failed", LOADING_CONFIG.statusMessages.failed);
-        });
-
-        on("webRtcDisconnected", () => {
+        const onWebRtcGone = () => {
           streamReadyRef.current = false;
-          if (idleTimedOutRef.current) return;
+          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
           if (afkWarningRef.current) {
-            fail(
-              LOADING_CONFIG.idleTitle,
-              LOADING_CONFIG.statusMessages.idleTimedOut,
-              "idle",
-            );
+            fail(DISCONNECT_COPY.dropped, "idle");
             return;
           }
-          if (!isReconnecting.current) {
-            fail("Disconnected", LOADING_CONFIG.statusMessages.disconnected);
+          if (isReconnecting.current || failedRef.current) return;
+          if (disconnectGraceRef.current) {
+            clearTimeout(disconnectGraceRef.current);
           }
-        });
+          disconnectGraceRef.current = setTimeout(() => {
+            disconnectGraceRef.current = null;
+            if (
+              cancelled ||
+              !mountedRef.current ||
+              idleTimedOutRef.current ||
+              failedRef.current ||
+              isReconnecting.current
+            ) {
+              return;
+            }
+            fail(DISCONNECT_COPY.dropped);
+          }, DISCONNECT_GRACE_MS);
+        };
 
-        on("afkWarningActivate", (e: any) => {
+        streamEventHandlers.onProgress = (event) => {
+          if (cancelled || !mountedRef.current || failedRef.current) return;
+          const mapped = PROGRESS_BY_EVENT[event];
+          if (!mapped) return;
+          setLoadingStatus(mapped.status);
+          setLoadingProgress((p) => Math.max(p, mapped.pct));
+        };
+
+        streamEventHandlers.onWebRtcFailed = () => {
+          if (idleTimedOutRef.current || isReconnecting.current) return;
+          fail(DISCONNECT_COPY.dropped);
+        };
+
+        streamEventHandlers.onWebRtcDisconnected = onWebRtcGone;
+
+        streamEventHandlers.onAfkActivate = (e: any) => {
           if (cancelled || !mountedRef.current || failedRef.current) return;
           if (idleTimedOutRef.current) return;
           const n = Number(e?.data?.countDown);
@@ -553,43 +610,107 @@ export function useStreamPixel({
             typeof e?.data?.dismissAfk === "function"
               ? e.data.dismissAfk
               : null;
-        });
-        on("afkWarningUpdate", (e: any) => {
+        };
+        streamEventHandlers.onAfkUpdate = (e: any) => {
           if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
           const n = Number(e?.data?.countDown);
           if (Number.isFinite(n)) setAfkCountdown(n);
-        });
-        on("afkWarningDeactivate", () => {
+        };
+        streamEventHandlers.onAfkDeactivate = () => {
           afkWarningRef.current = false;
           setAfkWarning(false);
           dismissAfkRef.current = null;
-        });
-        on("afkTimedOut", () => {
-          fail(
-            LOADING_CONFIG.idleTitle,
-            LOADING_CONFIG.statusMessages.idleTimedOut,
-            "idle",
-          );
-        });
+        };
+        streamEventHandlers.onAfkTimedOut = () => {
+          fail(DISCONNECT_COPY.dropped, "idle");
+        };
+
+        streamEventHandlers.onReconnectState = (data) => {
+          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
+
+          switch (data?.status) {
+            case "connecting":
+            case "reconnecting":
+              beginReconnecting(
+                LOADING_CONFIG.statusMessages.reconnecting,
+                LOADING_PROGRESS.reconnecting,
+              );
+              setIsMuted(true);
+              break;
+            case "retrying":
+              beginReconnecting(
+                LOADING_CONFIG.statusMessages.retrying,
+                LOADING_PROGRESS.retrying,
+              );
+              setLoadingProgress((p) =>
+                Math.max(p, LOADING_PROGRESS.retrying),
+              );
+              break;
+            case "connected":
+              failedRef.current = false;
+              isReconnecting.current = true;
+              setStreamPhase("reconnecting");
+              setIsLoading(true);
+              setLoadingTitle(LOADING_CONFIG.reconnectedTitle);
+              setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
+              setLoadingStatus(LOADING_CONFIG.statusMessages.reconnected);
+              setLoadingProgress((p) =>
+                Math.max(p, LOADING_PROGRESS.reconnected),
+              );
+              break;
+            case "disconnected": {
+              if (isRetryableDisconnect(data.code, data.reason)) {
+                beginReconnecting();
+                break;
+              }
+              const copy = overlayCopyForDisconnect(data.code, data.reason);
+              if (
+                isReconnecting.current &&
+                copy === DISCONNECT_COPY.dropped &&
+                !data.reason
+              ) {
+                break;
+              }
+              fail(copy);
+              break;
+            }
+            case "failed":
+              fail(
+                overlayCopyForDisconnect(data.code ?? 4007, data.reason),
+              );
+              break;
+            default:
+              break;
+          }
+        };
+
+        streamEventHandlers.onQueue = (msg) => {
+          if (cancelled || !mountedRef.current || failedRef.current) return;
+          if (idleTimedOutRef.current) return;
+          const terminal = overlayCopyForQueueMessage(msg?.message);
+          if (terminal) {
+            fail(terminal);
+            return;
+          }
+          if (streamReadyRef.current) return;
+          const position = Number(msg?.position);
+          if (!Number.isFinite(position) || position <= 0) {
+            setQueuePosition(null);
+            if (!isReconnecting.current) setStreamPhase("loading");
+            return;
+          }
+          setQueuePosition(position);
+          setStreamPhase("queue");
+          setIsLoading(true);
+          setLoadingStatus(LOADING_CONFIG.statusMessages.inQueue);
+        };
+
+        bindStreamEvents(pixelStreaming, reconnectStream, queueHandler);
 
         // ── Video ready ──────────────────────────────────────────────
         appStream.onVideoInitialized = finishVideoReady;
 
-        appStream.onDisconnect = () => {
-          streamReadyRef.current = false;
-          if (idleTimedOutRef.current) return;
-          if (afkWarningRef.current) {
-            fail(
-              LOADING_CONFIG.idleTitle,
-              LOADING_CONFIG.statusMessages.idleTimedOut,
-              "idle",
-            );
-            return;
-          }
-          if (!isReconnecting.current) {
-            fail("Disconnected", LOADING_CONFIG.statusMessages.disconnected);
-          }
-        };
+        appStream.onDisconnect = onWebRtcGone;
 
         // Cached reuse: video may already be initialized — remount now
         const root = appStream.rootElement;
@@ -599,29 +720,9 @@ export function useStreamPixel({
         if (existingVideo) {
           finishVideoReady();
         }
-
-        // Queue updates (optional API)
-        try {
-          queueHandler?.((msg: { position: number }) => {
-            if (cancelled || !mountedRef.current || failedRef.current) return;
-            if (idleTimedOutRef.current || streamReadyRef.current) return;
-            const position = Number(msg?.position);
-            if (!Number.isFinite(position) || position <= 0) {
-              setQueuePosition(null);
-              setStreamPhase("loading");
-              return;
-            }
-            setQueuePosition(position);
-            setStreamPhase("queue");
-            setIsLoading(true);
-            setLoadingStatus(LOADING_CONFIG.statusMessages.inQueue);
-          });
-        } catch (err) {
-          console.warn("[StreamPixel] queueHandler failed", err);
-        }
       } catch (err) {
         console.error("[StreamPixel] init failed", err);
-        fail("Connection Failed", LOADING_CONFIG.statusMessages.failed);
+        fail(DISCONNECT_COPY.dropped);
       }
     };
 
@@ -631,6 +732,10 @@ export function useStreamPixel({
       cancelled = true;
       mountedRef.current = false;
       streamReadyRef.current = false;
+      if (disconnectGraceRef.current) {
+        clearTimeout(disconnectGraceRef.current);
+        disconnectGraceRef.current = null;
+      }
 
       try {
         pixelStreamingRef.current?.removeResponseEventListener?.("cameraZone");
@@ -666,6 +771,7 @@ export function useStreamPixel({
         } catch {
           /* ignore */
         }
+        streamEventsBound = false;
         markStreamPixelDisposed();
       }, TEARDOWN_DELAY_MS);
     };
@@ -678,6 +784,52 @@ export function useStreamPixel({
     safeHideDefaultUi,
     videoContainerRef,
   ]);
+
+  useEffect(() => {
+    const showInterrupted = () => {
+      if (idleTimedOutRef.current || failedRef.current) return;
+      if (!hasEverBeenReadyRef.current) return;
+      if (disconnectGraceRef.current) {
+        clearTimeout(disconnectGraceRef.current);
+        disconnectGraceRef.current = null;
+      }
+      failedRef.current = false;
+      revealingRef.current = false;
+      streamReadyRef.current = false;
+      isReconnecting.current = true;
+      setStreamPhase("reconnecting");
+      setQueuePosition(null);
+      setIsLoading(true);
+      setLoadingTitle(LOADING_CONFIG.reconnectingTitle);
+      setLoadingSubtitle(LOADING_CONFIG.interruptedSubtitle);
+      setLoadingStatus(DISCONNECT_COPY.interrupted.status);
+      setLoadingProgress(LOADING_PROGRESS.reconnecting);
+    };
+
+    const onOffline = () => showInterrupted();
+    const onOnline = () => {
+      if (failedRef.current || idleTimedOutRef.current) return;
+      if (!streamReadyRef.current && hasEverBeenReadyRef.current) {
+        showInterrupted();
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      if (idleTimedOutRef.current || failedRef.current) return;
+      if (streamReadyRef.current) return;
+      if (!hasEverBeenReadyRef.current) return;
+      showInterrupted();
+    };
+
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const toggleMute = useCallback(() => {
     const appStream = appStreamRef.current;
@@ -771,7 +923,8 @@ export function useStreamPixel({
       isLoading ||
       streamPhase === "disconnected" ||
       streamPhase === "idle" ||
-      streamPhase === "queue"
+      streamPhase === "queue" ||
+      streamPhase === "reconnecting"
     ) {
       return;
     }
@@ -887,6 +1040,7 @@ export function useStreamPixel({
     afkWarning,
     afkCountdown,
     dismissAfk,
+    endedCopy,
     resolutionEnabled,
   };
 }

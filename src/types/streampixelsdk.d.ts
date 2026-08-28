@@ -97,11 +97,18 @@ declare module "streampixelsdk" {
   };
 
   export type ReconnectStreamInstance = {
-    on: (event: "state", handler: (data: { status: string }) => void) => void;
+    on: (
+      event: "state",
+      handler: (data: {
+        status: string;
+        code?: number;
+        reason?: string;
+      }) => void,
+    ) => void;
   };
 
   export type QueueHandler = (
-    callback: (msg: { position: number }) => void,
+    callback: (msg: { position: number; message?: string }) => void,
   ) => void;
 
   export type StreamPixelApplicationResult = {

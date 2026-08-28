@@ -13,6 +13,7 @@ import {
   getProject,
 } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
+import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
 
 export function demoCustomizeHref(style?: string) {
   const q = new URLSearchParams({
@@ -135,22 +136,13 @@ export default function SelectStyle({
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1251px] flex-col items-center px-4 pt-8 pb-16 sm:px-8 sm:pt-10">
-        {overlay ? (
-          <AtelierMark />
-        ) : (
-          <AtelierMark href="/" />
-        )}
+        {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
         <h1 className="mt-10 max-w-[18em] text-center font-libre-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-[0.05em] text-white sm:mt-12">
           How Would You Like To Start Your Unit?
         </h1>
 
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/styles/diamond-rule.svg"
-          alt=""
-          className="mt-5 h-4 w-[176px]"
-        />
+        <DiamondRuleFull className="mt-5 h-4 w-[176px]" />
 
         <p className="mt-4 max-w-[320px] text-center text-[12px] leading-[1.2] text-white/70 sm:text-[14px]">
           Choose a style that reflect you vision and lifestyle
@@ -188,7 +180,7 @@ export default function SelectStyle({
                 alt=""
                 className="pointer-events-none absolute inset-0 h-full w-full"
               />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {}
 
               <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
                 <div className="flex flex-col gap-2">

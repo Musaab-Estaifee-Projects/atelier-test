@@ -3,6 +3,12 @@
 import { Button } from "@/components/ui/button";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
 import { RESOLUTION_OPTIONS } from "@/lib/stream-pixel/types";
+import CloudSaved from "../icons/configurator/cloud-saved";
+import Diamond from "../icons/configurator/diamond";
+import Expand from "../icons/configurator/expand";
+import Settings from "../icons/configurator/settings";
+import Reset from "../icons/configurator/reset";
+import Pen from "../icons/configurator/pen";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "unsaved";
 
@@ -47,19 +53,19 @@ function saveLabel(status: SaveStatus, viewOnly?: boolean): string {
   }
 }
 
-function DockIcon({
-  src,
+const DockIcon = ({
+  icon,
   label,
   onClick,
   disabled,
   active,
 }: {
-  src: string;
+  icon: React.ReactNode;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
   active?: boolean;
-}) {
+}) => {
   return (
     <button
       type="button"
@@ -71,15 +77,12 @@ function DockIcon({
         active ? "ring-1 ring-white/40" : ""
       }`}
     >
-      <span className="relative block size-[18px] overflow-clip">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="h-full w-full" />
-      </span>
+      <span className="relative block size-4.5 overflow-clip">{icon}</span>
     </button>
   );
-}
+};
 
-export default function ConfiguratorDock({
+const ConfiguratorDock = ({
   saveStatus,
   selectionsOpen,
   onToggleSelections,
@@ -98,43 +101,33 @@ export default function ConfiguratorDock({
   levels = [],
   activeLevel,
   onLoadLevel,
-}: Props) {
+}: Props) => {
   const summary =
     selectedItems.length > 0
       ? selectedItems.map((item) => item.label).join(" , ")
       : "No selections yet";
 
   return (
-    <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-[32] flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]">
+    <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]">
       <div
-        className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-gradient-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
+        className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
         role="toolbar"
         aria-label="Configurator tools"
       >
         {!materialsOpen && onShowMaterials ? (
           <button
             type="button"
-            className="flex h-8 shrink-0 items-center justify-center gap-[5px] rounded-full bg-[#00272d] px-[13px] font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
+            className="flex h-8 shrink-0 items-center justify-center gap-1.25 rounded-full bg-[#00272d] px-3.25 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
             onClick={onShowMaterials}
             disabled={viewOnly}
           >
-            <span className="relative block size-[11px] overflow-clip">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/configurator/diamond.svg"
-                alt=""
-                className="h-full w-full"
-              />
+            <span className="relative block size-2.75 overflow-clip">
+              <Diamond className="w-full h-full" />
             </span>
             <span className="hidden sm:inline">Show Materials</span>
             <span className="sm:hidden">Materials</span>
-            <span className="relative block size-[11px] overflow-clip">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/configurator/diamond.svg"
-                alt=""
-                className="h-full w-full"
-              />
+            <span className="relative block size-2.75 overflow-clip">
+              <Diamond className="w-full h-full" />
             </span>
           </button>
         ) : null}
@@ -174,7 +167,7 @@ export default function ConfiguratorDock({
                     <span
                       key={item.slot}
                       className={`relative size-8 overflow-clip rounded-full border-[1.2px] border-white ${
-                        index < list.length - 1 ? "-mr-[10px]" : ""
+                        index < list.length - 1 ? "-mr-2.5" : ""
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -186,14 +179,9 @@ export default function ConfiguratorDock({
                     </span>
                   ))}
               </span>
-              <span className="relative -ml-1 flex size-[22px] items-center justify-center rounded-full bg-[#1a5e63]">
+              <span className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]">
                 <span className="relative block size-[10.5px] overflow-clip">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/images/configurator/pen.svg"
-                    alt=""
-                    className="h-full w-full"
-                  />
+                  <Pen className="w-full h-full" />
                 </span>
               </span>
             </span>
@@ -201,14 +189,14 @@ export default function ConfiguratorDock({
               <span className="font-sans text-[10px] uppercase tracking-[1.1px] text-white/70">
                 Selected Items
               </span>
-              <span className="max-w-[144px] truncate font-sans text-[13px] leading-[1.16] text-white">
+              <span className="max-w-36 truncate font-sans text-[13px] leading-[1.16] text-white">
                 {summary}
               </span>
             </span>
           </button>
 
           <DockIcon
-            src="/images/configurator/reset.svg"
+            icon={<Reset className="w-full h-full" />}
             label="Reset selections"
             onClick={onReset}
             disabled={viewOnly}
@@ -225,12 +213,7 @@ export default function ConfiguratorDock({
             title={saveLabel(saveStatus, viewOnly)}
             aria-label={saveLabel(saveStatus, viewOnly)}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/configurator/cloud-saved.svg"
-              alt=""
-              className="h-full w-full"
-            />
+            <CloudSaved className="w-full h-full" />
           </span>
         </div>
 
@@ -238,7 +221,7 @@ export default function ConfiguratorDock({
           <Button
             type="button"
             variant="pill"
-            className="h-8 rounded-full border-transparent bg-[#00272d] px-[13px] text-[10px] tracking-[0.3px] hover:bg-[#003840]"
+            className="h-8 rounded-full border-transparent bg-[#00272d] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#003840]"
             onClick={onQuote}
             disabled={viewOnly}
           >
@@ -252,7 +235,7 @@ export default function ConfiguratorDock({
         <div className="flex items-center gap-1.5">
           <div className="cfg-dock-settings relative">
             <DockIcon
-              src="/images/configurator/settings.svg"
+              icon={<Settings className="w-full h-full" />}
               label="Stream settings"
               onClick={onToggleSettings}
               active={settingsOpen}
@@ -300,7 +283,7 @@ export default function ConfiguratorDock({
           </div>
 
           <DockIcon
-            src="/images/configurator/expand.svg"
+            icon={<Expand className="w-full h-full" />}
             label="Fullscreen"
             onClick={onFullscreen}
           />
@@ -308,4 +291,6 @@ export default function ConfiguratorDock({
       </div>
     </div>
   );
-}
+};
+
+export default ConfiguratorDock;

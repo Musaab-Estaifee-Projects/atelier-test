@@ -1,0 +1,19 @@
+const CustomChevron = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      preserveAspectRatio="none"
+      overflow="visible"
+      style={{ display: "block" }}
+      width="10"
+      height="6.25"
+      viewBox="0 0 10 6.25"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path id="Vector 3" d="M10 0H0L5 6.25L10 0Z" fill="white" />
+    </svg>
+  );
+};
+
+export default CustomChevron;

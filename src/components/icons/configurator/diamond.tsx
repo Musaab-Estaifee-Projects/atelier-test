@@ -1,0 +1,28 @@
+const Diamond = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      preserveAspectRatio="none"
+      overflow="visible"
+      style={{ display: "block" }}
+      width="11"
+      height="11"
+      viewBox="0 0 11 11"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <g id="Subtract">
+        <path
+          d="M0 5.31198C2.92811 5.31195 5.30205 2.93399 5.30245 0.00074184H5.69748C5.69751 2.93433 8.07163 5.31272 11 5.31272L10.9999 5.70906C8.07858 5.7091 5.70888 8.07609 5.69755 11H5.30225C5.29129 8.07578 2.92158 5.70842 0 5.70839V5.31198Z"
+          fill="#F2E9D8"
+        />
+        <path
+          d="M5.30245 0.00074184H5.30178L5.30252 0L5.30245 0.00074184Z"
+          fill="#F2E9D8"
+        />
+      </g>
+    </svg>
+  );
+};
+
+export default Diamond;

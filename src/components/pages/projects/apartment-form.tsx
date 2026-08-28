@@ -12,6 +12,8 @@ import {
   normalizeDesignCode,
   searchUnits,
 } from "@/lib/projects/apartments";
+import CustomChevron from "@/components/icons/custom-chevron";
+import Search from "@/components/icons/search";
 
 export type ApartmentChoice = {
   unitId: string;
@@ -30,7 +32,7 @@ type Props = {
 
 type MenuId = "search" | "type" | "layout" | null;
 
-function OptionList({
+const OptionList = ({
   options,
   value,
   labelledBy,
@@ -40,7 +42,7 @@ function OptionList({
   value?: string;
   labelledBy?: string;
   onSelect: (id: string) => void;
-}) {
+}) => {
   return (
     <ul
       role="listbox"
@@ -64,9 +66,9 @@ function OptionList({
       ))}
     </ul>
   );
-}
+};
 
-function DashedDropdown({
+const DashedDropdown = ({
   label,
   value,
   placeholder,
@@ -82,7 +84,7 @@ function DashedDropdown({
   open: boolean;
   onToggle: () => void;
   onChange: (id: string) => void;
-}) {
+}) => {
   const labelId = useId();
   const selected = options.find((option) => option.id === value);
 
@@ -104,11 +106,9 @@ function DashedDropdown({
         >
           {selected?.label ?? placeholder}
         </span>
+
         <span className="relative block h-[6.25px] w-2.5 shrink-0 overflow-clip">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/projects/chevron.svg"
-            alt=""
+          <CustomChevron
             className={`h-full w-full transition-transform ${open ? "rotate-180" : ""}`}
           />
         </span>
@@ -123,16 +123,16 @@ function DashedDropdown({
       ) : null}
     </div>
   );
-}
+};
 
-export default function ApartmentForm({
+const ApartmentForm = ({
   title = "Select Apartment",
   titleId,
   pending = false,
   error,
   autoFocus = false,
   onSubmit,
-}: Props) {
+}: Props) => {
   const generatedTitleId = useId();
   const headingId = titleId ?? generatedTitleId;
   const rootRef = useRef<HTMLFormElement>(null);
@@ -242,7 +242,7 @@ export default function ApartmentForm({
     <form
       ref={rootRef}
       onSubmit={handleSubmit}
-      className="flex w-full max-w-[466px] flex-col items-stretch gap-9"
+      className="flex w-full max-w-116.5 flex-col items-stretch gap-9"
     >
       <h1
         id={headingId}
@@ -272,15 +272,11 @@ export default function ApartmentForm({
               disabled={pending}
               className="min-w-0 flex-1 bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
             />
-            <span className="relative block size-[18px] shrink-0 overflow-clip">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/projects/search.svg"
-                alt=""
-                className="h-full w-full"
-              />
+            <span className="relative block size-4.5 shrink-0 overflow-clip">
+              <Search className="h-full w-full" />
             </span>
           </label>
+
           {openMenu === "search" && suggestions.length > 0 ? (
             <OptionList
               options={suggestions.map((unit) => ({
@@ -350,4 +346,6 @@ export default function ApartmentForm({
       </div>
     </form>
   );
-}
+};
+
+export default ApartmentForm;

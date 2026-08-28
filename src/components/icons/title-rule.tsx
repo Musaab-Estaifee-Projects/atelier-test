@@ -1,0 +1,40 @@
+const TitleRule = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      preserveAspectRatio="none"
+      overflow="visible"
+      style={{ display: "block" }}
+      width="124.5"
+      height="1"
+      viewBox="0 0 124.5 1"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path id="Vector 120" d="M0 0.5H124.5" stroke="#ADA599" />
+    </svg>
+  );
+};
+
+export default TitleRule;
+
+{
+  /* <svg
+  preserveAspectRatio="none"
+  overflow="visible"
+  style={{ display: "block" }}
+  width="128.619"
+  height="0.880952"
+  viewBox="0 0 128.619 0.880952"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  {...props}
+>
+  <path
+    id="Vector 119"
+    d="M0 0.440476H128.619"
+    stroke="#F2E9D8"
+    strokeWidth="0.880952"
+  />
+</svg>; */
+}

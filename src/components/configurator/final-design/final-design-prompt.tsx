@@ -12,7 +12,12 @@ export default function FinalDesignPrompt({ open, onBack, onStart }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fd-overlay" role="dialog" aria-modal="true" aria-labelledby="fd-prompt-title">
+    <div
+      className="fd-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fd-prompt-title"
+    >
       <div className="fd-modal fd-modal-prompt">
         <h2 id="fd-prompt-title" className="fd-prompt-title">
           Ready to prepare your final design?
@@ -23,10 +28,20 @@ export default function FinalDesignPrompt({ open, onBack, onStart }: Props) {
           requesting your final quote.
         </p>
         <div className="fd-actions">
-          <Button type="button" variant="pill-outline" size="pill" onClick={onBack}>
+          <Button
+            type="button"
+            variant="pill-outline"
+            size="pill"
+            onClick={onBack}
+          >
             Back to customize
           </Button>
-          <Button type="button" variant="pill-solid" size="pill" onClick={onStart}>
+          <Button
+            type="button"
+            variant="pill-solid"
+            size="pill"
+            onClick={onStart}
+          >
             Start rendering
           </Button>
         </div>

@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/refs */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -475,6 +477,8 @@ export default function ConfiguratorShell({
     if (stream.isLoading || !session || !selections.hydrated) return;
     if (viewOnly && !designReady) return;
 
+    // Also runs after reconnect: isLoading true invalidates the UE cache,
+    // then this effect force-syncs finishes/camera when the stream is live again.
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
@@ -821,6 +825,7 @@ export default function ConfiguratorShell({
   }, [selections, send, params.zone, params.camera]);
 
   const handleChangeResolution = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (option: ResolutionOption) => {
       setCurrentResolution(option.label);
       const ui = stream.uiControlRef.current;
@@ -914,7 +919,8 @@ export default function ConfiguratorShell({
     stream.isLoading ||
     overlayKind === "queue" ||
     overlayKind === "disconnected" ||
-    overlayKind === "idle";
+    overlayKind === "idle" ||
+    overlayKind === "reconnecting";
   const showStreamOverlay =
     (streamBlocking || sessionLoading) && !streamOverlayDismissed;
   const showAfkWarning =
@@ -969,7 +975,7 @@ export default function ConfiguratorShell({
         <LoadingOverlay
           kind={overlayKind}
           progress={
-            overlayKind === "loading"
+            overlayKind === "loading" || overlayKind === "reconnecting"
               ? Math.max(sessionLoading ? 12 : 0, stream.loadingProgress || 0)
               : stream.loadingProgress
           }
@@ -979,6 +985,10 @@ export default function ConfiguratorShell({
           )}
           queuePosition={stream.queuePosition}
           selectionCount={selections.selections.length}
+          reconnectTitle={stream.loadingTitle}
+          reconnectSubtitle={stream.loadingSubtitle}
+          endedEyebrow={stream.endedCopy.eyebrow}
+          endedTitle={stream.endedCopy.title}
           onReconnect={() => window.location.reload()}
           onContinueToSummary={() => {
             setStreamOverlayDismissed(true);

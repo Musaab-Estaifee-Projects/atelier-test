@@ -13,6 +13,9 @@ import {
   surfaceDisplayLabel,
 } from "@/lib/configurator/zone-catalog";
 import { slotFromMeshId } from "@/mocks/configurator/session";
+import SidePanelClear from "../icons/configurator/side-panel-clear";
+import SidePanelClose from "../icons/configurator/side-panel-close";
+import PanelFrame from "../icons/configurator/panel-frame";
 
 type Props = {
   cameras: CameraRule[];
@@ -58,16 +61,10 @@ export default function ZoneSidePanel({
 
   return (
     <aside
-      className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-[84px] z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-[62px] md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none"
+      className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-21 z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-15.5 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none"
       aria-label="Materials"
     >
-      <div className="absolute inset-0 rounded-[28px] border-[0.5px] border-white/25 bg-gradient-to-l from-[rgba(173,165,153,0.55)] to-[rgba(77,69,57,0.55)] backdrop-blur-[25px] md:hidden" />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/configurator/panel-frame.svg"
-        alt=""
-        className="pointer-events-none absolute inset-0 hidden h-full w-full md:block"
-      />
+      <PanelFrame className="pointer-events-none absolute inset-0 h-full md:w-full" />
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto hidden-scrollbar px-5 py-5 sm:gap-8 sm:px-7 sm:py-7">
         <header className="flex shrink-0 flex-col gap-1.5">
@@ -77,17 +74,12 @@ export default function ZoneSidePanel({
             </h2>
             <button
               type="button"
-              className="relative flex size-[18px] shrink-0 items-center justify-center"
+              className="relative flex size-4.5 shrink-0 items-center justify-center"
               onClick={onClose}
               aria-label="Close materials"
             >
-              <span className="relative block size-[11px] overflow-clip">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/configurator/close.svg"
-                  alt=""
-                  className="h-full w-full"
-                />
+              <span className="relative block size-2.75 overflow-clip">
+                <SidePanelClose className="w-full h-full" />
               </span>
             </button>
           </div>
@@ -123,12 +115,7 @@ export default function ZoneSidePanel({
                   onClick={() => onRemoveSelection(activeSlot)}
                   aria-label="Clear selected material"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/images/configurator/clear.svg"
-                    alt=""
-                    className="h-full w-full"
-                  />
+                  <SidePanelClear className="w-full h-full" />
                 </button>
               ) : null}
             </div>
@@ -188,7 +175,9 @@ export default function ZoneSidePanel({
                       type="button"
                       aria-pressed={selected}
                       className={`flex w-full items-center gap-[7px] rounded-full bg-white/5 py-1 pr-5 pl-1 text-left ${
-                        selected ? "border border-white/70" : "border border-transparent"
+                        selected
+                          ? "border border-white/70"
+                          : "border border-transparent"
                       }`}
                       onClick={() => onSelectMesh(mesh)}
                     >
@@ -238,7 +227,9 @@ export default function ZoneSidePanel({
                       title={mat.displayName || mat.id}
                       aria-pressed={selected}
                       className={`rounded-full p-0.5 ${
-                        selected ? "border border-white" : "border border-transparent"
+                        selected
+                          ? "border border-white"
+                          : "border border-transparent"
                       }`}
                       onClick={() => onSelectMaterial(activeMesh.id, mat)}
                     >

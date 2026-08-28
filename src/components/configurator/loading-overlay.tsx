@@ -5,6 +5,7 @@ import AtelierMark from "@/components/icons/atelier-mark";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
 import type { StreamOverlayKind } from "@/lib/configurator/loading-config";
+import TitleRule from "../icons/title-rule";
 
 export type { StreamOverlayKind };
 
@@ -18,6 +19,10 @@ type Props = {
   onContinueToSummary?: () => void;
   onBackHome?: () => void;
   onBrowseStyles?: () => void;
+  reconnectTitle?: string;
+  reconnectSubtitle?: string;
+  endedEyebrow?: string;
+  endedTitle?: string;
   /** Full-viewport lock for the pre-shell boot state. */
   layout?: "absolute" | "fixed";
 };
@@ -46,6 +51,10 @@ export default function LoadingOverlay({
   onContinueToSummary,
   onBackHome,
   onBrowseStyles,
+  reconnectTitle,
+  reconnectSubtitle,
+  endedEyebrow,
+  endedTitle,
   layout = "absolute",
 }: Props) {
   const ended = kind === "disconnected" || kind === "idle";
@@ -72,6 +81,17 @@ export default function LoadingOverlay({
             <LoadingUnit progress={progress} unitSubtitle={unitSubtitle} />
           ) : null}
 
+          {kind === "reconnecting" ? (
+            <ReconnectingUnit
+              progress={progress}
+              title={reconnectTitle ?? "Reconnecting"}
+              subtitle={
+                reconnectSubtitle ??
+                "Please wait while we restore your session..."
+              }
+            />
+          ) : null}
+
           {kind === "queue" ? (
             <QueueWait
               position={queuePosition ?? 0}
@@ -81,8 +101,8 @@ export default function LoadingOverlay({
 
           {kind === "disconnected" ? (
             <SessionEnded
-              eyebrow="Connection lost"
-              title="The 3D session dropped"
+              eyebrow={endedEyebrow ?? "Connection lost"}
+              title={endedTitle ?? "The 3D session dropped"}
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
@@ -124,10 +144,10 @@ function LoadingUnit({
         {unitSubtitle}
       </p>
       <div className="mt-6 h-[2px] w-full max-w-[467px] overflow-hidden bg-white/10">
-          <div
-            className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
-            style={{ width: `${pct}%` }}
-          />
+        <div
+          className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
+          style={{ width: `${pct}%` }}
+        />
       </div>
 
       <div className="mt-8 grid w-full max-w-[450px] grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
@@ -140,6 +160,38 @@ function LoadingUnit({
           icon="/images/session/mouse.svg"
           iconClass="h-[57px] w-[87px]"
           label="Click and drag using your mouse to look around"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ReconnectingUnit({
+  progress,
+  title,
+  subtitle,
+}: {
+  progress: number;
+  title: string;
+  subtitle: string;
+}) {
+  const pct = Math.min(100, Math.max(0, progress));
+
+  return (
+    <div className="flex w-full max-w-[520px] flex-col items-center">
+      <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
+        Connection interrupted
+      </p>
+      <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+        {title}
+      </h1>
+      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
+        {subtitle}
+      </p>
+      <div className="mt-6 h-[2px] w-full max-w-[467px] overflow-hidden bg-white/10">
+        <div
+          className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -186,12 +238,9 @@ function QueueWait({
         </span>{" "}
         in line
       </h1>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/session/title-rule.svg"
-        alt=""
-        className="mt-4 h-px w-[125px]"
-      />
+
+      <TitleRule className="mt-4 h-px w-31.25" />
+
       <p className="mt-6 max-w-[420px] text-center text-[14px] leading-[1.2] text-white/70">
         You can wait here, or take a look on the styles we prepared for you.
       </p>
@@ -242,12 +291,9 @@ function SessionEnded({
       <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
         {title}
       </h1>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/session/title-rule.svg"
-        alt=""
-        className="mt-4 h-px w-[125px]"
-      />
+
+      <TitleRule className="mt-4 h-px w-31.25" />
+
       <p className="mt-6 text-center text-[14px] leading-[1.2] text-white/70">
         {saved}
       </p>
@@ -280,10 +326,13 @@ export function streamOverlayKind(args: {
 }): StreamOverlayKind {
   if (args.streamPhase === "idle") return "idle";
   if (args.streamPhase === "disconnected") return "disconnected";
+  if (args.streamPhase === "reconnecting") return "reconnecting";
   if (args.streamPhase === "queue") return "queue";
   if (args.queuePosition != null && args.queuePosition > 0) return "queue";
   if (/inactiv|session ended/i.test(args.loadingTitle)) return "idle";
-  if (/disconnected|failed|reconnect failed/i.test(args.loadingTitle)) {
+  if (/reconnect failed/i.test(args.loadingTitle)) return "disconnected";
+  if (/reconnect/i.test(args.loadingTitle)) return "reconnecting";
+  if (/disconnected|failed/i.test(args.loadingTitle)) {
     return "disconnected";
   }
   return "loading";

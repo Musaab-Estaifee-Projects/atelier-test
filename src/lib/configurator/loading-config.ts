@@ -31,13 +31,16 @@ export const LOADING_CONFIG = {
   reconnectFailedTitle: "Reconnection Failed",
   reconnectFailedSubtitle: "We were unable to restore your session.",
   idleTitle: "Session Ended",
+  interruptedTitle: "Connection interrupted",
+  interruptedSubtitle: "Please wait while we restore your session...",
 } as const;
 
 export type StreamOverlayKind =
   | "loading"
   | "queue"
   | "disconnected"
-  | "idle";
+  | "idle"
+  | "reconnecting";
 
 /**
  * StreamPixel WebRTC lifecycle → loading bar.

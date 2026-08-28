@@ -1,9 +1,11 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
+import TitleRule from "../icons/title-rule";
 
 type Props = {
   countdown: number;
@@ -91,12 +93,9 @@ export default function AfkWarningOverlay({ countdown, onStay }: Props) {
             >
               You&apos;ve been inactive
             </h1>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/session/title-rule.svg"
-              alt=""
-              className="mt-4 h-px w-[125px]"
-            />
+
+            <TitleRule className="mt-4 h-px w-31.25" />
+
             <p
               id="afk-desc"
               className="mt-6 text-center text-[14px] leading-[1.2] text-white/70"

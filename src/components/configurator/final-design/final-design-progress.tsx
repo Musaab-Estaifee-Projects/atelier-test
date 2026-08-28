@@ -6,6 +6,12 @@ import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
 import type { RoomRenderCard } from "@/types/configurator";
 import type { SubmitContactForm } from "@/components/configurator/submit-modal";
+import BackArrow from "@/components/icons/configurator/back-arrow";
+import CustomHeaderStyle from "@/components/icons/configurator/custom-header-style";
+import DiamondRule from "@/components/icons/configurator/diamond-rule";
+import CustomChevron from "@/components/icons/custom-chevron";
+import FromFrame from "@/components/icons/form-frame";
+import TitleRule from "@/components/icons/title-rule";
 
 const ROLES = [
   { id: "considering", label: "Considering a purchase" },
@@ -34,110 +40,7 @@ function stillProgress(room: RoomRenderCard) {
   return { done, total };
 }
 
-export default function FinalDesignProgress({
-  open,
-  rooms,
-  unitSubtitle,
-  error,
-  submitPending = false,
-  submitError = null,
-  onBack,
-  onView,
-  onRetry,
-  onSubmit,
-}: Props) {
-  if (!open) return null;
-
-  return (
-    <div
-      className="absolute inset-0 z-[60] overflow-y-auto overflow-x-hidden bg-[#00272d] text-white"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="fd-progress-title"
-    >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[min(282px,36vw)] overflow-hidden opacity-50">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/final-renders/header-wash.png"
-          alt=""
-          className="h-full w-full object-cover object-[center_top]"
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col px-4 pt-5 pb-16 sm:px-9">
-        <header className="relative flex items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="pill-solid"
-            size="pill-sm"
-            onClick={onBack}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/final-renders/back-arrow.svg"
-              alt=""
-              className="h-[10px] w-[5px]"
-            />
-            Back To summary
-          </Button>
-          <div className="absolute left-1/2 hidden -translate-x-1/2 sm:block">
-            <AtelierMark />
-          </div>
-          <span className="w-[38px] shrink-0 sm:w-[168px]" aria-hidden />
-        </header>
-
-        <div className="mt-5 sm:hidden">
-          <AtelierMark />
-        </div>
-
-        <div className="mt-10 flex flex-col items-center sm:mt-12">
-          <h1
-            id="fd-progress-title"
-            className="text-center font-libre-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]"
-          >
-            Creating Final Renders
-          </h1>
-          <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70">
-            {unitSubtitle}
-          </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/final-renders/title-rule.svg"
-            alt=""
-            className="mt-5 h-px w-[129px]"
-          />
-        </div>
-
-        {error ? (
-          <p className="mx-auto mt-6 max-w-xl text-center text-sm text-[#e29584]">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-8 flex flex-col gap-10 lg:mt-10 lg:flex-row lg:items-start lg:gap-8">
-          <div className="min-w-0 flex-1">
-            {rooms.map((room) => (
-              <RoomBlock
-                key={room.zoneId}
-                room={room}
-                onView={onView}
-                onRetry={onRetry}
-              />
-            ))}
-          </div>
-
-          <QuoteForm
-            pending={submitPending}
-            error={submitError}
-            onSubmit={onSubmit}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RoomBlock({
+const RoomBlock = ({
   room,
   onView,
   onRetry,
@@ -145,7 +48,7 @@ function RoomBlock({
   room: RoomRenderCard;
   onView: (zoneId: string) => void;
   onRetry: (zoneId: string) => void;
-}) {
+}) => {
   const { done, total } = stillProgress(room);
   const tiles = useMemo(() => {
     const list = [...room.stills];
@@ -165,12 +68,8 @@ function RoomBlock({
           <h2 className="font-libre-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
             {room.label}
           </h2>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/final-renders/diamond-rule.svg"
-            alt=""
-            className="mt-1.5 h-[18px] w-[150px]"
-          />
+
+          <DiamondRule className="mt-1.5 h-4.5 w-37.5" />
         </div>
         <p className="text-[14px] leading-[1.2] text-white/70">
           {done} / {total} Completed
@@ -213,9 +112,9 @@ function RoomBlock({
       </div>
     </section>
   );
-}
+};
 
-function QuoteForm({
+const QuoteForm = ({
   pending,
   error,
   onSubmit,
@@ -223,7 +122,7 @@ function QuoteForm({
   pending: boolean;
   error?: string | null;
   onSubmit: (contact: SubmitContactForm) => void;
-}) {
+}) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -256,13 +155,9 @@ function QuoteForm({
   };
 
   return (
-    <aside className="relative w-full shrink-0 lg:sticky lg:top-6 lg:w-[346px]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/final-renders/form-frame.svg"
-        alt=""
-        className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block"
-      />
+    <aside className="relative w-full shrink-0 lg:sticky lg:top-6 lg:w-86.5">
+      <FromFrame className="pointer-events-none absolute inset-0 hidden! h-full w-full lg:block!" />
+
       <form
         onSubmit={handleSubmit}
         className="relative z-10 flex flex-col gap-8 border border-white/10 bg-white/5 p-7 lg:border-0 lg:bg-transparent lg:p-9"
@@ -283,6 +178,7 @@ function QuoteForm({
               disabled={pending}
             />
           </label>
+
           <label className="w-full border-b border-dashed border-white/35 py-3.5">
             <span className="sr-only">Email</span>
             <input
@@ -295,16 +191,14 @@ function QuoteForm({
               disabled={pending}
             />
           </label>
+
           <div className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5">
             <span className="shrink-0 text-[12px] leading-[1.2] text-white/70">
               +971
             </span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/final-renders/chevron.svg"
-              alt=""
-              className="h-[6px] w-2.5"
-            />
+
+            <CustomChevron className="h-1.5 w-2.5" />
+
             <input
               className="min-w-0 flex-1 bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
               placeholder="50 XXX XXXX"
@@ -321,6 +215,7 @@ function QuoteForm({
           <legend className="text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white/50 uppercase">
             I Am
           </legend>
+
           <div className="flex flex-col items-start gap-[7px]">
             {ROLES.map((item) => {
               const selected = role === item.id;
@@ -352,6 +247,7 @@ function QuoteForm({
             />
             I agree to be contacted about this quotation.
           </label>
+
           <label className="flex items-start gap-[7px] text-[12px] leading-[1.2] text-white/70">
             <input
               type="checkbox"
@@ -383,4 +279,100 @@ function QuoteForm({
       </form>
     </aside>
   );
-}
+};
+
+const FinalDesignProgress = ({
+  open,
+  rooms,
+  unitSubtitle,
+  error,
+  submitPending = false,
+  submitError = null,
+  onBack,
+  onView,
+  onRetry,
+  onSubmit,
+}: Props) => {
+  if (!open) return null;
+
+  return (
+    <div
+      className="absolute inset-0 z-[60] overflow-y-auto overflow-x-hidden bg-[#00272d] text-white"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fd-progress-title"
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0! left-[16%] h-[min(382px,42vw)] overflow-hidden opacity-45">
+        {/* <img
+          src="/images/review/header-bg.png"
+          alt=""
+          className="h-full w-full object-cover object-[center_top]"
+        /> */}
+        <CustomHeaderStyle className="h-full w-full object-cover object-[center_top]" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col px-4 pt-5 pb-16 sm:px-9">
+        <header className="relative flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="pill-solid"
+            size="pill-sm"
+            onClick={onBack}
+          >
+            <BackArrow className="w-[0.28125rem]! h-auto" />
+            Back To summary
+          </Button>
+          <div className="absolute left-1/2 hidden -translate-x-1/2 sm:block">
+            <AtelierMark />
+          </div>
+          <span className="w-[38px] shrink-0 sm:w-[168px]" aria-hidden />
+        </header>
+
+        <div className="mt-5 sm:hidden">
+          <AtelierMark />
+        </div>
+
+        <div className="mt-10 flex flex-col items-center sm:mt-12">
+          <h1
+            id="fd-progress-title"
+            className="text-center font-libre-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]"
+          >
+            Creating Final Renders
+          </h1>
+          <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70">
+            {unitSubtitle}
+          </p>
+
+          <TitleRule className="mt-5 h-px w-32.25" />
+        </div>
+
+        {error ? (
+          <p className="mx-auto mt-6 max-w-xl text-center text-sm text-[#e29584]">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="mt-8 flex flex-col gap-10 lg:mt-10 lg:flex-row lg:items-start lg:gap-8">
+          <div className="min-w-0 flex-1">
+            {rooms.map((room) => (
+              <RoomBlock
+                key={room.zoneId}
+                room={room}
+                onView={onView}
+                onRetry={onRetry}
+              />
+            ))}
+          </div>
+
+          <QuoteForm
+            pending={submitPending}
+            error={submitError}
+            onSubmit={onSubmit}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FinalDesignProgress;

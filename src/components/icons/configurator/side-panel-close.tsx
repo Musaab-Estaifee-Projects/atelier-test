@@ -1,0 +1,24 @@
+const SidePanelClose = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      preserveAspectRatio="none"
+      overflow="visible"
+      style={{ display: "block" }}
+      width="12.3813"
+      height="12.3744"
+      viewBox="0 0 12.3813 12.3744"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        id="Vector"
+        d="M11.6673 0.707107L6.19064 6.18373M6.19064 6.18373L0.707107 11.6673M6.19064 6.18373L11.6742 11.6673M6.19064 6.18373L0.714012 0.707107"
+        stroke="white"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+};
+
+export default SidePanelClose;
