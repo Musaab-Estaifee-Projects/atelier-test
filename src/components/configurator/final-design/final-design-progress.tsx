@@ -12,6 +12,7 @@ import DiamondRule from "@/components/icons/configurator/diamond-rule";
 import CustomChevron from "@/components/icons/custom-chevron";
 import FromFrame from "@/components/icons/form-frame";
 import TitleRule from "@/components/icons/title-rule";
+import { Input } from "@/components/ui/input";
 
 const ROLES = [
   { id: "considering", label: "Considering a purchase" },
@@ -211,12 +212,12 @@ const QuoteForm = ({
           </div>
         </div>
 
-        <fieldset className="flex flex-col items-start gap-3">
-          <legend className="text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white/50 uppercase">
+        <fieldset className="flex flex-col items-start">
+          <legend className="text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white/50 uppercase mb-3">
             I Am
           </legend>
 
-          <div className="flex flex-col items-start gap-[7px]">
+          <div className="flex flex-col items-start gap-1.75">
             {ROLES.map((item) => {
               const selected = role === item.id;
               return (
@@ -238,22 +239,22 @@ const QuoteForm = ({
         </fieldset>
 
         <div className="flex w-full flex-col gap-4">
-          <label className="flex items-start gap-[7px] text-[12px] leading-[1.2] text-white/70">
-            <input
+          <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
+            <Input
               type="checkbox"
               checked={contactOk}
               onChange={(e) => setContactOk(e.target.checked)}
-              className="mt-0.5 size-2.5 shrink-0 appearance-none border border-white bg-white checked:bg-white"
+              className="mt-0.5 size-2.5 shrink-0 bg-white"
             />
             I agree to be contacted about this quotation.
           </label>
 
-          <label className="flex items-start gap-[7px] text-[12px] leading-[1.2] text-white/70">
-            <input
+          <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
+            <Input
               type="checkbox"
               checked={termsOk}
               onChange={(e) => setTermsOk(e.target.checked)}
-              className="mt-0.5 size-2.5 shrink-0 appearance-none border border-white bg-white checked:bg-white"
+              className="mt-0.5 size-2.5 shrink-0 bg-white"
             />
             <span>
               I agree on the{" "}

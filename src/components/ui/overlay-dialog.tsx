@@ -20,7 +20,7 @@ type OverlayDialogProps = {
   children: React.ReactNode;
 };
 
-export function OverlayDialog({
+const OverlayDialog = ({
   open,
   onOpenChange,
   title,
@@ -29,7 +29,7 @@ export function OverlayDialog({
   overlayClassName,
   contentClassName,
   children,
-}: OverlayDialogProps) {
+}: OverlayDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
@@ -58,4 +58,6 @@ export function OverlayDialog({
       </DialogPortal>
     </Dialog>
   );
-}
+};
+
+export default OverlayDialog;

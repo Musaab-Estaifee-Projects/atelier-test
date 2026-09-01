@@ -261,7 +261,9 @@ const ConfiguratorDock = ({
                     <div className="cfg-settings-divider" />
                   </>
                 ) : null}
-                <p className="cfg-settings-title">Stream resolution</p>
+                <p className="cfg-settings-title text-white">
+                  Stream resolution
+                </p>
                 {!resolutionEnabled ? (
                   <p className="cfg-muted">Resolution locked by stream</p>
                 ) : null}

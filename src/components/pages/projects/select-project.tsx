@@ -7,8 +7,9 @@ import ReturnConfiguration from "@/components/pages/projects/return-configuratio
 import { Button } from "@/components/ui/button";
 import { CATALOG_PROJECTS, type CatalogProject } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
+import Bg from "@/components/shared/bg";
 
-function ProjectCard({ project }: { project: CatalogProject }) {
+const ProjectCard = ({ project }: { project: CatalogProject }) => {
   return (
     <Link
       href={`/projects/${project.slug}`}
@@ -44,13 +45,13 @@ function ProjectCard({ project }: { project: CatalogProject }) {
       </div>
     </Link>
   );
-}
+};
 
-export default function SelectProject({
+const SelectProject = ({
   initialReturn = false,
 }: {
   initialReturn?: boolean;
-}) {
+}) => {
   const [returnOpen, setReturnOpen] = useState(initialReturn);
 
   return (
@@ -60,12 +61,19 @@ export default function SelectProject({
         ...pageNoiseStyle(0.12),
       }}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-30">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      {/* <div className="pointer-events-none absolute inset-0 opacity-30"> */}
+      {}
+      {/* <img
           src="/images/projects/bg.png"
           alt=""
           className="h-full w-full object-cover"
+        /> */}
+      {/* </div> */}
+
+      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+        <Bg
+          preserveAspectRatio="xMidYMid slice"
+          className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover"
         />
       </div>
 
@@ -77,7 +85,7 @@ export default function SelectProject({
           </h1>
         </header>
 
-        <ul className="mt-8 grid w-full grid-cols-1 justify-items-center gap-8 md:mt-10 md:grid-cols-2 md:gap-6 lg:mt-8 lg:min-h-0 lg:flex-1 lg:grid-cols-3 lg:grid-rows-1 lg:items-stretch lg:gap-5">
+        <ul className="mt-8 grid w-full grid-cols-1 justify-items-center md:mt-10 md:grid-cols-2 lg:mt-8 lg:min-h-0 lg:flex-1 lg:grid-cols-3 lg:grid-rows-1 lg:items-stretch">
           {CATALOG_PROJECTS.map((project) => (
             <li
               key={project.slug}
@@ -110,4 +118,6 @@ export default function SelectProject({
       />
     </main>
   );
-}
+};
+
+export default SelectProject;

@@ -13,6 +13,7 @@ import {
   type CatalogProject,
 } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
+import Bg from "@/components/shared/bg";
 
 function ProjectInfoBar({ project }: { project: CatalogProject }) {
   return (
@@ -87,12 +88,19 @@ export default function SelectApartment({
       className="relative min-h-dvh overflow-hidden bg-[#00272d] text-white lg:h-dvh"
       style={pageNoiseStyle(0.12)}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-30">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      {/* <div className="pointer-events-none absolute inset-0 opacity-30"> */}
+      {}
+      {/* <img
           src="/images/projects/bg.png"
           alt=""
           className="h-full w-full object-cover"
+        />
+      </div> */}
+
+      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+        <Bg
+          preserveAspectRatio="xMidYMid slice"
+          className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover"
         />
       </div>
 
@@ -117,7 +125,7 @@ export default function SelectApartment({
           <img
             src={project.image}
             alt={project.name}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-x-9 bottom-9">
             <ProjectInfoBar project={project} />

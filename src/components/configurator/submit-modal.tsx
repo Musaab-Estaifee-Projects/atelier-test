@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { OverlayDialog } from "@/components/ui/overlay-dialog";
+import OverlayDialog from "@/components/ui/overlay-dialog";
 
 export type SubmitContactForm = {
   name: string;
@@ -18,13 +18,13 @@ type Props = {
   onSubmit: (contact: SubmitContactForm) => void;
 };
 
-export default function SubmitModal({
+const SubmitModal = ({
   open,
   pending = false,
   error = null,
   onClose,
   onSubmit,
-}: Props) {
+}: Props) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -121,4 +121,6 @@ export default function SubmitModal({
       </form>
     </OverlayDialog>
   );
-}
+};
+
+export default SubmitModal;

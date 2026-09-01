@@ -1,0 +1,24 @@
+const ReturnDialogFrame = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      preserveAspectRatio="none"
+      overflow="visible"
+      style={{ display: "block" }}
+      width="615"
+      height="328"
+      viewBox="0 0 615 328"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M589.507 0C589.77 13.9623 601.038 25.2298 615 25.4932V301.506C600.871 301.772 589.5 313.308 589.5 327.5C589.5 327.667 589.504 327.834 589.507 328H26.4932C26.4963 327.834 26.5 327.667 26.5 327.5C26.5 313.141 14.8594 301.5 0.5 301.5C0.332953 301.5 0.166297 301.503 0 301.506V25.4932C0.166303 25.4963 0.332947 25.5 0.5 25.5C14.6924 25.5 26.2267 14.1286 26.4932 0H589.507Z"
+        fill="#00272D"
+        stroke="white"
+        strokeOpacity="0.1"
+      />
+    </svg>
+  );
+};
+
+export default ReturnDialogFrame;

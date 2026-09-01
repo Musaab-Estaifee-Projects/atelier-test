@@ -25,7 +25,7 @@ const buttonVariants = cva(
         "pill-solid":
           "rounded-full border-transparent bg-[#f2e9d8] text-[#00272d] hover:bg-[#f2e9d8]/90 focus-visible:border-[#f2e9d8] focus-visible:ring-[#f2e9d8]/30 active:translate-y-0",
         "pill-soft":
-          "rounded-full border-[#ada599]/24 bg-white/12 text-[#f2e9d8] hover:bg-white/16 focus-visible:border-[#ada599]/40 focus-visible:ring-white/20 active:translate-y-0",
+          "rounded-full border-[#ada599]/24 bg-[rgba(255,255,255,0.05)] text-[#f2e9d8] hover:bg-white/16 focus-visible:border-[#ada599]/40 focus-visible:ring-white/20 active:translate-y-0",
       },
       size: {
         default:
@@ -39,7 +39,7 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
-        pill: "h-[50px] gap-2 px-10 text-[10px] leading-[1.2] font-medium tracking-[0.03em] uppercase",
+        pill: "h-[2.5rem] gap-2 px-10 text-[10px] leading-[1.2] font-medium tracking-[0.03em] uppercase",
         "pill-sm":
           "h-[38px] gap-2 px-[19px] text-[10px] leading-[1.2] font-medium tracking-[0.03em] uppercase",
         "pill-lg":

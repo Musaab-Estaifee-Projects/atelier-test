@@ -14,6 +14,7 @@ import {
 } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
+import Bg from "@/components/shared/bg";
 
 export function demoCustomizeHref(style?: string) {
   const q = new URLSearchParams({
@@ -119,19 +120,26 @@ export default function SelectStyle({
     <Wrapper
       className={`relative bg-[#00272d] text-white ${
         overlay
-          ? "absolute inset-0 z-[50] overflow-y-auto"
+          ? "absolute inset-0 z-50 overflow-y-auto"
           : "min-h-dvh overflow-x-hidden"
       }`}
       style={{
         ...pageNoiseStyle(0.16),
       }}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-30">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      {/* <div className="pointer-events-none absolute inset-0 opacity-30"> */}
+      {}
+      {/* <img
           src="/images/styles/bg.png"
           alt=""
           className="h-full w-full object-cover"
+        /> */}
+      {/* </div> */}
+
+      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+        <Bg
+          preserveAspectRatio="xMidYMid slice"
+          className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover"
         />
       </div>
 

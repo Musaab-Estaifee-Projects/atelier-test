@@ -9,6 +9,7 @@ import ReefWord from "@/components/icons/reef-word";
 import Star from "@/components/icons/star";
 import Link from "next/link";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
+import { RoundedRect } from "@/components/shared/rounded-rect";
 
 const FH = 808;
 const ROW_T = 273;
@@ -233,7 +234,7 @@ export default function HomeIntro() {
             <span className="font-libre-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
               STEP INTO
             </span>
-            <span className="font-snell-roundhand text-[42px] leading-none text-[#F5F0E8] sm:text-[52px]">
+            <span className="font-snell-roundhand text-[28px] min-[429px]:text-[34px] sm:text-[42px] leading-none text-[#F5F0E8] md:text-[52px]">
               Personalized
             </span>
             <span className="mt-2 font-libre-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
@@ -244,7 +245,7 @@ export default function HomeIntro() {
           {/* ───────────────────────────────────────────────
               STAGE 6  •  CTA button
           ─────────────────────────────────────────────── */}
-          <motion.div
+          {/* <motion.div
             className="absolute bottom-[10%]! left-1/2 -translate-x-1/2 min-[2000px]:bottom-[11%]"
             initial={{ opacity: 0, y: 16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -254,27 +255,29 @@ export default function HomeIntro() {
               ease: [0.22, 1, 0.36, 1],
             }}
           >
-            <motion.button
-              type="button"
+            <RoundedRect
+              as="button"
               onClick={() => handleNavigate("/projects")}
-              // className="ticket-notch relative z-10 mx-8 cursor-pointer border-none py-5 font-libre-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white backdrop-blur-[15px] sm:px-14 sm:text-[13px] lg:w-[40vw] lg:max-w-[800px] lg:py-[2vmax] xl:text-lg"
-              className="ticket-notch relative z-10 border border-white/40 mx-8 py-5 font-libre-baskerville text-[12px] tracking-[0.32625rem] text-white uppercase backdrop-blur-[15px] sm:px-14 sm:text-[13px] xl:text-lg cursor-pointer lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800!"
-              initial={{ opacity: 0, backgroundColor: "rgba(20, 62, 71, 0.4)" }}
-              animate={{
-                opacity: 1,
-                backgroundColor: "rgb(29, 38, 39)",
-              }}
+              className="relative z-10 mx-8 cursor-pointer border-none py-5 font-libre-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
+              // Animate the shape fill itself (not a rectangular background)
+              initial={{ "--shape-fill": "rgba(20, 62, 71, 0.4)" }}
+              animate={{ "--shape-fill": "rgba(29, 60, 39, 0.1)" }}
               transition={{
-                opacity: { delay: 3.85, duration: 0.5 },
-                backgroundColor: {
+                "--shape-fill": {
                   delay: 3.8,
                   duration: 1.0,
                   ease: [0.22, 1, 0.36, 1],
                 },
+                opacity: { delay: 3.85, duration: 0.5 },
               }}
-              style={{
-                ...pageNoiseStyle(0.13),
+              stroke="rgba(255,255,255,0.4)"
+              radius={{
+                base: 12,
+                sm: 14,
+                md: 16,
+                lg: 24,
               }}
+              noiseOpacity={0.13}
             >
               <motion.span
                 initial={{ opacity: 0 }}
@@ -287,15 +290,63 @@ export default function HomeIntro() {
               >
                 Start Your Experience
               </motion.span>
-            </motion.button>
-          </motion.div>
+            </RoundedRect>
+          </motion.div> */}
 
+          {/* ───────────────────────────────────────────────
+    STAGE 6  •  CTA button  →  centered in [3,2]
+─────────────────────────────────────────────── */}
+          <motion.div
+            className="absolute left-1/2 top-[84%] -translate-x-1/2 -translate-y-1/2"
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              delay: 3.55,
+              duration: 0.7,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <RoundedRect
+              as="button"
+              onClick={() => handleNavigate("/projects")}
+              className="relative z-10 mx-8 cursor-pointer border-none py-6 sm:py-8 font-libre-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2.5vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
+              initial={{ "--shape-fill": "rgba(20, 62, 71, 0.4)" }}
+              animate={{ "--shape-fill": "rgba(29, 60, 39, 0.1)" }}
+              transition={{
+                "--shape-fill": {
+                  delay: 3.8,
+                  duration: 1.0,
+                  ease: [0.22, 1, 0.36, 1],
+                },
+                opacity: { delay: 3.85, duration: 0.5 },
+              }}
+              stroke="rgba(255,255,255,0.4)"
+              radius={{
+                base: 12,
+                sm: 14,
+                md: 16,
+                lg: 24,
+              }}
+              noiseOpacity={0.13}
+            >
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  delay: 4.2,
+                  duration: 0.7,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                Start Your Experience
+              </motion.span>
+            </RoundedRect>
+          </motion.div>
           {/* ───────────────────────────────────────────────
               STAGE 7  •  paragraph
           ─────────────────────────────────────────────── */}
           <motion.p
-            // className="absolute bottom-[10%] right-[1%] max-w-50 font-general-sans text-[11px] leading-relaxed text-white/60 max-lg:pl-10 sm:text-sm md:right-[2%] lg:max-w-67.5 xl:right-[5%]"
-            className="absolute bottom-[10%] right-[1%]! md:right-[2%]! xl:right-[5%]! max-w-50 font-general-sans text-[11px] leading-relaxed text-white/60 lg:max-w-67.5 sm:text-sm max-lg:pl-10"
+            className="absolute hidden md:block left-[86%] top-[84%] max-w-50 -translate-x-1/2 -translate-y-1/2 font-general-sans text-[8px] leading-relaxed text-white/60 sm:text-sm lg:max-w-67.5"
             initial={{ opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{

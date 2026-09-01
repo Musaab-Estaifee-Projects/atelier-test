@@ -61,17 +61,18 @@ export default function ZoneSidePanel({
 
   return (
     <aside
-      className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-21 z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-15.5 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none"
+      className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-21 z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-15.5 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none py-8"
       aria-label="Materials"
     >
-      <PanelFrame className="pointer-events-none absolute inset-0 h-full md:w-full" />
+      <PanelFrame className="pointer-events-none absolute inset-0 h-full w-full flex-1" />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto hidden-scrollbar px-5 py-5 sm:gap-8 sm:px-7 sm:py-7">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto hidden-scrollbar px-5 sm:gap-8 sm:px-7">
         <header className="flex shrink-0 flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <h2 className="min-w-0 flex-1 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
+          <div className="flex items-center justify-between gap-1.5">
+            <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
               Materials
             </h2>
+
             <button
               type="button"
               className="relative flex size-4.5 shrink-0 items-center justify-center"
@@ -94,7 +95,7 @@ export default function ZoneSidePanel({
           </h3>
           {selectedMaterial ? (
             <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
-              <span className="relative size-[52px] shrink-0 overflow-clip rounded-full border border-white/20">
+              <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={materialThumb(

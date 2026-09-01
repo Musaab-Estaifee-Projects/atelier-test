@@ -697,7 +697,6 @@ html.configurator-active #afkOverlay {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.6;
 }
 .cfg-settings-opt {
   border: 0;
