@@ -18,7 +18,7 @@ import Bg from "@/components/shared/bg";
 function ProjectInfoBar({ project }: { project: CatalogProject }) {
   return (
     <div className="flex w-full flex-col gap-[7px] bg-white/10 p-[19px] backdrop-blur-[12px]">
-      <h2 className="font-libre-baskerville text-[26px] leading-none font-normal tracking-[0.15em] text-white uppercase">
+      <h2 className="font-baskerville text-[26px] leading-none font-normal tracking-[0.15em] text-white uppercase">
         {project.name}
       </h2>
       <div className="h-px w-full bg-white/35" />

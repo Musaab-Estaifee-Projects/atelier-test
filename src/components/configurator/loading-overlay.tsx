@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import type { StreamOverlayKind } from "@/lib/configurator/loading-config";
 import TitleRule from "../icons/title-rule";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
+import DoorOpen from "../icons/configurator/door-open";
+import CloudSlash from "../icons/configurator/cloud-slash";
 
 export type { StreamOverlayKind };
 
@@ -54,7 +56,7 @@ const LoadingUnit = ({
 
   return (
     <div className="flex w-full max-w-[520px] flex-col items-center">
-      <h1 className="text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
         Loading Your Unit
       </h1>
       <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
@@ -99,7 +101,7 @@ const ReconnectingUnit = ({
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
         Connection interrupted
       </p>
-      <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
         {title}
       </h1>
       <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
@@ -148,7 +150,7 @@ const QueueWait = ({
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
         All 3D sessions are busy
       </p>
-      <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
         You&apos;re{" "}
         <span className="text-[#ada599]">
           {position > 0 ? position : "next"}
@@ -176,6 +178,7 @@ const QueueWait = ({
 
 const SessionEnded = ({
   eyebrow,
+  icon,
   title,
   selectionCount,
   secondaryLabel,
@@ -183,6 +186,7 @@ const SessionEnded = ({
   onSecondary,
 }: {
   eyebrow: string;
+  icon: React.ReactNode;
   title: string;
   selectionCount: number;
   secondaryLabel: string;
@@ -196,18 +200,13 @@ const SessionEnded = ({
 
   return (
     <div className="flex w-full max-w-[720px] flex-col items-center px-2">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/session/cloud-slash.svg"
-        alt=""
-        className="mb-6 h-[51px] w-[60px]"
-      />
+      {icon}
 
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#e29584] uppercase">
         {eyebrow}
       </p>
 
-      <h1 className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="mt-3 text-center font-baskerville text-[2rem] md:text-[2.25rem] leading-[1.16] font-normal tracking-[0.05em] text-white capitalize">
         {title}
       </h1>
 
@@ -346,6 +345,7 @@ const LoadingOverlay = ({
           {kind === "disconnected" ? (
             <SessionEnded
               eyebrow={endedEyebrow ?? "Connection lost"}
+              icon={<CloudSlash className="mb-6 h-[51px] w-[60px]" />}
               title={endedTitle ?? "The 3D session dropped"}
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
@@ -357,6 +357,7 @@ const LoadingOverlay = ({
           {kind === "idle" ? (
             <SessionEnded
               eyebrow="Session ended"
+              icon={<DoorOpen className="mb-6 size-[4rem]!" />}
               title="The 3D session ended due to inactivity"
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"

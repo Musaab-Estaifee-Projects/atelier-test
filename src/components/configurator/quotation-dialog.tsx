@@ -38,7 +38,7 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
         >
           <div className="relative z-10 flex flex-col items-center gap-8 px-6 py-8 sm:px-11.5 sm:py-11.5">
             <div className="flex w-full flex-col items-center gap-[0.875rem] text-center">
-              <h2 className="font-libre-baskerville text-[1.25rem] md:text-[1.625rem] leading-[1.16] font-normal text-[#f2e9d8] capitalize">
+              <h2 className="font-baskerville text-[1.25rem] md:text-[1.625rem] leading-[1.16] font-normal text-[#f2e9d8] capitalize">
                 Ready to prepare your final design?
               </h2>
 

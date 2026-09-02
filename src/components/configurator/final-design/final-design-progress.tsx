@@ -13,6 +13,8 @@ import CustomChevron from "@/components/icons/custom-chevron";
 import FromFrame from "@/components/icons/form-frame";
 import TitleRule from "@/components/icons/title-rule";
 import { Input } from "@/components/ui/input";
+import ContactForm from "@/components/shared/contact-form";
+import { ContactInfo } from "@/types/types";
 
 const ROLES = [
   { id: "considering", label: "Considering a purchase" },
@@ -66,7 +68,7 @@ const RoomBlock = ({
     <section className="mb-12 last:mb-0">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-libre-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
+          <h2 className="font-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
             {room.label}
           </h2>
 
@@ -115,6 +117,173 @@ const RoomBlock = ({
   );
 };
 
+// const QuoteForm = ({
+//   pending,
+//   error,
+//   onSubmit,
+// }: {
+//   pending: boolean;
+//   error?: string | null;
+//   onSubmit: (contact: SubmitContactForm) => void;
+// }) => {
+//   const [name, setName] = useState("");
+//   const [email, setEmail] = useState("");
+//   const [phone, setPhone] = useState("");
+//   const [role, setRole] = useState<RoleId>("owner");
+//   const [contactOk, setContactOk] = useState(true);
+//   const [termsOk, setTermsOk] = useState(true);
+//   const [localError, setLocalError] = useState<string | null>(null);
+
+//   const handleSubmit = (e: React.FormEvent) => {
+//     e.preventDefault();
+//     if (!name.trim() || !email.trim() || !phone.trim()) {
+//       setLocalError("Please fill in name, email, and phone.");
+//       return;
+//     }
+//     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+//       setLocalError("Enter a valid email address.");
+//       return;
+//     }
+//     if (!contactOk || !termsOk) {
+//       setLocalError("Please accept the required agreements.");
+//       return;
+//     }
+//     void role;
+//     setLocalError(null);
+//     onSubmit({
+//       name: name.trim(),
+//       email: email.trim(),
+//       phone: `+971 ${phone.trim()}`,
+//     });
+//   };
+
+//   return (
+//     <aside className="relative w-full shrink-0 lg:sticky lg:top-6 lg:w-86.5">
+//       <FromFrame className="pointer-events-none absolute inset-0 hidden! h-full w-full lg:block!" />
+
+//       <form
+//         onSubmit={handleSubmit}
+//         className="relative z-10 flex flex-col gap-8 border border-white/10 bg-white/5 p-7 lg:border-0 lg:bg-transparent lg:p-9"
+//       >
+//         <h2 className="font-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
+//           Where should we send it?
+//         </h2>
+
+//         <div className="flex w-full flex-col gap-3">
+//           <label className="w-full border-b border-dashed border-white/35 py-3.5">
+//             <span className="sr-only">Full Name</span>
+//             <input
+//               className="w-full bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
+//               placeholder="Full Name"
+//               value={name}
+//               onChange={(e) => setName(e.target.value)}
+//               autoComplete="name"
+//               disabled={pending}
+//             />
+//           </label>
+
+//           <label className="w-full border-b border-dashed border-white/35 py-3.5">
+//             <span className="sr-only">Email</span>
+//             <input
+//               type="email"
+//               className="w-full bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
+//               placeholder="Enter your email"
+//               value={email}
+//               onChange={(e) => setEmail(e.target.value)}
+//               autoComplete="email"
+//               disabled={pending}
+//             />
+//           </label>
+
+//           <div className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5">
+//             <span className="shrink-0 text-[12px] leading-[1.2] text-white/70">
+//               +971
+//             </span>
+
+//             <CustomChevron className="h-1.5 w-2.5" />
+
+//             <input
+//               className="min-w-0 flex-1 bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
+//               placeholder="50 XXX XXXX"
+//               value={phone}
+//               onChange={(e) => setPhone(e.target.value)}
+//               autoComplete="tel"
+//               inputMode="tel"
+//               disabled={pending}
+//             />
+//           </div>
+//         </div>
+
+//         <fieldset className="flex flex-col items-start">
+//           <legend className="text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white/50 uppercase mb-3">
+//             I Am
+//           </legend>
+
+//           <div className="flex flex-col items-start gap-1.75">
+//             {ROLES.map((item) => {
+//               const selected = role === item.id;
+//               return (
+//                 <button
+//                   key={item.id}
+//                   type="button"
+//                   onClick={() => setRole(item.id)}
+//                   className={`inline-flex h-8 items-center justify-center rounded-full bg-white/5 px-5 text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white uppercase ${
+//                     selected
+//                       ? "border border-white/70"
+//                       : "border border-transparent text-white/80"
+//                   }`}
+//                 >
+//                   {item.label}
+//                 </button>
+//               );
+//             })}
+//           </div>
+//         </fieldset>
+
+//         <div className="flex w-full flex-col gap-4">
+//           <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
+//             <Input
+//               type="checkbox"
+//               checked={contactOk}
+//               onChange={(e) => setContactOk(e.target.checked)}
+//               className="mt-0.5 size-2.5 shrink-0 bg-white"
+//             />
+//             I agree to be contacted about this quotation.
+//           </label>
+
+//           <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
+//             <Input
+//               type="checkbox"
+//               checked={termsOk}
+//               onChange={(e) => setTermsOk(e.target.checked)}
+//               className="mt-0.5 size-2.5 shrink-0 bg-white"
+//             />
+//             <span>
+//               I agree on the{" "}
+//               <span className="underline">Terms &amp; Conditions</span> and{" "}
+//               <span className="underline">Privacy Policy</span>
+//             </span>
+//           </label>
+//         </div>
+
+//         {(localError || error) && (
+//           <p className="text-sm text-[#e29584]">{localError || error}</p>
+//         )}
+
+//         <Button
+//           type="submit"
+//           variant="pill-solid"
+//           size="pill"
+//           className="w-full"
+//           disabled={pending}
+//         >
+//           {pending ? "Submitting…" : "Submit"}
+//         </Button>
+//       </form>
+//     </aside>
+//   );
+// };
+
 const QuoteForm = ({
   pending,
   error,
@@ -124,160 +293,25 @@ const QuoteForm = ({
   error?: string | null;
   onSubmit: (contact: SubmitContactForm) => void;
 }) => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<RoleId>("owner");
-  const [contactOk, setContactOk] = useState(true);
-  const [termsOk, setTermsOk] = useState(true);
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !phone.trim()) {
-      setLocalError("Please fill in name, email, and phone.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setLocalError("Enter a valid email address.");
-      return;
-    }
-    if (!contactOk || !termsOk) {
-      setLocalError("Please accept the required agreements.");
-      return;
-    }
-    void role;
-    setLocalError(null);
-    onSubmit({
-      name: name.trim(),
-      email: email.trim(),
-      phone: `+971 ${phone.trim()}`,
-    });
-  };
-
   return (
     <aside className="relative w-full shrink-0 lg:sticky lg:top-6 lg:w-86.5">
       <FromFrame className="pointer-events-none absolute inset-0 hidden! h-full w-full lg:block!" />
 
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 flex flex-col gap-8 border border-white/10 bg-white/5 p-7 lg:border-0 lg:bg-transparent lg:p-9"
-      >
-        <h2 className="font-libre-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
-          Where should we send it?
-        </h2>
-
-        <div className="flex w-full flex-col gap-3">
-          <label className="w-full border-b border-dashed border-white/35 py-3.5">
-            <span className="sr-only">Full Name</span>
-            <input
-              className="w-full bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
-              placeholder="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
-              disabled={pending}
-            />
-          </label>
-
-          <label className="w-full border-b border-dashed border-white/35 py-3.5">
-            <span className="sr-only">Email</span>
-            <input
-              type="email"
-              className="w-full bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              disabled={pending}
-            />
-          </label>
-
-          <div className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5">
-            <span className="shrink-0 text-[12px] leading-[1.2] text-white/70">
-              +971
-            </span>
-
-            <CustomChevron className="h-1.5 w-2.5" />
-
-            <input
-              className="min-w-0 flex-1 bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
-              placeholder="50 XXX XXXX"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
-              inputMode="tel"
-              disabled={pending}
-            />
-          </div>
-        </div>
-
-        <fieldset className="flex flex-col items-start">
-          <legend className="text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white/50 uppercase mb-3">
-            I Am
-          </legend>
-
-          <div className="flex flex-col items-start gap-1.75">
-            {ROLES.map((item) => {
-              const selected = role === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setRole(item.id)}
-                  className={`inline-flex h-8 items-center justify-center rounded-full bg-white/5 px-5 text-[10px] leading-[1.2] font-medium tracking-[0.03em] text-white uppercase ${
-                    selected
-                      ? "border border-white/70"
-                      : "border border-transparent text-white/80"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        <div className="flex w-full flex-col gap-4">
-          <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
-            <Input
-              type="checkbox"
-              checked={contactOk}
-              onChange={(e) => setContactOk(e.target.checked)}
-              className="mt-0.5 size-2.5 shrink-0 bg-white"
-            />
-            I agree to be contacted about this quotation.
-          </label>
-
-          <label className="flex items-start gap-1.75 text-[12px] leading-[1.2] text-white/70 cursor-pointer">
-            <Input
-              type="checkbox"
-              checked={termsOk}
-              onChange={(e) => setTermsOk(e.target.checked)}
-              className="mt-0.5 size-2.5 shrink-0 bg-white"
-            />
-            <span>
-              I agree on the{" "}
-              <span className="underline">Terms &amp; Conditions</span> and{" "}
-              <span className="underline">Privacy Policy</span>
-            </span>
-          </label>
-        </div>
-
-        {(localError || error) && (
-          <p className="text-sm text-[#e29584]">{localError || error}</p>
-        )}
-
-        <Button
-          type="submit"
-          variant="pill-solid"
-          size="pill"
-          className="w-full"
-          disabled={pending}
-        >
-          {pending ? "Submitting…" : "Submit"}
-        </Button>
-      </form>
+      <ContactForm
+        pending={pending}
+        error={error}
+        title="Where should we send it?"
+        submitLabel="Submit"
+        pendingLabel="Submitting…"
+        className="border border-white/10 bg-white/5 p-7 lg:border-0 lg:bg-transparent lg:p-9 max-w-none"
+        onSubmit={(info: ContactInfo) => {
+          onSubmit({
+            name: info.name,
+            email: info.email,
+            phone: info.phone,
+          });
+        }}
+      />
     </aside>
   );
 };
@@ -336,7 +370,7 @@ const FinalDesignProgress = ({
         <div className="mt-10 flex flex-col items-center sm:mt-12">
           <h1
             id="fd-progress-title"
-            className="text-center font-libre-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]"
+            className="text-center font-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]"
           >
             Creating Final Renders
           </h1>

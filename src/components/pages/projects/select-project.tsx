@@ -24,7 +24,7 @@ const ProjectCard = ({ project }: { project: CatalogProject }) => {
         />
       </div>
       <div className="flex w-full shrink-0 flex-col gap-[7px]">
-        <h2 className="font-libre-baskerville text-[clamp(20px,2vw,26px)] leading-none font-normal tracking-[0.15em] text-white uppercase">
+        <h2 className="font-baskerville text-[clamp(20px,2vw,26px)] leading-none font-normal tracking-[0.15em] text-white uppercase">
           {project.name}
         </h2>
         <div className="h-px w-full bg-white/35" />
@@ -80,7 +80,7 @@ const SelectProject = ({
       <div className="relative z-10 mx-auto flex min-h-dvh w-full flex-col items-center px-5 pt-6 pb-6 sm:px-8 sm:pt-8 sm:pb-8 lg:h-dvh lg:px-10 lg:pt-6 lg:pb-8">
         <header className="flex shrink-0 flex-col items-center">
           <AtelierMark href="/" />
-          <h1 className="mt-8 font-libre-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-[0.05em] text-white uppercase sm:mt-10">
+          <h1 className="mt-8 font-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-[0.05em] text-white uppercase sm:mt-10">
             Select A Project
           </h1>
         </header>

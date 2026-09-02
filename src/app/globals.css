@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-general-sans);
   --font-general-sans: var(--font-general-sans);
-  --font-libre-baskerville: var(--font-libre-baskerville);
+  --font-baskerville: var(--font-baskerville);
   --font-snell-roundhand: var(--font-snell-roundhand);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);

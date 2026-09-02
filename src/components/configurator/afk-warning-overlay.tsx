@@ -2,13 +2,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
-import TitleRule from "../icons/title-rule";
+import OverlayDialog from "../ui/overlay-dialog";
+import { CustomShape } from "../shared/custom-shape";
+import { RotateCwFadingClock } from "lucide-react";
 
 type Props = {
   countdown: number;
+  total?: number;
   onStay: () => void;
 };
 
@@ -19,15 +20,15 @@ function formatCountdown(seconds: number) {
     const rest = safe % 60;
     return `${minutes}:${String(rest).padStart(2, "0")}`;
   }
-  return `${safe}s`;
+  return `${safe}`;
 }
 
-/**
- * Custom AFK warning — StreamPixel's default `#afkOverlay` is hidden.
- * Portaled above configurator chrome and Radix dialogs.
- * @see https://docs.streampixel.io/resources/web-sdk/features/afk-idle-timeout
- */
-export default function AfkWarningOverlay({ countdown, onStay }: Props) {
+const SIZE = 100;
+const STROKE = 2;
+const RADIUS = (SIZE - STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -68,56 +69,103 @@ export default function AfkWarningOverlay({ countdown, onStay }: Props) {
 
   const remaining = formatCountdown(countdown);
 
-  return createPortal(
-    <div
-      ref={rootRef}
-      className="fixed inset-0 z-[90] overflow-hidden bg-[#00272d]/80 text-white backdrop-blur-[6px]"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="afk-title"
-      aria-describedby="afk-desc"
+  const progress = Math.max(0, Math.min(1, countdown / total));
+  const dashOffset = CIRCUMFERENCE * (1 - progress);
+
+  return (
+    <OverlayDialog
+      open={true}
+      titleHidden
+      onOpenChange={(next) => {
+        if (!next) onStay();
+      }}
+      title="Session ending soon"
+      blur={false}
+      overlayClassName="z-52"
+      contentClassName="z-52 w-[min(100%-2rem,674px)] flex items-center justify-center"
     >
-      <div className="relative z-10 flex h-full flex-col items-center px-5">
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 sm:top-11">
-          <AtelierMark />
-        </div>
+      <div ref={rootRef} className="relative w-auto overflow-hidden">
+        <CustomShape
+          className="w-auto h-auto max-w-[34.375rem]"
+          radius={{
+            base: 18,
+            sm: 20,
+            md: 24,
+          }}
+          stroke="rgba(255,255,255,0.10)"
+          strokeWidth={1}
+        >
+          <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 sm:gap-5 sm:px-11.5 sm:py-8 lg:px-30">
+            <div className="flex flex-col items-center justify-center gap-[0.875rem]">
+              <RotateCwFadingClock
+                className="size-[2.9435rem] text-[#F2E9D8]"
+                strokeWidth={1}
+              />
 
-        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-24">
-          <div className="flex w-full max-w-[560px] flex-col items-center px-2">
-            <p className="text-[12px] leading-[1.2] font-normal tracking-[0.07em] text-[#f2e9d8] uppercase">
-              Still there?
-            </p>
-            <h1
-              id="afk-title"
-              className="mt-3 text-center font-libre-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white"
-            >
-              You&apos;ve been inactive
-            </h1>
+              <h2 className="font-baskerville text-[1.625rem] text-[#f2e9d8] capitalize">
+                Session ending soon
+              </h2>
 
-            <TitleRule className="mt-4 h-px w-31.25" />
+              <p className="text-sm text-white opacity-70">
+                The 3D session will end due to inactivity.
+              </p>
+            </div>
 
-            <p
-              id="afk-desc"
-              className="mt-6 text-center text-[14px] leading-[1.2] text-white/70"
-            >
-              This 3D session will end in{" "}
-              <span className="text-[#f2e9d8] tabular-nums">{remaining}</span>{" "}
-              if nothing happens. Your selections are already saved.
-            </p>
+            {/* Animated progress ring */}
+            <div className="relative flex size-[6.25rem] items-center justify-center">
+              <svg
+                className="absolute inset-0 size-full -rotate-90"
+                viewBox={`0 0 ${SIZE} ${SIZE}`}
+                aria-hidden
+              >
+                <circle
+                  cx={SIZE / 2}
+                  cy={SIZE / 2}
+                  r={RADIUS}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.10)"
+                  strokeWidth={STROKE}
+                />
+                <circle
+                  cx={SIZE / 2}
+                  cy={SIZE / 2}
+                  r={RADIUS}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth={STROKE}
+                  strokeLinecap="round"
+                  strokeDasharray={CIRCUMFERENCE}
+                  strokeDashoffset={dashOffset}
+                  style={{
+                    transition: "stroke-dashoffset 1s linear",
+                  }}
+                />
+              </svg>
+
+              <div className="relative z-10 flex flex-col items-center justify-center">
+                <span className="font-baskerville text-[1.625rem] tabular-nums text-[#f2e9d8]">
+                  {remaining}
+                </span>
+                <span className="text-[0.625rem] uppercase leading-[120%] tracking-[0.01875rem] text-[#f2e9d8] opacity-50">
+                  seconds
+                </span>
+              </div>
+            </div>
+
             <Button
               ref={stayRef}
               type="button"
-              variant="pill"
+              variant="pill-soft"
               size="pill"
-              className="mt-6 w-full max-w-[284px] whitespace-normal"
               onClick={onStay}
             >
-              I&apos;m still here
+              I am Back
             </Button>
           </div>
-        </div>
+        </CustomShape>
       </div>
-    </div>,
-    document.body,
+    </OverlayDialog>
   );
-}
+};
+
+export default AfkWarningOverlay;

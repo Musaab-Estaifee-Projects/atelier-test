@@ -52,7 +52,7 @@ function StyleCard({
         className="pointer-events-none absolute inset-0 h-full w-full"
       />
       <div className="relative z-10 flex h-full flex-col gap-[13px] p-[25px]">
-        <h2 className="text-center font-libre-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
+        <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
           {style.name}
         </h2>
         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#001b1f]">
@@ -146,7 +146,7 @@ export default function SelectStyle({
       <div className="relative z-10 mx-auto flex w-full max-w-[1251px] flex-col items-center px-4 pt-8 pb-16 sm:px-8 sm:pt-10">
         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
-        <h1 className="mt-10 max-w-[18em] text-center font-libre-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-[0.05em] text-white sm:mt-12">
+        <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-[0.05em] text-white sm:mt-12">
           How Would You Like To Start Your Unit?
         </h1>
 
@@ -192,7 +192,7 @@ export default function SelectStyle({
 
               <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
                 <div className="flex flex-col gap-2">
-                  <h2 className="font-libre-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
+                  <h2 className="font-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
                     Create Your Own Design
                   </h2>
                   <p className="text-[10px] leading-[1.2] text-[#f2e9d8]">

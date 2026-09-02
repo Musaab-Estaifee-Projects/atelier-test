@@ -231,13 +231,13 @@ export default function HomeIntro() {
               ease: [0.22, 1, 0.36, 1],
             }}
           >
-            <span className="font-libre-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
+            <span className="font-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
               STEP INTO
             </span>
             <span className="font-snell-roundhand text-[28px] min-[429px]:text-[34px] sm:text-[42px] leading-none text-[#F5F0E8] md:text-[52px]">
               Personalized
             </span>
-            <span className="mt-2 font-libre-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
+            <span className="mt-2 font-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
               LUXURY
             </span>
           </motion.div>
@@ -258,7 +258,7 @@ export default function HomeIntro() {
             <RoundedRect
               as="button"
               onClick={() => handleNavigate("/projects")}
-              className="relative z-10 mx-8 cursor-pointer border-none py-5 font-libre-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
+              className="relative z-10 mx-8 cursor-pointer border-none py-5 font-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
               // Animate the shape fill itself (not a rectangular background)
               initial={{ "--shape-fill": "rgba(20, 62, 71, 0.4)" }}
               animate={{ "--shape-fill": "rgba(29, 60, 39, 0.1)" }}
@@ -309,7 +309,7 @@ export default function HomeIntro() {
             <RoundedRect
               as="button"
               onClick={() => handleNavigate("/projects")}
-              className="relative z-10 mx-8 cursor-pointer border-none py-6 sm:py-8 font-libre-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2.5vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
+              className="relative z-10 mx-8 cursor-pointer border-none py-6 sm:py-8 font-baskerville text-[12px] uppercase tracking-[0.32625rem] text-white sm:px-14 sm:text-[13px] xl:text-lg lg:py-[2.5vmax] lg:w-[40vw]! lg:max-w-800! bg-transparent"
               initial={{ "--shape-fill": "rgba(20, 62, 71, 0.4)" }}
               animate={{ "--shape-fill": "rgba(29, 60, 39, 0.1)" }}
               transition={{

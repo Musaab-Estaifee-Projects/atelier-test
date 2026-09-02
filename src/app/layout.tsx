@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Geist, Libre_Baskerville } from "next/font/google";
+import { Baskervville, Geist } from "next/font/google";
 import "./globals.css";
 import { JotaiProvider } from "@/lib/jotai-provider";
 import { Suspense } from "react";
@@ -14,8 +14,13 @@ const generalSans = localFont({
   display: "swap",
 });
 
-const libreBaskerville = Libre_Baskerville({
-  variable: "--font-libre-baskerville",
+// const libreBaskerville = Libre_Baskerville({
+//   variable: "--font-baskerville",
+//   subsets: ["latin"],
+// });
+
+const baskerville = Baskervville({
+  variable: "--font-baskerville",
   subsets: ["latin"],
 });
 
@@ -43,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${generalSans.variable} ${libreBaskerville.variable} ${snellRoundhand.variable} ${geistSans.variable} h-full antialiased`}
+      className={`${generalSans.variable} ${baskerville.variable} ${snellRoundhand.variable} ${geistSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <JotaiProvider>

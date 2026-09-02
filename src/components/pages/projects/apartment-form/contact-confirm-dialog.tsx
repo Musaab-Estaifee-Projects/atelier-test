@@ -74,7 +74,7 @@ const ContactConfirmDialog = ({
               strokeWidth={1.33}
             />
 
-            <h2 className="font-libre-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem] text-center">
+            <h2 className="font-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem] text-center">
               Confirm Your Information
             </h2>
 

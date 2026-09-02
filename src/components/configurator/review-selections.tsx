@@ -123,7 +123,7 @@ export default function ReviewSelections({
             <AtelierMark />
             <h1
               id="review-selections-title"
-              className="mt-8 text-center font-libre-baskerville text-[28px] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] sm:mt-10 sm:text-[36px]"
+              className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] sm:mt-10 sm:text-[36px]"
             >
               Review your selections
             </h1>
@@ -144,7 +144,7 @@ export default function ReviewSelections({
             {sections.map((section) => (
               <section key={section.id}>
                 <div className="mb-5">
-                  <h2 className="font-libre-baskerville text-[22px] leading-[1.16] font-normal text-white sm:text-[24px] sm:tracking-[0.05em]">
+                  <h2 className="font-baskerville text-[22px] leading-[1.16] font-normal text-white sm:text-[24px] sm:tracking-[0.05em]">
                     {section.label}
                   </h2>
                   <div className="mt-1 h-[10px] w-[85px] overflow-clip">
@@ -191,7 +191,7 @@ export default function ReviewSelections({
                     <p className="font-medium text-[14px] leading-[1.16] text-white uppercase">
                       Total
                     </p>
-                    <p className="flex items-center gap-2 font-libre-baskerville text-[22px] leading-[1.16] tracking-[0.05em] text-white sm:text-[24px]">
+                    <p className="flex items-center gap-2 font-baskerville text-[22px] leading-[1.16] tracking-[0.05em] text-white sm:text-[24px]">
                       <Dirham size="sm" />
                       {section.subtotal.toLocaleString()}
                     </p>
@@ -222,7 +222,7 @@ export default function ReviewSelections({
             <p className="text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase">
               Estimated, before VAT
             </p>
-            <p className="mt-1.5 flex items-center gap-3 font-libre-baskerville text-[28px] leading-[1.16] tracking-[0.05em] text-white sm:text-[37px]">
+            <p className="mt-1.5 flex items-center gap-3 font-baskerville text-[28px] leading-[1.16] tracking-[0.05em] text-white sm:text-[37px]">
               <Dirham size="lg" />
               {total.toLocaleString()}
             </p>

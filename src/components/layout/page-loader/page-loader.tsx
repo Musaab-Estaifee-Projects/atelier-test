@@ -341,13 +341,13 @@ const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
               ease: [0.22, 1, 0.36, 1],
             }}
           >
-            <span className="font-libre-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
+            <span className="font-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
               STEP INTO
             </span>
             <span className="font-snell-roundhand text-[42px] leading-none text-[#F5F0E8] sm:text-[52px]">
               Personalized
             </span>
-            <span className="mt-2 font-libre-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
+            <span className="mt-2 font-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
               LUXURY
             </span>
           </motion.div>
@@ -368,7 +368,7 @@ const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
             <motion.button
               type="button"
               onClick={handleStartExperience}
-              className="ticket-notch relative z-10 border border-white/40 mx-8 py-5 font-libre-baskerville text-[12px] tracking-[0.32625rem] text-white uppercase backdrop-blur-[15px] sm:px-14 sm:text-[13px] xl:text-lg cursor-pointer lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800!"
+              className="ticket-notch relative z-10 border border-white/40 mx-8 py-5 font-baskerville text-[12px] tracking-[0.32625rem] text-white uppercase backdrop-blur-[15px] sm:px-14 sm:text-[13px] xl:text-lg cursor-pointer lg:py-[2vmax] lg:w-[40vw]! lg:max-w-800!"
               initial={{ opacity: 0, backgroundColor: "rgba(20, 62, 71, 0.4)" }}
               animate={{
                 opacity: 1,
