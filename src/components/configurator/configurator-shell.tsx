@@ -36,7 +36,7 @@ import {
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
 import { materialThumb } from "@/lib/configurator/chrome";
-import { slotFromMeshId } from "@/mocks/configurator/session";
+import { slotFromCamera, slotFromMeshId } from "@/mocks/configurator/session";
 import type {
   CameraRule,
   ConfiguratorCamera,
@@ -682,6 +682,25 @@ export default function ConfiguratorShell({
     [params.zone, activeZoneId, cameraZone, setParams, send],
   );
 
+  const handleEditReviewSlot = useCallback(
+    (slot: string) => {
+      setReviewOpen(false);
+      setQuoteDialogOpen(false);
+      if (!session) {
+        setSidePanelOpen(true);
+        return;
+      }
+      const rule =
+        session.cameras.find((c) => c.slot === slot) ??
+        session.cameras.find(
+          (c) => slotFromCamera(c.name, c.mode) === slot,
+        );
+      if (rule) handleSelectCamera(rule);
+      else setSidePanelOpen(true);
+    },
+    [session, handleSelectCamera],
+  );
+
   const handleShowMaterials = useCallback(() => {
     if (!session) return;
     freeModeRef.current = false;
@@ -1177,6 +1196,8 @@ export default function ConfiguratorShell({
               setSubmitOpen(false);
               finalDesign.startCapture();
             }}
+            onRemove={handleRemoveSelection}
+            onEdit={handleEditReviewSlot}
           />
           <FinalDesignPrompt
             open={finalDesign.phase === "confirm"}

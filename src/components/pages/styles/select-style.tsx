@@ -3,7 +3,6 @@
 import Link from "next/link";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
-import { CATALOG_STYLES, type CatalogStyle } from "@/lib/styles/catalog";
 import {
   CATALOG_PROJECTS,
   configuratorHref,
@@ -15,6 +14,13 @@ import {
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
 import Bg from "@/components/shared/bg";
+import { CustomShape } from "@/components/shared/custom-shape";
+import { ChevronRight } from "lucide-react";
+import DiamondRule from "@/components/icons/configurator/diamond-rule";
+import SelectedColorPalette from "@/components/icons/selected-color-palette";
+import SecondColorPalette from "@/components/icons/second-color-palette";
+import ThirdColorPalette from "@/components/icons/third-color-palette";
+import CircleWithShadows from "@/components/icons/circle-with-shadows";
 
 export function demoCustomizeHref(style?: string) {
   const q = new URLSearchParams({
@@ -34,86 +40,25 @@ type Props = {
   levelName?: string | null;
 };
 
-function StyleCard({
-  style,
-  href,
-  onSelect,
-}: {
-  style: CatalogStyle;
-  href?: string;
-  onSelect?: () => void;
-}) {
-  const inner = (
-    <>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/styles/card-frame.svg"
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full"
-      />
-      <div className="relative z-10 flex h-full flex-col gap-[13px] p-[25px]">
-        <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
-          {style.name}
-        </h2>
-        <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#001b1f]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={style.image}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        </div>
-        <p className="text-[10px] leading-[1.2] text-white/70">
-          {style.description}
-        </p>
-        <div className="flex items-center justify-center gap-1.5">
-          {style.swatches.map((color) => (
-            <span
-              key={color}
-              className="size-7 shrink-0 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      </div>
-    </>
-  );
-
-  const className =
-    "relative flex aspect-[404/575] w-full flex-col text-left transition-transform hover:scale-[1.01]";
-
-  if (onSelect) {
-    return (
-      <button type="button" onClick={onSelect} className={className}>
-        {inner}
-      </button>
-    );
-  }
-
-  return (
-    <Link href={href ?? demoCustomizeHref(style.slug)} className={className}>
-      {inner}
-    </Link>
-  );
-}
-
-export default function SelectStyle({
+const SelectStyle = ({
   overlay = false,
   onStartCustomizing,
   onSelectStyle,
   projectSlug,
   unitId,
   levelName,
-}: Props) {
+}: Props) => {
   const project =
     (projectSlug ? getProject(projectSlug) : undefined) ??
     CATALOG_PROJECTS[1] ??
     CATALOG_PROJECTS[0];
+
   const customizeHref = configuratorHref({
     streamProjectId: project.streamProjectId,
     unitId: unitId || project.unitId,
     levelName: levelName || project.levelName,
   });
+
   const Wrapper = overlay ? "div" : "main";
 
   return (
@@ -121,21 +66,13 @@ export default function SelectStyle({
       className={`relative bg-[#00272d] text-white ${
         overlay
           ? "absolute inset-0 z-50 overflow-y-auto"
-          : "min-h-dvh overflow-x-hidden"
+          : "min-h-dvh! h-auto 2xl:h-dvh! overflow-x-hidden overflow-y-auto"
       }`}
       style={{
-        ...pageNoiseStyle(0.16),
+        ...pageNoiseStyle(0.13),
       }}
     >
-      {/* <div className="pointer-events-none absolute inset-0 opacity-30"> */}
-      {}
-      {/* <img
-          src="/images/styles/bg.png"
-          alt=""
-          className="h-full w-full object-cover"
-        /> */}
-      {/* </div> */}
-
+      {/* Background texture */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
         <Bg
           preserveAspectRatio="xMidYMid slice"
@@ -143,63 +80,151 @@ export default function SelectStyle({
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1251px] flex-col items-center px-4 pt-8 pb-16 sm:px-8 sm:pt-10">
+      {/* max-w-[1280px] */}
+      <div className="relative z-10 mx-auto flex h-full w-full flex-col items-center px-4 pt-8 pb-10 sm:px-8 sm:pt-10">
         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
         <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-[0.05em] text-white sm:mt-12">
-          How Would You Like To Start Your Unit?
+          Begin Your Journey
         </h1>
 
-        <DiamondRuleFull className="mt-5 h-4 w-[176px]" />
+        <DiamondRuleFull className="mt-3 h-4 w-44" />
 
-        <p className="mt-4 max-w-[320px] text-center text-[12px] leading-[1.2] text-white/70 sm:text-[14px]">
-          Choose a style that reflect you vision and lifestyle
+        <p className="mt-3 max-w-[320px] text-center text-[0.875rem] leading-[1.2] text-white opacity-70">
+          Choose a style that reflects your vision and lifestyle
         </p>
 
-        <ul className="mt-10 grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:mt-12">
-          {CATALOG_STYLES.map((style) => (
-            <li key={style.slug}>
-              <StyleCard
-                style={style}
-                href={
-                  onSelectStyle
-                    ? undefined
-                    : configuratorHref(
-                        {
-                          streamProjectId: project.streamProjectId,
-                          unitId: unitId || project.unitId,
-                          levelName: levelName || project.levelName,
-                        },
-                        { style: style.slug },
-                      )
-                }
-                onSelect={
-                  onSelectStyle ? () => onSelectStyle(style.slug) : undefined
-                }
-              />
-            </li>
-          ))}
+        {/* Cards */}
+        <div className="mt-10 flex w-full flex-1 flex-col items-stretch gap-5 md:flex-row md:items-stretch">
+          <CustomShape
+            className="relative w-full overflow-hidden md:w-[70%]"
+            radius={{
+              base: 18,
+              sm: 20,
+              md: 24,
+            }}
+            fill="#00272D"
+            stroke="rgba(255,255,255,0.10)"
+            strokeWidth={1.33}
+          >
+            <div className="flex h-full min-h-120 w-full md:min-h-150">
+              <div className="relative flex flex-col p-7 lg:p-9 gap-8 w-[50%] lg:w-[38%] shrink-0">
+                <div className="flex flex-col gap-3.25 relative min-h-0 flex-1">
+                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/images/projects/reef-996.png"
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
 
-          <li>
-            <div className="relative flex aspect-[404/575] w-full flex-col items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/styles/cta-frame.svg"
-                alt=""
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              />
-              {}
+                    {/* <Image
+                      src="/images/projects/reef-996.png"
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 45vw"
+                      priority={false}
+                    /> */}
+                  </div>
 
-              <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
-                <div className="flex flex-col gap-2">
-                  <h2 className="font-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
-                    Create Your Own Design
-                  </h2>
-                  <p className="text-[10px] leading-[1.2] text-[#f2e9d8]">
-                    Build a personalized interior language around your
-                    preferences, lifestyle and vision. Select specific timber,
-                    marble, and layout options in real-time.
-                  </p>
+                  <div className="flex items-start gap-1">
+                    <span className="size-1.25 rounded-full bg-[#F2E9D8]" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3.75">
+                    <div className="flex flex-col items-start gap-1">
+                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-[#f2e9d8]">
+                        Explore Ready Styles
+                      </h2>
+
+                      <DiamondRule className="w-21.25 h-auto" />
+                    </div>
+
+                    <p className="text-[12px] leading-[1.35] text-white/70 sm:text-[13px]">
+                      Choose a style that reflect you vision and lifestyle
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-[#f2e9d8] hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/styles/browse-styles">
+                    BROWSE ALL <ChevronRight />
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Right column: room image fills full height of the shape */}
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/images/projects/reef-996.png"
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover p-px"
+                />
+              </div>
+            </div>
+          </CustomShape>
+
+          <CustomShape
+            className="relative w-full overflow-hidden md:w-[30%]"
+            radius={{
+              base: 18,
+              sm: 20,
+              md: 24,
+            }}
+            fill="rgba(255,255,255,0.04)"
+            stroke="rgba(255,255,255,0.10)"
+            strokeWidth={1}
+          >
+            <div className="flex h-full min-h-120 w-full md:min-h-150">
+              <div className="relative flex flex-col p-7 lg:p-9 gap-8 w-full shrink-0">
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/images/projects/reef-996.png"
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+
+                  <div
+                    className="absolute left-4 bottom-6 flex items-center gap-2 bg-[rgba(58,51,44,0.23)] rounded-full p-[0.27644rem] backdrop-blur-sm"
+                    style={{
+                      border: `0.369px solid rgba(255, 255, 255, 0.25)`,
+                    }}
+                  >
+                    <SelectedColorPalette />
+                    <SecondColorPalette />
+                    <ThirdColorPalette />
+                    {/* <span className="size-6 shrink-0 rounded-full border border-white/30 bg-[#8fbc8f] shadow-sm" /> */}
+                  </div>
+
+                  <CircleWithShadows className="absolute top-0 left-4 bottom-0 my-auto" />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3.75">
+                    <div className="flex flex-col items-start gap-1">
+                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-[#f2e9d8]">
+                        Create Your Own Design
+                      </h2>
+
+                      <DiamondRule className="w-21.25 h-auto" />
+                    </div>
+
+                    <p className="text-[12px] leading-[1.35] text-white sm:text-[13px] opacity-70">
+                      Choose a style that reflects your vision and lifestyle
+                    </p>
+                  </div>
                 </div>
                 {onStartCustomizing ? (
                   <Button
@@ -207,8 +232,9 @@ export default function SelectStyle({
                     variant="pill"
                     size="pill"
                     onClick={onStartCustomizing}
+                    // className="mt-1 h-auto w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-[#f2e9d8] hover:bg-white/20 hover:text-white"
                   >
-                    Start customizing
+                    START CUSTOMIZING <ChevronRight />
                   </Button>
                 ) : (
                   <Button variant="pill" size="pill" asChild>
@@ -217,9 +243,11 @@ export default function SelectStyle({
                 )}
               </div>
             </div>
-          </li>
-        </ul>
+          </CustomShape>
+        </div>
       </div>
     </Wrapper>
   );
-}
+};
+
+export default SelectStyle;

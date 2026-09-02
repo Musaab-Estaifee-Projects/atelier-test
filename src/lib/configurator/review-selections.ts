@@ -14,6 +14,8 @@ export type ReviewSurfaceLine = {
   materialDetail?: string;
   thumbnailUrl?: string;
   fallbackSwatch?: "wood" | "marble";
+  /** Mesh area in m² when known; omitted if unselected or unavailable. */
+  areaSqm?: number;
   price: number;
 };
 
@@ -100,6 +102,9 @@ export function buildReviewSections(
       }
       const mat = matById.get(sel.materialId);
       const meshOnly = Boolean(sel.meshId) && !sel.materialId;
+      const areaSqm = session.meshAreas.find(
+        (a) => a.meshId === sel.meshId,
+      )?.areaSqm;
       return {
         slot: surface.slot,
         surfaceLabel: surface.label,
@@ -110,6 +115,7 @@ export function buildReviewSections(
           : (mat?.displayName ?? sel.materialId ?? "Mesh only"),
         thumbnailUrl: mat?.thumbnailUrl,
         fallbackSwatch: meshOnly ? undefined : swatchForMaterial(mat),
+        areaSqm,
         price: linePrice(session, sel),
       };
     });
