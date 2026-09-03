@@ -259,11 +259,11 @@ export function streamOverlayKind(args: {
 }
 
 /** Full-screen boot state used before the stream shell hydrates. */
-export function ConfiguratorBootOverlay({
+const ConfiguratorBootOverlay = ({
   unitSubtitle = "Your residence",
 }: {
   unitSubtitle?: string;
-}) {
+}) => {
   const [progress, setProgress] = useState(10);
 
   useEffect(() => {
@@ -281,7 +281,7 @@ export function ConfiguratorBootOverlay({
       unitSubtitle={unitSubtitle}
     />
   );
-}
+};
 
 const LoadingOverlay = ({
   kind,
@@ -306,7 +306,7 @@ const LoadingOverlay = ({
 
   return (
     <div
-      className={`${layout === "fixed" ? "fixed" : "absolute"} inset-0 z-[70] overflow-hidden bg-[#00272d] text-white`}
+      className={`${layout === "fixed" ? "fixed" : "absolute"} inset-0 z-70 overflow-hidden bg-[#00272d] text-white`}
       role={ended ? "alertdialog" : "status"}
       aria-modal={ended || undefined}
       aria-live={ended ? "assertive" : "polite"}
@@ -345,7 +345,7 @@ const LoadingOverlay = ({
           {kind === "disconnected" ? (
             <SessionEnded
               eyebrow={endedEyebrow ?? "Connection lost"}
-              icon={<CloudSlash className="mb-6 h-[51px] w-[60px]" />}
+              icon={<CloudSlash className="mb-6 h-12.75 w-15" />}
               title={endedTitle ?? "The 3D session dropped"}
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
@@ -357,12 +357,13 @@ const LoadingOverlay = ({
           {kind === "idle" ? (
             <SessionEnded
               eyebrow="Session ended"
-              icon={<DoorOpen className="mb-6 size-[4rem]!" />}
+              icon={<DoorOpen className="mb-6 size-16!" />}
               title="The 3D session ended due to inactivity"
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
-              onSecondary={onBackHome}
+              // onSecondary={onBackHome}
+              onSecondary={onContinueToSummary}
             />
           ) : null}
         </div>
@@ -370,5 +371,7 @@ const LoadingOverlay = ({
     </div>
   );
 };
+
+export { ConfiguratorBootOverlay };
 
 export default LoadingOverlay;

@@ -68,9 +68,9 @@ const ContactConfirmDialog = ({
           stroke="rgba(255,255,255,0.10)"
           strokeWidth={1}
         >
-          <div className="relative z-10 flex flex-col items-center gap-[0.875rem] px-6 py-8 sm:px-11.5 sm:py-11.5">
+          <div className="relative z-10 flex flex-col items-center gap-3.5 px-6 py-8 sm:px-11.5 sm:py-11.5">
             <ShieldCheck
-              className="size-[2.5rem] text-[#F2E9D8]"
+              className="size-10 text-[#F2E9D8]"
               strokeWidth={1.33}
             />
 
@@ -118,7 +118,7 @@ const ContactConfirmDialog = ({
               </div>
             </dl>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[0.625rem] w-full sm:w-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full sm:w-auto">
               <Button
                 type="button"
                 variant="pill-outline"

@@ -2,50 +2,59 @@
 
 import { Button } from "@/components/ui/button";
 import OverlayDialog from "@/components/ui/overlay-dialog";
-import { CustomShape } from "../shared/custom-shape";
+import { CustomShape } from "@/components/shared/custom-shape";
+import { TriangleAlert } from "lucide-react";
 
 type Props = {
   open: boolean;
-  onBack: () => void;
-  onGoToSummary: () => void;
+  surfaceLabel?: string;
+  onCancel: () => void;
+  onConfirm: () => void;
 };
 
-const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
+const RemoveSelectionDialog = ({
+  open,
+  surfaceLabel,
+  onCancel,
+  onConfirm,
+}: Props) => {
   return (
     <OverlayDialog
       open={open}
       titleHidden
       onOpenChange={(next) => {
-        if (!next) onBack();
+        if (!next) onCancel();
       }}
-      title="Ready to prepare your final design?"
+      title="Are you sure you want to remove this?"
       blur={false}
-      overlayClassName="z-52"
-      contentClassName="z-52 w-[min(100%-2rem,674px)] flex items-center justify-center"
+      overlayClassName="z-[60]"
+      contentClassName="z-[60] w-[min(100%-2rem,674px)] flex items-center justify-center"
     >
       <div className="relative w-auto overflow-hidden">
         <CustomShape
-          className="w-auto h-auto max-w-[38.375rem]"
+          className="h-auto w-auto max-w-153.5"
           radius={{
             base: 18,
             sm: 20,
             md: 24,
           }}
-          // fill="#0a2f35"
-          // fill="gradient"
           stroke="rgba(255,255,255,0.10)"
           strokeWidth={1}
         >
           <div className="relative z-10 flex flex-col items-center gap-8 px-6 py-8 sm:px-11.5 sm:py-11.5">
             <div className="flex w-full flex-col items-center gap-3.5 text-center">
-              <h2 className="font-baskerville text-[1.25rem] md:text-[1.625rem] leading-[1.16] font-normal text-[#f2e9d8] capitalize">
-                Ready to prepare your final design?
+              <TriangleAlert
+                className="w-14 h-12 text-[#F2E9D8]"
+                strokeWidth={1}
+              />
+              <h2 className="font-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem]">
+                Are you sure you want to remove this?
               </h2>
 
               <p className="text-sm leading-[1.6] text-white/70">
-                We’ll create final renders based on your selected materials and
-                finishes. You’ll be able to review your design and prices before
-                requesting your final quote.
+                {surfaceLabel
+                  ? `“${surfaceLabel}” will be removed from your selections and will use the standard finish.`
+                  : "This selection will be removed and will use the standard finish."}
               </p>
             </div>
 
@@ -55,9 +64,9 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
                 variant="pill-outline"
                 size="pill"
                 className="sm:flex-1"
-                onClick={onBack}
+                onClick={onCancel}
               >
-                Back to customize
+                Cancel
               </Button>
 
               <Button
@@ -65,9 +74,9 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
                 variant="pill-soft"
                 size="pill"
                 className="sm:flex-1"
-                onClick={onGoToSummary}
+                onClick={onConfirm}
               >
-                Go to summary
+                Remove
               </Button>
             </div>
           </div>
@@ -77,4 +86,4 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
   );
 };
 
-export default QuotationDialog;
+export default RemoveSelectionDialog;

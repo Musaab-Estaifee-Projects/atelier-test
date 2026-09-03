@@ -21,7 +21,7 @@ export const AFK_CONFIG = {
   /** Seconds with no pointer/keyboard/touch before the warning. */
   idleSeconds: readIdleSeconds(),
   /** Warning countdown before we disconnect. */
-  countdownSeconds: 20,
+  countdownSeconds: 60,
 } as const;
 
 /** Seconds passed to StreamPixel so its AFK controller actually arms. */

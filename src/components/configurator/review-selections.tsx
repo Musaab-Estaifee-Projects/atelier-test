@@ -4,11 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { EllipsisVertical, Undo2 } from "lucide-react";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
-// import {
-//   Popover,
-//   PopoverContent,
-//   PopoverTrigger,
-// } from "@/components/ui/popover";
 import {
   buildReviewSections,
   reviewUnitSubtitle,
@@ -16,6 +11,7 @@ import {
 } from "@/lib/configurator/review-selections";
 import { cn } from "@/lib/utils";
 import type { ConfiguratorSession, SelectionEntry } from "@/types/configurator";
+import RemoveSelectionDialog from "./remove-selection-dialog";
 
 const SQFT_PER_SQM = 10.7639;
 
@@ -31,15 +27,16 @@ type Props = {
   onConfirm: () => void;
   onRemove?: (slot: string) => void;
   onEdit?: (slot: string) => void;
+  actionsDisabled?: boolean;
 };
 
-function Dirham({
+const Dirham = ({
   className,
   size,
 }: {
   className?: string;
   size: "sm" | "md" | "lg";
-}) {
+}) => {
   const box =
     size === "lg"
       ? "h-[17px] w-[20px]"
@@ -52,14 +49,14 @@ function Dirham({
       <img src="/images/review/dirham.svg" alt="" className="h-full w-full" />
     </span>
   );
-}
+};
 
-function formatArea(areaSqm?: number) {
+const formatArea = (areaSqm?: number) => {
   if (areaSqm == null || areaSqm <= 0) return null;
   return `${Math.round(areaSqm * SQFT_PER_SQM).toLocaleString()} sq ft`;
-}
+};
 
-function MaterialCell({ line }: { line: ReviewSurfaceLine }) {
+const MaterialCell = ({ line }: { line: ReviewSurfaceLine }) => {
   if (!line.selected) {
     return (
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -106,189 +103,19 @@ function MaterialCell({ line }: { line: ReviewSurfaceLine }) {
       </div>
     </div>
   );
-}
+};
 
-// function RowMenu({
-//   selected,
-//   onRemove,
-//   onEdit,
-// }: {
-//   selected: boolean;
-//   onRemove?: () => void;
-//   onEdit?: () => void;
-// }) {
-//   const [open, setOpen] = useState(false);
-//   if (!onRemove && !onEdit) return null;
-
-//   return (
-//     <Popover open={open} onOpenChange={setOpen}>
-//       <PopoverTrigger asChild>
-//         <button
-//           type="button"
-//           aria-label="Row actions"
-//           className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition hover:bg-white/20"
-//         >
-//           <EllipsisVertical className="size-[18px]" strokeWidth={1.75} />
-//         </button>
-//       </PopoverTrigger>
-//       <PopoverContent
-//         align="end"
-//         side="bottom"
-//         sideOffset={6}
-//         className="z-[70] w-[102px] gap-[5px] rounded-none border-white/5 bg-[#001f24] p-[5px] text-[12px] text-white/70 shadow-none ring-0"
-//       >
-//         {onRemove ? (
-//           <button
-//             type="button"
-//             disabled={!selected}
-//             className="w-full bg-white/5 p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/10 disabled:opacity-40"
-//             onClick={() => {
-//               onRemove();
-//               setOpen(false);
-//             }}
-//           >
-//             Remove
-//           </button>
-//         ) : null}
-//         {onEdit ? (
-//           <button
-//             type="button"
-//             className="w-full p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/5"
-//             onClick={() => {
-//               onEdit();
-//               setOpen(false);
-//             }}
-//           >
-//             Edit
-//           </button>
-//         ) : null}
-//       </PopoverContent>
-//     </Popover>
-//   );
-// }
-
-// function RowMenu({
-//   selected,
-//   onRemove,
-//   onEdit,
-// }: {
-//   selected: boolean;
-//   onRemove?: () => void;
-//   onEdit?: () => void;
-// }) {
-//   const [open, setOpen] = useState(false);
-//   const [pos, setPos] = useState({ top: 0, left: 0 });
-//   const buttonRef = useRef<HTMLButtonElement>(null);
-//   const menuRef = useRef<HTMLDivElement>(null);
-
-//   const updatePosition = () => {
-//     const btn = buttonRef.current;
-//     if (!btn) return;
-//     const rect = btn.getBoundingClientRect();
-//     setPos({
-//       top: rect.bottom + 6,
-//       left: rect.right - 102, // menu width = 102px, align to the right of the button
-//     });
-//   };
-
-//   useEffect(() => {
-//     if (!open) return;
-
-//     updatePosition();
-
-//     const handleClick = (e: MouseEvent) => {
-//       if (
-//         menuRef.current &&
-//         !menuRef.current.contains(e.target as Node) &&
-//         buttonRef.current &&
-//         !buttonRef.current.contains(e.target as Node)
-//       ) {
-//         setOpen(false);
-//       }
-//     };
-
-//     const handleScroll = () => setOpen(false);
-
-//     document.addEventListener("mousedown", handleClick);
-//     window.addEventListener("scroll", handleScroll, true);
-//     window.addEventListener("resize", handleScroll);
-
-//     return () => {
-//       document.removeEventListener("mousedown", handleClick);
-//       window.removeEventListener("scroll", handleScroll, true);
-//       window.removeEventListener("resize", handleScroll);
-//     };
-//   }, [open]);
-
-//   if (!onRemove && !onEdit) return null;
-
-//   return (
-//     <>
-//       <button
-//         ref={buttonRef}
-//         type="button"
-//         aria-label="Row actions"
-//         onClick={() => {
-//           if (!open) updatePosition();
-//           setOpen((prev) => !prev);
-//         }}
-//         className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition hover:bg-white/20"
-//       >
-//         <EllipsisVertical className="size-[18px]" strokeWidth={1.75} />
-//       </button>
-
-//       {open && (
-//         <div
-//           ref={menuRef}
-//           style={{
-//             position: "fixed",
-//             top: pos.top,
-//             left: Math.max(8, pos.left), // prevent going off the left edge
-//             zIndex: 100,
-//           }}
-//           className="w-[102px] rounded-none border border-white/5 bg-[#001f24] p-[5px] text-[12px] text-white/70 shadow-lg"
-//         >
-//           {onRemove && (
-//             <button
-//               type="button"
-//               disabled={!selected}
-//               className="w-full bg-white/5 p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/10 disabled:opacity-40"
-//               onClick={() => {
-//                 onRemove();
-//                 setOpen(false);
-//               }}
-//             >
-//               Remove
-//             </button>
-//           )}
-
-//           {onEdit && (
-//             <button
-//               type="button"
-//               className="w-full p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/5"
-//               onClick={() => {
-//                 onEdit();
-//                 setOpen(false);
-//               }}
-//             >
-//               Edit
-//             </button>
-//           )}
-//         </div>
-//       )}
-//     </>
-//   );
-// }
-
-function RowMenu({
+const RowMenu = ({
   selected,
   onRemove,
   onEdit,
+  disabled = false,
 }: {
   selected: boolean;
   onRemove?: () => void;
   onEdit?: () => void;
-}) {
+  disabled?: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -320,7 +147,6 @@ function RowMenu({
       }
     };
 
-    // Keep the menu attached to the button while scrolling
     const handleScroll = () => updatePosition();
 
     document.addEventListener("mousedown", handleClick);
@@ -334,6 +160,11 @@ function RowMenu({
     };
   }, [open]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
   if (!onRemove && !onEdit) return null;
 
   return (
@@ -342,16 +173,22 @@ function RowMenu({
         ref={buttonRef}
         type="button"
         aria-label="Row actions"
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           if (!open) updatePosition();
           setOpen((prev) => !prev);
         }}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition hover:bg-white/20"
+        // className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition hover:bg-white/20"
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition",
+          disabled ? "cursor-not-allowed opacity-40" : "hover:bg-white/20",
+        )}
       >
-        <EllipsisVertical className="size-[18px]" strokeWidth={1.75} />
+        <EllipsisVertical className="size-4.5" strokeWidth={1.75} />
       </button>
 
-      {open && (
+      {open && !disabled && (
         <div
           ref={menuRef}
           style={{
@@ -360,7 +197,7 @@ function RowMenu({
             left: Math.max(8, pos.left),
             zIndex: 100,
           }}
-          className="w-[102px] rounded-none border border-white/5 bg-[#001f24] p-[5px] text-[12px] text-white/70 shadow-lg"
+          className="w-25.5 rounded-none border border-white/5 bg-[#001f24] p-[5px] text-[12px] text-white/70 shadow-lg"
         >
           {onRemove && (
             <button
@@ -392,9 +229,15 @@ function RowMenu({
       )}
     </>
   );
-}
+};
 
-function PriceValue({ selected, price }: { selected: boolean; price: number }) {
+const PriceValue = ({
+  selected,
+  price,
+}: {
+  selected: boolean;
+  price: number;
+}) => {
   if (!selected) {
     return (
       <p className="font-medium text-[14px] leading-[1.16] text-white">-</p>
@@ -406,17 +249,17 @@ function PriceValue({ selected, price }: { selected: boolean; price: number }) {
       {price.toLocaleString()}
     </p>
   );
-}
+};
 
-function CellLabel({ children }: { children: string }) {
+const CellLabel = ({ children }: { children: string }) => {
   return (
     <p className="text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase md:hidden">
       {children}
     </p>
   );
-}
+};
 
-export default function ReviewSelections({
+const ReviewSelections = ({
   open,
   session,
   selections,
@@ -425,11 +268,18 @@ export default function ReviewSelections({
   onConfirm,
   onRemove,
   onEdit,
-}: Props) {
+  actionsDisabled,
+}: Props) => {
   const { sections, total } = useMemo(
     () => buildReviewSections(session, selections),
     [session, selections],
   );
+
+  const [pendingRemove, setPendingRemove] = useState<{
+    slot: string;
+    label: string;
+  } | null>(null);
+
   const subtitle = reviewUnitSubtitle(unitId, session.levelName);
 
   if (!open) return null;
@@ -521,8 +371,18 @@ export default function ReviewSelections({
                           <div className="md:hidden">
                             <RowMenu
                               selected={line.selected}
+                              disabled={actionsDisabled}
+                              // onRemove={
+                              //   onRemove ? () => onRemove(line.slot) : undefined
+                              // }
                               onRemove={
-                                onRemove ? () => onRemove(line.slot) : undefined
+                                onRemove
+                                  ? () =>
+                                      setPendingRemove({
+                                        slot: line.slot,
+                                        label: line.surfaceLabel,
+                                      })
+                                  : undefined
                               }
                               onEdit={
                                 onEdit ? () => onEdit(line.slot) : undefined
@@ -566,8 +426,18 @@ export default function ReviewSelections({
                         <div className="hidden px-2 py-3 md:flex md:items-center md:justify-end">
                           <RowMenu
                             selected={line.selected}
+                            disabled={actionsDisabled}
+                            // onRemove={
+                            //   onRemove ? () => onRemove(line.slot) : undefined
+                            // }
                             onRemove={
-                              onRemove ? () => onRemove(line.slot) : undefined
+                              onRemove
+                                ? () =>
+                                    setPendingRemove({
+                                      slot: line.slot,
+                                      label: line.surfaceLabel,
+                                    })
+                                : undefined
                             }
                             onEdit={
                               onEdit ? () => onEdit(line.slot) : undefined
@@ -640,6 +510,20 @@ export default function ReviewSelections({
           </div>
         </div>
       </footer>
+
+      <RemoveSelectionDialog
+        open={Boolean(pendingRemove)}
+        surfaceLabel={pendingRemove?.label}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={() => {
+          if (pendingRemove && onRemove) {
+            onRemove(pendingRemove.slot);
+          }
+          setPendingRemove(null);
+        }}
+      />
     </div>
   );
-}
+};
+
+export default ReviewSelections;

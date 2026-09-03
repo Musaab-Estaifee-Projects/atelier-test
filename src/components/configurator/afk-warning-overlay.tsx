@@ -96,7 +96,7 @@ const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
           strokeWidth={1}
         >
           <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 sm:gap-5 sm:px-11.5 sm:py-8 lg:px-30">
-            <div className="flex flex-col items-center justify-center gap-[0.875rem]">
+            <div className="flex flex-col items-center justify-center gap-3.5">
               <RotateCwFadingClock
                 className="size-[2.9435rem] text-[#F2E9D8]"
                 strokeWidth={1}

@@ -78,6 +78,7 @@ import FinalDesignViewer from "./final-design/final-design-viewer";
 import FinalDesignReview from "./final-design/final-design-review";
 import ReviewSelections from "./review-selections";
 import SelectStyle from "@/components/pages/styles/select-style";
+import { redirect } from "next/navigation";
 
 const MOCK_UE =
   process.env.NEXT_PUBLIC_MOCK_UE === "true" ||
@@ -692,9 +693,7 @@ export default function ConfiguratorShell({
       }
       const rule =
         session.cameras.find((c) => c.slot === slot) ??
-        session.cameras.find(
-          (c) => slotFromCamera(c.name, c.mode) === slot,
-        );
+        session.cameras.find((c) => slotFromCamera(c.name, c.mode) === slot);
       if (rule) handleSelectCamera(rule);
       else setSidePanelOpen(true);
     },
@@ -1015,7 +1014,8 @@ export default function ConfiguratorShell({
             setReviewOpen(true);
           }}
           onBackHome={() => {
-            window.location.assign("/");
+            // window.location.assign("/");
+            redirect("/");
           }}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
         />
@@ -1186,6 +1186,7 @@ export default function ConfiguratorShell({
             session={session}
             selections={selections.selections}
             unitId={unitId}
+            actionsDisabled={streamBlocking}
             onBack={() => {
               setReviewOpen(false);
               setQuoteDialogOpen(false);
