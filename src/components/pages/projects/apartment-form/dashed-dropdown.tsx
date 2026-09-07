@@ -10,6 +10,7 @@ type Props = {
   placeholder: string;
   options: { id: string; label: string }[];
   open: boolean;
+  disabled?: boolean;
   onToggle: () => void;
   onChange: (id: string) => void;
 };
@@ -20,6 +21,7 @@ const DashedDropdown = ({
   placeholder,
   options,
   open,
+  disabled = false,
   onToggle,
   onChange,
 }: Props) => {
@@ -34,8 +36,13 @@ const DashedDropdown = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={label}
-        onClick={onToggle}
-        className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5 text-left"
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) onToggle();
+        }}
+        className={`flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5 text-left ${
+          disabled ? "cursor-not-allowed opacity-40" : ""
+        }`}
       >
         <span
           className={`min-w-0 flex-1 truncate text-[12px] leading-[1.2] ${
@@ -50,7 +57,7 @@ const DashedDropdown = ({
           />
         </span>
       </button>
-      {open ? (
+      {open && !disabled ? (
         <OptionList
           options={options}
           value={value}

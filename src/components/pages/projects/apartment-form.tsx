@@ -2,10 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import ContactConfirmDialog from "./apartment-form/contact-confirm-dialog";
 import { CONTACT_STORAGE_KEY } from "@/constants/const";
-import { ContactInfo } from "@/types/types";
+import { ContactInfo, TProject } from "@/types/types";
 import ContactStep from "./apartment-form/contact-step";
 import SelectStep from "./apartment-form/select-step";
 import { readContact } from "@/utils/utils";
@@ -14,9 +13,11 @@ export type ApartmentChoice = {
   unitId: string;
   levelName: string;
   designCode?: string;
+  layoutCode?: string;
 };
 
 type Props = {
+  project: TProject;
   title?: string;
   titleId?: string;
   pending?: boolean;
@@ -35,6 +36,7 @@ function writeContact(info: ContactInfo): void {
 }
 
 const ApartmentForm = ({
+  project,
   title = "Select Apartment",
   titleId,
   pending = false,
@@ -83,16 +85,14 @@ const ApartmentForm = ({
   // Avoid flash while reading localStorage
   if (contact === undefined) {
     return (
-      <div
-        className="flex w-full max-w-[29.125rem] flex-col gap-8"
-        aria-hidden
-      />
+      <div className="flex w-full max-w-116.5 flex-col gap-8" aria-hidden />
     );
   }
 
   if (contact) {
     return (
       <SelectStep
+        project={project}
         title={title}
         titleId={titleId}
         pending={pending}

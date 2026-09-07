@@ -6,6 +6,7 @@ import { JotaiProvider } from "@/lib/jotai-provider";
 import { Suspense } from "react";
 import ScrollToTop from "@/components/shared/scroll-to-top";
 import LenisWrapper from "@/context/lenis-wrapper";
+import QueryProvider from "@/providers/query-provider";
 // import PageLoaderWrapper from "@/components/layout/page-loader/page-loader-wrapper";
 
 const generalSans = localFont({
@@ -57,7 +58,7 @@ export default function RootLayout({
             <ScrollToTop />
           </Suspense>
           <LenisWrapper />
-          {children}
+          <QueryProvider>{children}</QueryProvider>
           {/* </PageLoaderWrapper> */}
         </JotaiProvider>
       </body>

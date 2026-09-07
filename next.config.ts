@@ -1,37 +1,3 @@
-// import type { NextConfig } from "next";
-
-// const nextConfig: NextConfig = {
-//   /* config options here */
-// };
-
-// export default nextConfig;
-
-// import type { NextConfig } from "next";
-
-// const nextConfig: NextConfig = {
-//   transpilePackages: ["streampixelsdk"],
-//   webpack: (config, { isServer }) => {
-//     if (!isServer) {
-//       config.resolve.fallback = {
-//         ...config.resolve.fallback,
-//         fs: false,
-//         net: false,
-//         tls: false,
-//         crypto: false,
-//         stream: false,
-//         path: false,
-//         os: false,
-//         http: false,
-//         https: false,
-//         zlib: false,
-//       };
-//     }
-//     return config;
-//   },
-// };
-
-// export default nextConfig;
-
 import type { NextConfig } from "next";
 import type { Configuration as WebpackConfig } from "webpack";
 import webpack from "webpack";
@@ -43,6 +9,16 @@ import webpack from "webpack";
  */
 const nextConfig: NextConfig = {
   transpilePackages: ["streampixelsdk"],
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "atelier-be.lucidly.dev",
+        pathname: "/storage/**", // optional but recommended
+      },
+    ],
+  },
 
   // Silences the Turbopack-vs-webpack warning if you ever start without --webpack.
   // Real polyfills only apply when running with Webpack (see scripts below).
