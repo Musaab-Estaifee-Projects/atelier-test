@@ -86,7 +86,7 @@ const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
     >
       <div ref={rootRef} className="relative w-auto overflow-hidden">
         <CustomShape
-          className="w-auto h-auto max-w-[34.375rem]"
+          className="w-auto h-auto max-w-137.5"
           radius={{
             base: 18,
             sm: 20,
@@ -112,7 +112,7 @@ const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
             </div>
 
             {/* Animated progress ring */}
-            <div className="relative flex size-[6.25rem] items-center justify-center">
+            <div className="relative flex size-25 items-center justify-center">
               <svg
                 className="absolute inset-0 size-full -rotate-90"
                 viewBox={`0 0 ${SIZE} ${SIZE}`}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { EllipsisVertical, Undo2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Undo2 } from "lucide-react";
+import SelectionRowMenu from "./selection-row-menu";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,7 +61,7 @@ const MaterialCell = ({ line }: { line: ReviewSurfaceLine }) => {
   if (!line.selected) {
     return (
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <div className="size-14 shrink-0 border border-dashed border-white bg-white/10 md:size-[75px]" />
+        <div className="size-14 shrink-0 border border-dashed border-white bg-white/10 md:size-18.75" />
         <div className="min-w-0">
           <p className="font-medium italic text-[14px] leading-[1.16] text-white">
             Not selected
@@ -84,12 +85,12 @@ const MaterialCell = ({ line }: { line: ReviewSurfaceLine }) => {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2.5">
       {swatch ? (
-        <div className="relative size-14 shrink-0 overflow-clip border-[1.3px] border-white/20 md:size-[75px]">
+        <div className="relative size-14 shrink-0 overflow-clip border-[1.3px] border-white/20 md:size-18.75">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={swatch} alt="" className="h-full w-full object-cover" />
         </div>
       ) : (
-        <div className="size-14 shrink-0 border border-dashed border-white bg-white/10 md:size-[75px]" />
+        <div className="size-14 shrink-0 border border-dashed border-white bg-white/10 md:size-18.75" />
       )}
       <div className="flex min-w-0 flex-col gap-2.5">
         <p className="font-medium text-[14px] leading-[1.16] text-white">
@@ -102,132 +103,6 @@ const MaterialCell = ({ line }: { line: ReviewSurfaceLine }) => {
         ) : null}
       </div>
     </div>
-  );
-};
-
-const RowMenu = ({
-  selected,
-  onRemove,
-  onEdit,
-  disabled = false,
-}: {
-  selected: boolean;
-  onRemove?: () => void;
-  onEdit?: () => void;
-  disabled?: boolean;
-}) => {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const updatePosition = () => {
-    const btn = buttonRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    setPos({
-      top: rect.bottom + 6,
-      left: rect.right - 102,
-    });
-  };
-
-  useEffect(() => {
-    if (!open) return;
-
-    updatePosition();
-
-    const handleClick = (e: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-
-    const handleScroll = () => updatePosition();
-
-    document.addEventListener("mousedown", handleClick);
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleScroll);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (disabled) setOpen(false);
-  }, [disabled]);
-
-  if (!onRemove && !onEdit) return null;
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label="Row actions"
-        disabled={disabled}
-        onClick={() => {
-          if (disabled) return;
-          if (!open) updatePosition();
-          setOpen((prev) => !prev);
-        }}
-        // className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition hover:bg-white/20"
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 p-1 text-white transition",
-          disabled ? "cursor-not-allowed opacity-40" : "hover:bg-white/20",
-        )}
-      >
-        <EllipsisVertical className="size-4.5" strokeWidth={1.75} />
-      </button>
-
-      {open && !disabled && (
-        <div
-          ref={menuRef}
-          style={{
-            position: "fixed",
-            top: pos.top,
-            left: Math.max(8, pos.left),
-            zIndex: 100,
-          }}
-          className="w-25.5 rounded-none border border-white/5 bg-[#001f24] p-[5px] text-[12px] text-white/70 shadow-lg"
-        >
-          {onRemove && (
-            <button
-              type="button"
-              disabled={!selected}
-              className="w-full bg-white/5 p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/10 disabled:opacity-40"
-              onClick={() => {
-                onRemove();
-                setOpen(false);
-              }}
-            >
-              Remove
-            </button>
-          )}
-
-          {onEdit && (
-            <button
-              type="button"
-              className="w-full p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/5"
-              onClick={() => {
-                onEdit();
-                setOpen(false);
-              }}
-            >
-              Edit
-            </button>
-          )}
-        </div>
-      )}
-    </>
   );
 };
 
@@ -297,14 +172,14 @@ const ReviewSelections = ({
             <AtelierMark />
             <h1
               id="review-selections-title"
-              className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] sm:mt-10 sm:text-[36px]"
+              className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] sm:mt-10 sm:text-[36px]"
             >
               Review your selections
             </h1>
             <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px]">
               {subtitle}
             </p>
-            <div className="mt-3 h-px w-[129px] overflow-clip">
+            <div className="mt-3 h-px w-32.25 overflow-clip">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/review/header-rule.svg"
@@ -314,14 +189,14 @@ const ReviewSelections = ({
             </div>
           </div>
 
-          <div className="mt-10 flex flex-col gap-12 sm:mt-14 sm:gap-[50px]">
+          <div className="mt-10 flex flex-col gap-12 sm:mt-14 sm:gap-12.5">
             {sections.map((section) => (
-              <section key={section.id} className="flex flex-col gap-[21px]">
+              <section key={section.id} className="flex flex-col gap-5.25">
                 <div>
-                  <h2 className="font-baskerville text-[22px] leading-[1.16] font-normal tracking-[0.05em] text-white sm:text-[24px]">
+                  <h2 className="font-baskerville text-[22px] leading-[1.16] font-normal tracking-wider text-white sm:text-[24px]">
                     {section.label}
                   </h2>
-                  <div className="mt-1 h-[10px] w-[85px] overflow-clip">
+                  <div className="mt-1 h-2.5 w-21.25 overflow-clip">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="/images/review/section-rule.svg"
@@ -369,7 +244,7 @@ const ReviewSelections = ({
                             </p>
                           </div>
                           <div className="md:hidden">
-                            <RowMenu
+                            <SelectionRowMenu
                               selected={line.selected}
                               disabled={actionsDisabled}
                               // onRemove={
@@ -424,12 +299,9 @@ const ReviewSelections = ({
                         </div>
 
                         <div className="hidden px-2 py-3 md:flex md:items-center md:justify-end">
-                          <RowMenu
+                          <SelectionRowMenu
                             selected={line.selected}
                             disabled={actionsDisabled}
-                            // onRemove={
-                            //   onRemove ? () => onRemove(line.slot) : undefined
-                            // }
                             onRemove={
                               onRemove
                                 ? () =>
@@ -448,11 +320,11 @@ const ReviewSelections = ({
                     );
                   })}
 
-                  <div className="flex items-center justify-between bg-white/[0.06] px-2 py-3">
+                  <div className="flex items-center justify-between bg-white/6 px-2 py-3">
                     <p className="font-medium text-[14px] leading-[1.16] text-white uppercase">
                       Total
                     </p>
-                    <p className="flex items-center gap-2 font-baskerville text-[22px] leading-[1.16] tracking-[0.05em] text-white sm:text-[24px]">
+                    <p className="flex items-center gap-2 font-baskerville text-[22px] leading-[1.16] tracking-wider text-white sm:text-[24px]">
                       <Dirham size="md" />
                       {section.subtotal.toLocaleString()}
                     </p>
@@ -462,7 +334,7 @@ const ReviewSelections = ({
             ))}
           </div>
 
-          <aside className="mt-10 flex flex-col gap-5 border border-[#ff8585]/44 bg-[#ff8585]/6 p-5 sm:mt-[75px] sm:p-6">
+          <aside className="mt-10 flex flex-col gap-5 border border-[#ff8585]/44 bg-[#ff8585]/6 p-5 sm:mt-18.75 sm:p-6">
             <p className="font-medium text-[14px] leading-[1.16] text-white uppercase">
               Note
             </p>
@@ -478,12 +350,12 @@ const ReviewSelections = ({
       </div>
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-4 md:pb-10">
-        <div className="pointer-events-auto flex w-full max-w-187.25 flex-col gap-3 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.2)] to-[rgba(77,69,57,0.2)] py-3 pr-3 pl-5 backdrop-blur-[25px] md:min-h-[52px] md:flex-row md:items-center md:justify-between md:gap-3 md:rounded-full md:py-1.5 md:pr-1.5 md:pl-[25px]">
+        <div className="pointer-events-auto flex w-full max-w-187.25 flex-col gap-3 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.2)] to-[rgba(77,69,57,0.2)] py-3 pr-3 pl-5 backdrop-blur-[25px] md:min-h-13 md:flex-row md:items-center md:justify-between md:gap-3 md:rounded-full md:py-1.5 md:pr-1.5 md:pl-6.25">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <p className="font-baskerville text-[14px] leading-[1.16] tracking-[0.05em] text-white">
+            <p className="font-baskerville text-[14px] leading-[1.16] tracking-wider text-white">
               Total :
             </p>
-            <p className="flex items-center gap-0.5 font-baskerville text-[24px] leading-[1.16] tracking-[0.05em] text-white sm:text-[28px]">
+            <p className="flex items-center gap-0.5 font-baskerville text-[24px] leading-[1.16] tracking-wider text-white sm:text-[28px]">
               <Dirham size="lg" />
               {total.toLocaleString()}
             </p>
@@ -493,16 +365,16 @@ const ReviewSelections = ({
               type="button"
               variant="pill"
               size="pill"
-              className="h-10 w-full gap-2 bg-white/10 px-[13px] text-[10px] tracking-[0.03em] md:w-[178px]"
+              className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
               onClick={onBack}
             >
-              <Undo2 className="size-[18px]" strokeWidth={1.75} />
+              <Undo2 className="size-4.5" strokeWidth={1.75} />
               Back to customize
             </Button>
             <Button
               type="button"
               size="pill"
-              className="h-10 w-full rounded-full bg-[#00272d] px-[13px] text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-[178px]"
+              className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-44.5"
               onClick={onConfirm}
             >
               Prepare final renders

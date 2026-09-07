@@ -55,21 +55,21 @@ const LoadingUnit = ({
   const pct = Math.min(100, Math.max(0, progress));
 
   return (
-    <div className="flex w-full max-w-[520px] flex-col items-center">
-      <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+    <div className="flex w-full max-w-130 flex-col items-center">
+      <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         Loading Your Unit
       </h1>
       <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
         {unitSubtitle}
       </p>
-      <div className="mt-6 h-[2px] w-full max-w-[467px] overflow-hidden bg-white/10">
+      <div className="mt-6 h-0.5 w-full max-w-116.75 overflow-hidden bg-white/10">
         <div
           className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
 
-      <div className="mt-8 grid w-full max-w-[450px] grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+      <div className="mt-8 grid w-full max-w-112.5 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         <HintCard
           icon="/images/session/keys.svg"
           iconClass="h-[57px] w-[86px]"
@@ -97,17 +97,17 @@ const ReconnectingUnit = ({
   const pct = Math.min(100, Math.max(0, progress));
 
   return (
-    <div className="flex w-full max-w-[520px] flex-col items-center">
+    <div className="flex w-full max-w-130 flex-col items-center">
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
         Connection interrupted
       </p>
-      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         {title}
       </h1>
       <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
         {subtitle}
       </p>
-      <div className="mt-6 h-[2px] w-full max-w-[467px] overflow-hidden bg-white/10">
+      <div className="mt-6 h-0.5 w-full max-w-116.75 overflow-hidden bg-white/10">
         <div
           className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
           style={{ width: `${pct}%` }}
@@ -127,7 +127,7 @@ const HintCard = ({
   label: string;
 }) => {
   return (
-    <div className="flex flex-col items-center gap-5 border border-white/10 p-[21px]">
+    <div className="flex flex-col items-center gap-5 border border-white/10 p-5.25">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={icon} alt="" className={iconClass} />
       <p className="text-center text-[12px] leading-[1.2] text-white">
@@ -145,12 +145,12 @@ const QueueWait = ({
   onBrowseStyles?: () => void;
 }) => {
   return (
-    <div className="flex w-full max-w-[520px] flex-col items-center px-2">
+    <div className="flex w-full max-w-130 flex-col items-center px-2">
       <AtelierSpinner className="mb-7" />
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
         All 3D sessions are busy
       </p>
-      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-white">
+      <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         You&apos;re{" "}
         <span className="text-[#ada599]">
           {position > 0 ? position : "next"}
@@ -160,14 +160,14 @@ const QueueWait = ({
 
       <TitleRule className="mt-4 h-px w-31.25" />
 
-      <p className="mt-6 max-w-[420px] text-center text-[14px] leading-[1.2] text-white/70">
+      <p className="mt-6 max-w-105 text-center text-[14px] leading-[1.2] text-white/70">
         You can wait here, or take a look on the styles we prepared for you.
       </p>
       <Button
         type="button"
         variant="pill"
         size="pill"
-        className="mt-6 w-full max-w-[284px] whitespace-normal"
+        className="mt-6 w-full max-w-71 whitespace-normal"
         onClick={onBrowseStyles}
       >
         Browse ready styles
@@ -199,14 +199,14 @@ const SessionEnded = ({
       : "Your selections are saved. Nothing was lost.";
 
   return (
-    <div className="flex w-full max-w-[720px] flex-col items-center px-2">
+    <div className="flex w-full max-w-180 flex-col items-center px-2">
       {icon}
 
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#e29584] uppercase">
         {eyebrow}
       </p>
 
-      <h1 className="mt-3 text-center font-baskerville text-[2rem] md:text-[2.25rem] leading-[1.16] font-normal tracking-[0.05em] text-white capitalize">
+      <h1 className="mt-3 text-center font-baskerville text-[2rem] md:text-[2.25rem] leading-[1.16] font-normal tracking-wider text-white capitalize">
         {title}
       </h1>
 
@@ -220,7 +220,7 @@ const SessionEnded = ({
         type="button"
         variant="pill"
         size="pill"
-        className="mt-6 w-full max-w-[284px] whitespace-normal"
+        className="mt-6 w-full max-w-71 whitespace-normal"
         onClick={onReconnect}
       >
         Reconnect
@@ -230,7 +230,7 @@ const SessionEnded = ({
         type="button"
         variant="pill-outline"
         size="pill"
-        className="mt-4 w-full max-w-[284px] whitespace-normal"
+        className="mt-4 w-full max-w-71 whitespace-normal"
         onClick={onSecondary}
       >
         {secondaryLabel}
@@ -291,6 +291,7 @@ const LoadingOverlay = ({
   selectionCount = 0,
   onReconnect,
   onContinueToSummary,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onBackHome,
   onBrowseStyles,
   reconnectTitle,
@@ -310,7 +311,7 @@ const LoadingOverlay = ({
       role={ended ? "alertdialog" : "status"}
       aria-modal={ended || undefined}
       aria-live={ended ? "assertive" : "polite"}
-      style={pageNoiseStyle(0.12)}
+      style={pageNoiseStyle(0.11)}
     >
       <SessionBackdrop src={bg} />
 

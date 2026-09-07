@@ -161,7 +161,7 @@
 //     >
 //       <h1
 //         id={headingId}
-//         className="text-center font-baskerville text-[clamp(22px,6vw,27.4px)] font-normal leading-[1.16] tracking-[0.05em] text-[#f2e9d8] capitalize"
+//         className="text-center font-baskerville text-[clamp(22px,6vw,27.4px)] font-normal leading-[1.16] tracking-wider text-[#f2e9d8] capitalize"
 //       >
 //         {title}
 //       </h1>
@@ -452,7 +452,7 @@ const SelectStep = ({
       >
         <h1
           id={headingId}
-          className="text-center font-baskerville text-[clamp(22px,6vw,27.4px)] font-normal leading-[1.16] tracking-[0.05em] text-[#f2e9d8] capitalize"
+          className="text-center font-baskerville text-[clamp(22px,6vw,27.4px)] font-normal leading-[1.16] tracking-wider text-[#f2e9d8] capitalize"
         >
           {title}
         </h1>

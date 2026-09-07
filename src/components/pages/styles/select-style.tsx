@@ -43,6 +43,7 @@ type Props = {
 const SelectStyle = ({
   overlay = false,
   onStartCustomizing,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectStyle,
   projectSlug,
   unitId,
@@ -69,7 +70,7 @@ const SelectStyle = ({
           : "min-h-dvh! h-auto 2xl:h-dvh! overflow-x-hidden overflow-y-auto"
       }`}
       style={{
-        ...pageNoiseStyle(0.13),
+        ...pageNoiseStyle(0.11),
       }}
     >
       {/* Background texture */}
@@ -84,7 +85,7 @@ const SelectStyle = ({
       <div className="relative z-10 mx-auto flex h-full w-full flex-col items-center px-4 pt-8 pb-10 sm:px-8 sm:pt-10">
         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
-        <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-[0.05em] text-white sm:mt-12">
+        <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-wider text-white sm:mt-12">
           Begin Your Journey
         </h1>
 

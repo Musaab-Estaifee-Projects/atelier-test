@@ -35,7 +35,7 @@ function meshSlot(mesh: MeshOption): string {
   return mesh.slot || slotFromMeshId(mesh.id);
 }
 
-export default function ZoneSidePanel({
+const ZoneSidePanel = ({
   cameras,
   activeCameraKey,
   onSelectCamera,
@@ -47,7 +47,7 @@ export default function ZoneSidePanel({
   onRemoveSelection,
   viewOnly,
   onClose,
-}: Props) {
+}: Props) => {
   const activeCamera =
     cameras.find((cam) => cameraKey(cam) === activeCameraKey) ?? null;
   const activeSlot =
@@ -112,7 +112,7 @@ export default function ZoneSidePanel({
               {onRemoveSelection && activeSlot && !viewOnly ? (
                 <button
                   type="button"
-                  className="relative size-[22px] shrink-0 overflow-clip"
+                  className="relative size-5.5 shrink-0 overflow-clip"
                   onClick={() => onRemoveSelection(activeSlot)}
                   aria-label="Clear selected material"
                 >
@@ -128,7 +128,7 @@ export default function ZoneSidePanel({
         </section>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3.5">
-          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-[18px]">
+          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
             <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
               Surface
             </h3>
@@ -140,7 +140,7 @@ export default function ZoneSidePanel({
                   <button
                     key={key}
                     type="button"
-                    className={`h-8 min-w-[88px] flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
+                    className={`h-8 min-w-22 flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
                       active
                         ? "border border-white/70"
                         : "border border-transparent opacity-80"
@@ -154,7 +154,7 @@ export default function ZoneSidePanel({
             </div>
           </section>
 
-          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-[18px]">
+          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
             <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
               Finish Type
             </h3>
@@ -175,14 +175,14 @@ export default function ZoneSidePanel({
                       key={mesh.id}
                       type="button"
                       aria-pressed={selected}
-                      className={`flex w-full items-center gap-[7px] rounded-full bg-white/5 py-1 pr-5 pl-1 text-left ${
+                      className={`flex w-full items-center gap-1.75 rounded-full bg-white/5 py-1 pr-5 pl-1 text-left ${
                         selected
                           ? "border border-white/70"
                           : "border border-transparent"
                       }`}
                       onClick={() => onSelectMesh(mesh)}
                     >
-                      <span className="relative size-[52px] shrink-0 overflow-clip rounded-full border border-white/20">
+                      <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={finishThumb(mesh.id)}
@@ -234,7 +234,7 @@ export default function ZoneSidePanel({
                       }`}
                       onClick={() => onSelectMaterial(activeMesh.id, mat)}
                     >
-                      <span className="relative block size-[49px] overflow-clip rounded-full border border-white/20">
+                      <span className="relative block size-12.25 overflow-clip rounded-full border border-white/20">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={materialThumb(mat.id, mat.thumbnailUrl)}
@@ -252,6 +252,8 @@ export default function ZoneSidePanel({
       </div>
     </aside>
   );
-}
+};
 
 export { cameraKey };
+
+export default ZoneSidePanel;

@@ -15,21 +15,21 @@ import {
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import Bg from "@/components/shared/bg";
 
-function ProjectInfoBar({ project }: { project: CatalogProject }) {
+const ProjectInfoBar = ({ project }: { project: CatalogProject }) => {
   return (
-    <div className="flex w-full flex-col gap-[7px] bg-white/10 p-[19px] backdrop-blur-[12px]">
+    <div className="flex w-full flex-col gap-1.75 bg-white/10 p-4.75 backdrop-blur-md">
       <h2 className="font-baskerville text-[26px] leading-none font-normal tracking-[0.15em] text-white uppercase">
         {project.name}
       </h2>
       <div className="h-px w-full bg-white/35" />
       <div className="flex w-full items-start gap-2.5 text-white">
-        <div className="flex min-w-0 flex-1 flex-col gap-[7px]">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.75">
           <p className="text-[11px] tracking-[0.06em] text-white/60 uppercase">
             Handover
           </p>
           <p className="text-[12px] leading-none">{project.handover}</p>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-[7px]">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.75">
           <p className="text-[11px] tracking-[0.06em] text-white/60 uppercase">
             Number of Residences
           </p>
@@ -38,13 +38,9 @@ function ProjectInfoBar({ project }: { project: CatalogProject }) {
       </div>
     </div>
   );
-}
+};
 
-export default function SelectApartment({
-  project,
-}: {
-  project: CatalogProject;
-}) {
+const SelectApartment = ({ project }: { project: CatalogProject }) => {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +82,7 @@ export default function SelectApartment({
   return (
     <main
       className="relative min-h-dvh overflow-hidden bg-[#00272d] text-white lg:h-dvh"
-      style={pageNoiseStyle(0.12)}
+      style={pageNoiseStyle(0.11)}
     >
       {/* <div className="pointer-events-none absolute inset-0 opacity-30"> */}
       {}
@@ -145,4 +141,6 @@ export default function SelectApartment({
       </div>
     </main>
   );
-}
+};
+
+export default SelectApartment;

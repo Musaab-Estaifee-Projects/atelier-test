@@ -25,7 +25,7 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
     >
       <div className="relative w-auto overflow-hidden">
         <CustomShape
-          className="w-auto h-auto max-w-[38.375rem]"
+          className="w-auto h-auto max-w-153.5"
           radius={{
             base: 18,
             sm: 20,

@@ -133,13 +133,7 @@ const ConfiguratorDock = ({
         ) : null}
 
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-          <button
-            type="button"
-            className="flex min-w-0 items-center gap-2"
-            onClick={onToggleSelections}
-            aria-pressed={selectionsOpen}
-            title="Selected items"
-          >
+          <div className="flex min-w-0 items-center gap-2">
             <span className="relative flex items-center">
               <span className="flex items-center">
                 {(selectedItems.length
@@ -179,21 +173,34 @@ const ConfiguratorDock = ({
                     </span>
                   ))}
               </span>
-              <span className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]">
+              <button
+                type="button"
+                className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
+                onClick={onToggleSelections}
+                aria-pressed={selectionsOpen}
+                aria-label="Edit selected items"
+                title="Edit selected items"
+              >
                 <span className="relative block size-[10.5px] overflow-clip">
                   <Pen className="w-full h-full" />
                 </span>
-              </span>
+              </button>
             </span>
-            <span className="hidden min-w-0 flex-col items-start gap-1.5 sm:flex">
+            <button
+              type="button"
+              className="hidden min-w-0 flex-col items-start gap-1.5 sm:flex"
+              onClick={onToggleSelections}
+              aria-pressed={selectionsOpen}
+              title="Selected items"
+            >
               <span className="font-sans text-[10px] uppercase tracking-[1.1px] text-white/70">
                 Selected Items
               </span>
               <span className="max-w-36 truncate font-sans text-[13px] leading-[1.16] text-white">
                 {summary}
               </span>
-            </span>
-          </button>
+            </button>
+          </div>
 
           <DockIcon
             icon={<Reset className="w-full h-full" />}

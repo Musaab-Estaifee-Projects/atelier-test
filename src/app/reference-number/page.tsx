@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import SelectProject from "@/components/pages/projects/select-project";
+import ReferenceNumberStatus from "@/components/pages/reference-number/reference-number-status-client";
 
 export const metadata: Metadata = {
   title: "ATELIER · Return to your configuration",
@@ -7,8 +7,6 @@ export const metadata: Metadata = {
     "Enter the reference from your quotation PDF to return to a saved configuration.",
 };
 
-const ReferenceNumberPage = () => {
-  return <SelectProject initialReturn />;
-};
-
-export default ReferenceNumberPage;
+export default function Page() {
+  return <ReferenceNumberStatus />;
+}

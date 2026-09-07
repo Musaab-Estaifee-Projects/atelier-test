@@ -14,6 +14,7 @@ import { RoundedRect } from "@/components/shared/rounded-rect";
 const FH = 808;
 const ROW_T = 273;
 const ROW_M = 262;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Y_BOTTOM = `${((ROW_T + ROW_M + ROW_T / 2) / FH) * 100}%`;
 
 export default function HomeIntro() {
@@ -49,7 +50,7 @@ export default function HomeIntro() {
             },
           }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
-          style={pageNoiseStyle(0.12)}
+          style={pageNoiseStyle(0.11)}
         >
           {/* Radial overlay */}
           <div

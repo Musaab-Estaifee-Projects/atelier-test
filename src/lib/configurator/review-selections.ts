@@ -133,6 +133,67 @@ export function buildReviewSections(
   };
 }
 
+export function buildSelectedItemSections(
+  session: ConfiguratorSession | undefined,
+  selections: SelectionEntry[],
+  slotLabels: Record<string, string> = {},
+): ReviewSection[] {
+  if (!selections.length) return [];
+
+  if (!session) {
+    return [
+      {
+        id: "all",
+        label: "Selections",
+        subtotal: 0,
+        lines: selections.map((sel) => ({
+          slot: sel.slot,
+          surfaceLabel: slotLabels[sel.slot] ?? sel.slot,
+          selected: true,
+          materialName: sel.materialId || "Mesh only",
+          price: 0,
+        })),
+      },
+    ];
+  }
+
+  const { sections } = buildReviewSections(session, selections);
+  const used = new Set<string>();
+  const selected = sections
+    .map((section) => ({
+      ...section,
+      lines: section.lines.filter((line) => line.selected),
+    }))
+    .filter((section) => {
+      section.lines.forEach((line) => used.add(line.slot));
+      return section.lines.length > 0;
+    });
+
+  const extras = selections.filter((sel) => !used.has(sel.slot));
+  if (!extras.length) return selected;
+
+  const matById = new Map(session.materials.map((m) => [m.id, m]));
+  selected.push({
+    id: "other",
+    label: "Other",
+    subtotal: 0,
+    lines: extras.map((sel) => {
+      const mat = matById.get(sel.materialId);
+      return {
+        slot: sel.slot,
+        surfaceLabel: slotLabels[sel.slot] ?? sel.slot,
+        selected: true,
+        materialName: mat?.displayName ?? sel.materialId ?? "Mesh only",
+        thumbnailUrl: mat?.thumbnailUrl,
+        fallbackSwatch: swatchForMaterial(mat),
+        price: 0,
+      };
+    }),
+  });
+
+  return selected;
+}
+
 export function reviewUnitSubtitle(unitId?: string | null, levelName?: string | null) {
   if (unitId?.includes("2BHK")) return "REEF 997 - 2 Bedrooms - Type A";
   return [unitId, levelName].filter(Boolean).join(" - ") || "Your residence";

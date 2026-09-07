@@ -139,7 +139,7 @@ const PageLoader = ({ active, onComplete }: PageLoaderProps) => {
             },
           }}
           className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden"
-          style={pageNoiseStyle(0.12)}
+          style={pageNoiseStyle(0.11)}
         >
           {/* Radial overlay */}
           <div

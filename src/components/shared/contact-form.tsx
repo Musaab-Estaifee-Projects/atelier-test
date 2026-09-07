@@ -75,13 +75,13 @@ const ContactForm = ({
         noValidate
         onSubmit={form.handleSubmit(handleSubmit)}
         className={cn(
-          "relative z-10 flex w-full max-w-[29.125rem] flex-col gap-8 overflow-y-auto hidden-scrollbar lg:border-0",
+          "relative z-10 flex w-full max-w-116.5 flex-col gap-8 overflow-y-auto hidden-scrollbar lg:border-0",
           className,
         )}
         data-lenis-prevent
       >
         {title && (
-          <h2 className="text-center font-baskerville text-[1.25rem] font-normal leading-[1.16] tracking-[0.05em] text-[#f2e9d8] capitalize md:text-[1.625rem]">
+          <h2 className="text-center font-baskerville text-[1.25rem] font-normal leading-[1.16] tracking-wider text-[#f2e9d8] capitalize md:text-[1.625rem]">
             {title}
           </h2>
         )}

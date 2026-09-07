@@ -242,7 +242,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
     >
       <div className="relative w-full overflow-hidden">
         <CustomShape
-          className="w-auto h-auto max-w-[40.375rem]"
+          className="w-auto h-auto max-w-161.5"
           radius={{ base: 18, sm: 20, md: 24 }}
           stroke="rgba(255,255,255,0.10)"
           strokeWidth={1}
@@ -251,13 +251,13 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
             <form
               noValidate
               onSubmit={form.handleSubmit(handleSubmit)}
-              className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 sm:px-[46px] sm:py-[46px]"
+              className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 sm:px-11.5 sm:py-11.5"
             >
               <h2 className="font-baskerville text-[1.25rem] md:text-[1.625rem] leading-[1.16] font-normal text-[#f2e9d8] capitalize">
                 Return to your Configuration
               </h2>
 
-              <div className="flex w-full max-w-[347px] flex-col items-center gap-[7px]">
+              <div className="flex w-full max-w-86.75 flex-col items-center gap-1.75">
                 <FormField
                   control={form.control}
                   name="reference"
@@ -282,7 +282,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
                           disabled={pending}
                           aria-invalid={invalid}
                           aria-describedby="return-config-hint"
-                          className="w-full border-0 border-b border-dashed border-white/34 bg-transparent py-[25px] text-center text-[14px] leading-[1.2] text-white outline-none placeholder:text-white/28 disabled:opacity-50"
+                          className="w-full border-0 border-b border-dashed border-white/34 bg-transparent py-6.25 text-center text-[14px] leading-[1.2] text-white outline-none placeholder:text-white/28 disabled:opacity-50"
                         />
                       </FormControl>
                     </FormItem>
@@ -291,7 +291,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
 
                 <p
                   role={invalid ? "alert" : undefined}
-                  className={`min-h-[12px] w-full text-center text-[10px] leading-[1.2] ${
+                  className={`min-h-3 w-full text-center text-[10px] leading-[1.2] ${
                     invalid ? "text-[#ff8585]" : "invisible"
                   }`}
                 >
@@ -303,7 +303,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
                 type="submit"
                 variant="pill"
                 size="pill"
-                className="w-full max-w-[348px]"
+                className="w-full max-w-87"
                 disabled={pending}
               >
                 {pending ? "Checking…" : "Continue"}

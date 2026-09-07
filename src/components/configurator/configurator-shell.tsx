@@ -105,11 +105,7 @@ function resolveLiveIndex(
   return byName?.index != null ? Number(byName.index) : null;
 }
 
-export default function ConfiguratorShell({
-  projectId,
-}: {
-  projectId: string;
-}) {
+const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const { params, setParams } = useShareableParams(projectId);
@@ -924,10 +920,6 @@ export default function ConfiguratorShell({
     selections.resetAll();
   }, [setParams, selections]);
 
-  const displayPrice = viewOnly
-    ? (design?.price ?? selections.optimisticPrice)
-    : selections.optimisticPrice;
-
   const overlayKind = streamOverlayKind({
     streamPhase: stream.streamPhase,
     queuePosition: stream.queuePosition,
@@ -1141,14 +1133,14 @@ export default function ConfiguratorShell({
           <SelectionsSheet
             open={selectionsOpen}
             selections={selections.selections}
+            session={session}
             slotLabels={session.slotLabels}
-            price={displayPrice}
             onClose={() => setSelectionsOpen(false)}
-            onSubmit={() => {
-              setSelectionsOpen(false);
-              setReviewOpen(true);
-            }}
             onRemove={handleRemoveSelection}
+            onEdit={(slot) => {
+              setSelectionsOpen(false);
+              handleEditReviewSlot(slot);
+            }}
             viewOnly={viewOnly}
           />
         </div>
@@ -1181,6 +1173,7 @@ export default function ConfiguratorShell({
               setReviewOpen(true);
             }}
           />
+
           <ReviewSelections
             open={reviewOpen && !viewOnly}
             session={session}
@@ -1200,11 +1193,13 @@ export default function ConfiguratorShell({
             onRemove={handleRemoveSelection}
             onEdit={handleEditReviewSlot}
           />
+
           <FinalDesignPrompt
             open={finalDesign.phase === "confirm"}
             onBack={finalDesign.backToCustomize}
             onStart={finalDesign.startCapture}
           />
+
           <FinalDesignProgress
             open={finalDesign.phase === "capturing"}
             rooms={finalDesign.rooms}
@@ -1223,11 +1218,13 @@ export default function ConfiguratorShell({
             onRetry={finalDesign.retryRoom}
             onSubmit={handleSubmit}
           />
+
           <FinalDesignViewer
             key={finalDesign.viewerRoom?.zoneId ?? "none"}
             room={finalDesign.viewerRoom}
             onClose={finalDesign.closeViewer}
           />
+
           <FinalDesignReview
             open={finalDesign.phase === "review"}
             rooms={finalDesign.rooms}
@@ -1243,4 +1240,6 @@ export default function ConfiguratorShell({
       ) : null}
     </div>
   );
-}
+};
+
+export default ConfiguratorShell;

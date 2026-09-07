@@ -48,14 +48,12 @@ const DesignSuccess = ({
     >
       <div className="relative w-auto overflow-hidden">
         <CustomShape
-          className="w-auto h-auto max-w-[34.375rem]"
+          className="w-auto h-auto max-w-137.5"
           radius={{
             base: 18,
             sm: 20,
             md: 24,
           }}
-          // fill="#0a2f35"
-          // fill="gradient"
           stroke="rgba(255,255,255,0.10)"
           strokeWidth={1}
         >

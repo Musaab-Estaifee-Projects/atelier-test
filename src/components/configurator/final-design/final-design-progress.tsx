@@ -68,7 +68,7 @@ const RoomBlock = ({
     <section className="mb-12 last:mb-0">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]">
+          <h2 className="font-baskerville text-[clamp(24px,2.4vw,32px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8]">
             {room.label}
           </h2>
 
@@ -92,7 +92,7 @@ const RoomBlock = ({
                 if (failed) onRetry(room.zoneId);
                 else if (ready) onView(room.zoneId);
               }}
-              className="relative aspect-[711/398] w-full overflow-hidden bg-[#003d43] text-left disabled:cursor-default"
+              className="relative aspect-711/398 w-full overflow-hidden bg-[#003d43] text-left disabled:cursor-default"
             >
               {ready ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -165,7 +165,7 @@ const FinalDesignProgress = ({
 
   return (
     <div
-      className="absolute inset-0 z-[60] overflow-y-auto overflow-x-hidden bg-[#00272d] text-white"
+      className="absolute inset-0 z-60 overflow-y-auto overflow-x-hidden bg-[#00272d] text-white"
       role="dialog"
       aria-modal="true"
       aria-labelledby="fd-progress-title"
@@ -174,7 +174,7 @@ const FinalDesignProgress = ({
         <CustomHeaderStyle className="h-full w-full object-cover object-[center_top]" />
       </div> */}
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col px-4 pt-5 pb-16 sm:px-9">
+      <div className="relative z-10 mx-auto flex w-full max-w-360 flex-col px-4 pt-5 pb-16 sm:px-9">
         <header className="relative flex items-center justify-between gap-3">
           <Button
             type="button"
@@ -188,7 +188,7 @@ const FinalDesignProgress = ({
           <div className="absolute left-1/2 hidden -translate-x-1/2 sm:block">
             <AtelierMark />
           </div>
-          <span className="w-[38px] shrink-0 sm:w-[168px]" aria-hidden />
+          <span className="w-9.5 shrink-0 sm:w-42" aria-hidden />
         </header>
 
         <div className="mt-5 sm:hidden">
@@ -198,7 +198,7 @@ const FinalDesignProgress = ({
         <div className="mt-10 flex flex-col items-center sm:mt-12">
           <h1
             id="fd-progress-title"
-            className="text-center font-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8]"
+            className="text-center font-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8]"
           >
             Creating Final Renders
           </h1>

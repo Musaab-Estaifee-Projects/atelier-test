@@ -20,7 +20,7 @@
 //         className="pointer-events-none absolute inset-0 h-full w-full"
 //       />
 //       <div className="relative z-10 flex h-full flex-col gap-[13px] p-[25px]">
-//         <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
+//         <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] uppercase">
 //           {style.name}
 //         </h2>
 //         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#001b1f]">
@@ -89,7 +89,7 @@
 //         className="pointer-events-none absolute inset-0 h-full w-full"
 //       />
 //       <div className="relative z-10 flex h-full flex-col gap-[13px] p-[25px]">
-//         <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
+//         <h2 className="text-center font-baskerville text-[clamp(20px,2vw,25px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] uppercase">
 //           {style.name}
 //         </h2>
 //         <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#001b1f]">
@@ -173,7 +173,7 @@ const StyleCard = ({ style, href, onSelect, className }: StyleCardProps) => {
       strokeWidth={1}
     >
       <div className="flex h-full w-full flex-col gap-3 p-5 sm:gap-3.5 sm:p-6">
-        <h2 className="shrink-0 text-center font-baskerville text-[clamp(18px,1.8vw,22px)] leading-[1.16] font-normal tracking-[0.05em] text-[#f2e9d8] uppercase">
+        <h2 className="shrink-0 text-center font-baskerville text-[clamp(18px,1.8vw,22px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] uppercase">
           {style.name}
         </h2>
 
