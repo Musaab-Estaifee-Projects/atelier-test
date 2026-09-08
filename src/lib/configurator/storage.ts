@@ -104,6 +104,9 @@ export function generateDesignCode(): string {
   return `AT-${suffix}`;
 }
 
+/** Codes created in this JS runtime so Strict Mode remounts are not "returning". */
+const generatedThisRuntime = new Set<string>();
+
 /** Reuse existing design_code or create one for this stream/project/layout. */
 export function ensureDesignCode(args: {
   streamProjectId: string;
@@ -118,14 +121,25 @@ export function ensureDesignCode(args: {
     args.layoutCode,
   );
   const fromDraft = draft?.designCode?.trim() || "";
+
+  const isReturning = (code: string) =>
+    Boolean(code) && !generatedThisRuntime.has(code);
+
   if (fromUrl) {
     if (draft && fromDraft && fromDraft !== fromUrl) {
-      saveDraft({ ...draft, designCode: fromUrl, updatedAt: new Date().toISOString() });
+      saveDraft({
+        ...draft,
+        designCode: fromUrl,
+        updatedAt: new Date().toISOString(),
+      });
     }
-    return { designCode: fromUrl, returning: Boolean(fromDraft || fromUrl) };
+    return { designCode: fromUrl, returning: isReturning(fromUrl) };
   }
-  if (fromDraft) return { designCode: fromDraft, returning: true };
+  if (fromDraft) {
+    return { designCode: fromDraft, returning: isReturning(fromDraft) };
+  }
   const designCode = generateDesignCode();
+  generatedThisRuntime.add(designCode);
   saveDraft({
     version: 2,
     streamProjectId: args.streamProjectId,

@@ -39,17 +39,23 @@ async function sendAndWaitAck(
 ): Promise<boolean> {
   const fn = String((payload as { Function?: string }).Function ?? "");
   const types = ackTypesFor(fn);
-  const timeoutMs = opts?.timeoutMs ?? (SOFT_ACK.has(fn) ? 900 : 2500);
+  const attempts = opts?.attempts ?? 10;
+  const gapMs = opts?.gapMs ?? 280;
+  const timeoutMs =
+    opts?.timeoutMs ??
+    (SOFT_ACK.has(fn)
+      ? Math.max(900, attempts * gapMs)
+      : attempts * gapMs + 2500);
   const pending = waitForUeAck(types, timeoutMs);
   const accepted = await sendUntilAccepted(send, payload, {
-    attempts: opts?.attempts ?? 10,
-    gapMs: opts?.gapMs ?? 280,
+    attempts,
+    gapMs,
     label: opts?.label,
   });
   if (!accepted) return false;
   const ack = await pending;
   if (ack === "timeout") {
-    if (SOFT_ACK.has(fn)) return true;
+    if (SOFT_ACK.has(fn) || fn === "LoadLevel") return true;
     console.warn("[UE] ack timeout", fn, types);
     return false;
   }
@@ -153,7 +159,7 @@ export async function saveCustomizationToUe(
   const ok = await sendAndWaitAck(
     send,
     { Function: "SaveCustomization", design_code: code },
-    { attempts: 8, gapMs: 250, label: "SaveCustomization", timeoutMs: 4000 },
+    { attempts: 8, gapMs: 250, label: "SaveCustomization", timeoutMs: 12000 },
   );
   if (ok) noteUeLoadId(code);
   return ok;
@@ -177,7 +183,7 @@ export async function loadCustomizationFromUe(
       attempts: 10,
       gapMs: 300,
       label: `LoadCustomization ${code}`,
-      timeoutMs: 4000,
+      timeoutMs: 12000,
     },
   );
   if (ok) await delay(400);

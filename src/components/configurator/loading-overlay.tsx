@@ -28,6 +28,8 @@ type Props = {
   endedTitle?: string;
   /** Full-viewport lock for the pre-shell boot state. */
   layout?: "absolute" | "fixed";
+  bootError?: string | null;
+  onRetryBoot?: () => void;
 };
 
 const SessionBackdrop = ({ src }: { src: string }) => {
@@ -48,9 +50,13 @@ const SessionBackdrop = ({ src }: { src: string }) => {
 const LoadingUnit = ({
   progress,
   unitSubtitle,
+  bootError,
+  onRetryBoot,
 }: {
   progress: number;
   unitSubtitle: string;
+  bootError?: string | null;
+  onRetryBoot?: () => void;
 }) => {
   const pct = Math.min(100, Math.max(0, progress));
 
@@ -81,6 +87,17 @@ const LoadingUnit = ({
           label="Click and drag using your mouse to look around"
         />
       </div>
+
+      {bootError ? (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <p className="text-center text-sm text-white/70">{bootError}</p>
+          {onRetryBoot ? (
+            <Button type="button" variant="pill-soft" size="pill" onClick={onRetryBoot}>
+              Retry
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -299,6 +316,8 @@ const LoadingOverlay = ({
   endedEyebrow,
   endedTitle,
   layout = "absolute",
+  bootError,
+  onRetryBoot,
 }: Props) => {
   const ended = kind === "disconnected" || kind === "idle";
   const bg = ended
@@ -322,7 +341,12 @@ const LoadingOverlay = ({
 
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-24">
           {kind === "loading" ? (
-            <LoadingUnit progress={progress} unitSubtitle={unitSubtitle} />
+            <LoadingUnit
+              progress={progress}
+              unitSubtitle={unitSubtitle}
+              bootError={bootError}
+              onRetryBoot={onRetryBoot}
+            />
           ) : null}
 
           {kind === "reconnecting" ? (

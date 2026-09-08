@@ -277,6 +277,12 @@ export function extractUeCommandAck(response: unknown): UeCommandAck | null {
         return { type, ok: false, status: status || "failed", code: code ?? 404 };
       }
       if (
+        typeKey === "openinglevel" ||
+        typeKey === "loadlevel"
+      ) {
+        return { type, ok: true, status: status || "success", code: code ?? 200 };
+      }
+      if (
         code === 200 ||
         status === "success" ||
         status === "ok" ||

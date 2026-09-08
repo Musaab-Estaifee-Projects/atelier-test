@@ -23,6 +23,7 @@ export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 /**
  * EDIT-mode FE map + localStorage persistence (selections + designCode).
  * Map stores custom (non-default) finishes only. Camera/zone are URL-only.
+ * localStorage is updated only after Unreal SaveCustomization succeeds.
  */
 export function useSelectionMap(args: {
   streamProjectId: string;
@@ -45,6 +46,7 @@ export function useSelectionMap(args: {
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const hydratedKeyRef = useRef<string | null>(null);
+  const committedRef = useRef<SelectionMap>({});
 
   const persist = useCallback(
     (next: SelectionMap) => {
@@ -104,9 +106,9 @@ export function useSelectionMap(args: {
       selectionsToMap((draft?.selections ?? []).filter(valid)),
     );
     setMap(stored);
+    committedRef.current = stored;
     setSaveStatus("saved");
     setHydrated(true);
-    persist(stored);
 
     if (isUsingMemoryOnlyStorage()) {
       setStorageWarning(
@@ -119,14 +121,15 @@ export function useSelectionMap(args: {
     session,
     viewOnly,
     designCode,
-    persist,
   ]);
 
   const hydrateFromDesign = useCallback(
     (selections: SelectionEntry[]) => {
       hydratedKeyRef.current = `view:${streamProjectId}`;
       if (!session) {
-        setMap(selectionsToMap(selections));
+        const next = selectionsToMap(selections);
+        setMap(next);
+        committedRef.current = next;
         setHydrated(true);
         return;
       }
@@ -136,7 +139,9 @@ export function useSelectionMap(args: {
         (s) =>
           meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId)),
       );
-      setMap(omitDefaults(session.defaults, selectionsToMap(cleaned)));
+      const next = omitDefaults(session.defaults, selectionsToMap(cleaned));
+      setMap(next);
+      committedRef.current = next;
       setSaveStatus("saved");
       setHydrated(true);
     },
@@ -158,12 +163,11 @@ export function useSelectionMap(args: {
             cameraIndex: entry.cameraIndex,
           };
         }
-        persist(next);
         return next;
       });
       return true;
     },
-    [viewOnly, persist, session?.defaults],
+    [viewOnly, session?.defaults],
   );
 
   const removeSlot = useCallback(
@@ -173,40 +177,62 @@ export function useSelectionMap(args: {
         if (!(slot in prev)) return prev;
         const next = { ...prev };
         delete next[slot];
-        persist(next);
         return next;
       });
     },
-    [viewOnly, persist],
+    [viewOnly],
   );
 
   const resetAll = useCallback(() => {
     setMap({});
     setHydrated(true);
     setSaveStatus("saving");
-    if (!designCode) return;
-    saveDraft({
-      version: 2,
-      streamProjectId,
-      projectId: backendProjectId,
-      layoutCode: session?.layoutCode || layoutCode,
-      designCode,
-      selections: [],
-      updatedAt: new Date().toISOString(),
+  }, []);
+
+  const commitSlot = useCallback(
+    (slot: string, entry: SelectionEntry | null) => {
+      const next = { ...committedRef.current };
+      if (!entry || isDefaultEntry(session?.defaults, entry)) {
+        delete next[slot];
+      } else {
+        next[slot] = {
+          meshId: entry.meshId,
+          materialId: entry.materialId,
+          cameraId: entry.cameraId,
+          cameraIndex: entry.cameraIndex,
+        };
+      }
+      committedRef.current = omitDefaults(session?.defaults, next);
+      persist(committedRef.current);
+    },
+    [persist, session?.defaults],
+  );
+
+  const revertSlot = useCallback((slot: string) => {
+    setMap((prev) => {
+      const next = { ...prev };
+      const committed = committedRef.current[slot];
+      if (committed) next[slot] = committed;
+      else delete next[slot];
+      return next;
     });
-  }, [
-    streamProjectId,
-    backendProjectId,
-    layoutCode,
-    session?.layoutCode,
-    designCode,
-  ]);
+  }, []);
+
+  const commitReset = useCallback(() => {
+    committedRef.current = {};
+    persist({});
+  }, [persist]);
+
+  const revertReset = useCallback(() => {
+    setMap({ ...committedRef.current });
+  }, []);
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const clearAfterSubmit = useCallback(() => {
     if (session?.layoutCode) {
       clearDraft(streamProjectId, backendProjectId, session.layoutCode);
     }
+    committedRef.current = {};
     setSaveStatus("saved");
   }, [streamProjectId, backendProjectId, session?.layoutCode]);
 
@@ -234,6 +260,10 @@ export function useSelectionMap(args: {
     intendSelect: select,
     select,
     commit: select,
+    commitSlot,
+    revertSlot,
+    commitReset,
+    revertReset,
     removeSlot,
     resetAll,
     clearAfterSubmit,

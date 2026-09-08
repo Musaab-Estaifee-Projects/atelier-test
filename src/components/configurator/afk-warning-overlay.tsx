@@ -147,7 +147,7 @@ const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
                   {remaining}
                 </span>
                 <span className="text-[0.625rem] uppercase leading-[120%] tracking-[0.01875rem] text-[#f2e9d8] opacity-50">
-                  seconds
+                  {countdown >= 60 ? "minute" : "seconds"}
                 </span>
               </div>
             </div>

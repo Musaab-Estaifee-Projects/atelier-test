@@ -103,27 +103,42 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
 
     if (!args.skipLoadLevel && args.layoutCode) {
       args.onProgress?.(`Loading level ${args.layoutCode}…`);
-      await loadLevelOnUe(args.send, args.layoutCode, {
+      const levelOk = await loadLevelOnUe(args.send, args.layoutCode, {
         mockLog: args.mockLog,
       });
+      if (!levelOk) {
+        console.warn("[UE sync] LoadLevel emit was not accepted");
+        return false;
+      }
       await waitUntilEmitAccepted(args.send);
     }
 
-    if (args.returningVisit && args.designCode) {
-      args.onProgress?.("Loading saved customization…");
-      const loaded = await loadCustomizationFromUe(args.send, args.designCode, {
-        mockLog: args.mockLog,
-      });
-      if (!loaded) {
-        console.warn(
-          "[UE sync] LoadCustomization missing — applying stored finishes",
-        );
-        args.onProgress?.("Restoring finishes…");
-        await paintSelectionsToUe(
+    const loadSaved = args.returningVisit && Boolean(args.designCode);
+    if (loadSaved) {
+      const streamOk =
+        args.mockLog ||
+        ((await waitUntilReady(args.isUeReady, args.mockLog)) &&
+          (await waitUntilEmitAccepted(args.send)));
+      if (!streamOk) {
+        console.warn("[UE sync] skip LoadCustomization — stream not ready");
+      } else {
+        args.onProgress?.("Loading saved customization…");
+        const loaded = await loadCustomizationFromUe(
           args.send,
-          entriesToPaint(args.selections, args.defaults),
+          args.designCode!,
           { mockLog: args.mockLog },
         );
+        if (!loaded) {
+          console.warn(
+            "[UE sync] LoadCustomization missing — applying stored finishes",
+          );
+          args.onProgress?.("Restoring finishes…");
+          await paintSelectionsToUe(
+            args.send,
+            entriesToPaint(args.selections, args.defaults),
+            { mockLog: args.mockLog },
+          );
+        }
       }
     }
 

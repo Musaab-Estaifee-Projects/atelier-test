@@ -159,6 +159,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     useState("Auto (Dashboard)");
 
   const appliedReadyRef = useRef(false);
+  const [sceneReady, setSceneReady] = useState(false);
   const loadedLevelRef = useRef<string | null>(null);
   const lastZoneInUrlRef = useRef<string | null>(params.zone ?? null);
   const freeModeRef = useRef(true);
@@ -214,15 +215,30 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         logUeResponse(parsed);
       }
 
-      const ack = extractUeCommandAck(response);
-      if (ack) noteUeAck(ack);
-
       const custom = extractCustomizationEvent(response);
-      if (custom?.kind === "saved") selections.markSaveStatus("saved");
-      if (custom?.kind === "error" && custom.op !== "load") {
-        selections.markSaveStatus("failed");
+      const ack = extractUeCommandAck(response);
+      if (ack) {
+        noteUeAck(ack);
+      } else if (custom?.kind === "saved") {
+        noteUeAck({
+          type: "SaveCustomization",
+          ok: true,
+          status: "success",
+          code: 200,
+        });
+      } else if (custom?.kind === "error" && custom.op === "save") {
+        noteUeAck({
+          type: "SaveCustomization",
+          ok: false,
+          status: "failed",
+          code: 404,
+        });
       }
-      if (custom?.kind === "loaded" || custom?.kind === "error") {
+
+      if (
+        custom?.kind === "loaded" ||
+        (custom?.kind === "error" && custom.op !== "save")
+      ) {
         noteCustomizationResult(custom.kind);
       }
       if (custom?.loadId) noteUeLoadId(custom.loadId);
@@ -255,7 +271,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         setParams({ zone: zoneUe, camera: null }, { replace: true });
       }, 180);
     },
-    [cameraZone, selections, setParams],
+    [cameraZone, setParams],
   );
 
   const stream = useStreamPixel({
@@ -377,15 +393,20 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         if (ok) {
           appliedReadyRef.current = true;
           loadedLevelRef.current = levelName;
+          setSceneReady(true);
           setUeSyncStatus(null);
           setUeSyncError(null);
-        } else {
-          appliedReadyRef.current = false;
+        } else if (!appliedReadyRef.current) {
+          setSceneReady(false);
           setUeSyncStatus(null);
-          setUeSyncError("Could not restore the stream. Retry when ready.");
+          setUeSyncError("Waiting for the 3D session to be ready…");
+        } else {
+          setUeSyncStatus(null);
+          setUeSyncError("Could not restore finishes. Retry when ready.");
         }
       } catch {
         setUeSyncStatus(null);
+        if (!appliedReadyRef.current) setSceneReady(false);
         setUeSyncError("Sync failed. Retry when the stream is ready.");
       }
     },
@@ -509,6 +530,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   useEffect(() => {
     if (stream.isLoading) {
       appliedReadyRef.current = false;
+      setSceneReady(false);
       invalidateUeSyncCache();
     }
   }, [stream.isLoading]);
@@ -670,7 +692,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (!session) return;
       const enterName = moveZoneName(zoneId) ?? zoneId;
       const sameZone = activeZoneIdRef.current === zoneId;
-      const wasLocked = Boolean(cameraParamRef.current);
 
       ignoreUeZoneUntilRef.current = Date.now() + 1000;
       if (zoneEnterTimerRef.current != null) {
@@ -694,10 +715,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         return;
       }
 
-      void (async () => {
-        if (wasLocked) await exitCameraOnUe(send, { mockLog: MOCK_UE });
-        await moveToZoneOnUe(send, enterName, { mockLog: MOCK_UE });
-      })();
+      void moveToZoneOnUe(send, enterName, { mockLog: MOCK_UE });
     },
     [session, cameraZone, setParams, send],
   );
@@ -784,6 +802,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
+      }).then((ok) => {
+        if (ok) selections.commitSlot(slot, entry);
+        else selections.revertSlot(slot);
       });
     },
     [viewOnly, getMaterials, selections, activeRule, send],
@@ -799,6 +820,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           mockLog: MOCK_UE,
           design_code: designCodeRef.current,
           onSaveStatus: selections.markSaveStatus,
+        }).then((ok) => {
+          if (ok) selections.commitSlot(slot, null);
+          else selections.revertSlot(slot);
         });
         return;
       }
@@ -806,7 +830,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         selections.markSaveStatus("saving");
         void saveCustomizationToUe(send, designCodeRef.current, {
           mockLog: MOCK_UE,
-        }).then((ok) => selections.markSaveStatus(ok ? "saved" : "failed"));
+        }).then((ok) => {
+          selections.markSaveStatus(ok ? "saved" : "failed");
+          if (ok) selections.commitSlot(slot, null);
+          else selections.revertSlot(slot);
+        });
       }
     },
     [viewOnly, selections, session, send],
@@ -835,6 +863,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
+      }).then((ok) => {
+        if (ok) selections.commitSlot(slot, entry);
+        else selections.revertSlot(slot);
       });
     },
     [viewOnly, activeRule, selections, send, session],
@@ -861,20 +892,30 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     invalidateUeSyncCache();
     void (async () => {
       selections.markSaveStatus("saving");
-      await resetToDefaultOnUe(send, { mockLog: MOCK_UE });
+      const resetOk = await resetToDefaultOnUe(send, { mockLog: MOCK_UE });
+      if (!resetOk) {
+        selections.revertReset();
+        selections.markSaveStatus("failed");
+        return;
+      }
       if (designCodeRef.current) {
         const ok = await saveCustomizationToUe(send, designCodeRef.current, {
           mockLog: MOCK_UE,
         });
-        selections.markSaveStatus(ok ? "saved" : "failed");
+        if (!ok) {
+          selections.revertReset();
+          selections.markSaveStatus("failed");
+          return;
+        }
+        selections.commitReset();
+        selections.markSaveStatus("saved");
       } else {
+        selections.commitReset();
         selections.markSaveStatus("saved");
       }
-      const zone = moveZoneName(activeZoneId) ?? normalizeZone(params.zone);
-      if (zone) await moveToZoneOnUe(send, zone, { mockLog: MOCK_UE });
       handleFreeCamera();
     })();
-  }, [selections, send, params.zone, activeZoneId, handleFreeCamera]);
+  }, [selections, send, handleFreeCamera]);
 
   const handleChangeResolution = useCallback(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
@@ -957,6 +998,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     setSuccess(null);
     setParams({ view: false }, { replace: true });
     selections.resetAll();
+    selections.commitReset();
   }, [setParams, selections]);
 
   const overlayKind = streamOverlayKind({
@@ -971,7 +1013,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     overlayKind === "idle" ||
     overlayKind === "reconnecting";
   const showStreamOverlay =
-    (streamBlocking || sessionLoading) && !streamOverlayDismissed;
+    (streamBlocking || sessionLoading || !sceneReady) &&
+    !streamOverlayDismissed;
+  const overlayProgress =
+    overlayKind === "loading" || overlayKind === "reconnecting"
+      ? Math.min(
+          sceneReady ? 100 : 97,
+          Math.max(
+            sessionLoading ? 12 : 0,
+            Math.min(stream.loadingProgress || 0, sceneReady ? 100 : 92),
+            ueSyncStatus ? 96 : 0,
+          ),
+        )
+      : stream.loadingProgress;
   const showAfkWarning =
     stream.afkWarning && !showStreamOverlay && overlayKind !== "idle";
 
@@ -1024,11 +1078,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       {showStreamOverlay ? (
         <LoadingOverlay
           kind={overlayKind}
-          progress={
-            overlayKind === "loading" || overlayKind === "reconnecting"
-              ? Math.max(sessionLoading ? 12 : 0, stream.loadingProgress || 0)
-              : stream.loadingProgress
-          }
+          progress={overlayProgress}
           unitSubtitle={reviewUnitSubtitle(
             unitId,
             params.layoutCode || session?.layoutCode,
@@ -1050,6 +1100,17 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             redirect("/");
           }}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
+          bootError={
+            overlayKind === "loading" && ueSyncError ? ueSyncError : null
+          }
+          onRetryBoot={
+            overlayKind === "loading" && ueSyncError
+              ? () => {
+                  setUeSyncError(null);
+                  void runUeSyncRef.current({ force: true });
+                }
+              : undefined
+          }
         />
       ) : null}
 
@@ -1061,13 +1122,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         />
       ) : null}
 
-      {ueSyncStatus && !stream.isLoading && (
+      {ueSyncStatus && sceneReady && (
         <div className="cfg-sync-overlay" aria-live="polite">
           <p>{ueSyncStatus}</p>
         </div>
       )}
 
-      {ueSyncError && !stream.isLoading && (
+      {ueSyncError && !showStreamOverlay && (
         <div className="cfg-sync-error">
           <p>{ueSyncError}</p>
           <button
@@ -1103,7 +1164,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         </div>
       )}
 
-      {!stream.isLoading && session && (
+      {sceneReady && session && (
         <div inert={showAfkWarning ? true : undefined}>
           <ZoneTopBar
             zones={session.zones}
