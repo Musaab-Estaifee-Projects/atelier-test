@@ -25,7 +25,10 @@ const ConfiguratorShell = dynamic(
 );
 
 const ConfiguratorClient = ({ projectId }: { projectId: string }) => {
-  useEffect(() => suppressStreamPixelConsoleNoise(), []);
+  useEffect(() => {
+    const restoreConsole = suppressStreamPixelConsoleNoise();
+    return restoreConsole;
+  }, []);
 
   return <ConfiguratorShell projectId={projectId} />;
 };

@@ -31,7 +31,7 @@ const SelectApartment = ({ project }: Props) => {
           configuratorHref(
             {
               streamProjectId: design.streamProjectId,
-              unitId: design.unitId,
+              projectId: String(project.id),
               levelName: design.configuration.levelName,
               layoutCode: design.configuration.levelName,
             },
@@ -49,6 +49,7 @@ const SelectApartment = ({ project }: Props) => {
     router.push(
       stylesHref({
         slug: project.code,
+        projectId: String(project.id),
         unitId: choice.unitId,
         levelName: choice.layoutCode || choice.levelName,
         layoutCode: choice.layoutCode || choice.levelName,

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import OverlayDialog from "@/components/ui/overlay-dialog";
 import { getDesign } from "@/lib/configurator/api";
 import { isDesignCode, normalizeDesignCode } from "@/lib/projects/apartments";
-import { configuratorHref } from "@/lib/projects/catalog";
+import { configuratorHref, CATALOG_PROJECTS } from "@/lib/projects/catalog";
 import { CustomShape } from "@/components/shared/custom-shape";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 
@@ -60,7 +60,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
         configuratorHref(
             {
               streamProjectId: design.streamProjectId,
-              unitId: design.unitId,
+              projectId: CATALOG_PROJECTS[1]?.projectId,
               levelName: design.configuration.levelName,
               layoutCode: design.configuration.levelName,
             },

@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   CATALOG_PROJECTS,
   configuratorHref,
-  DEMO_LEVEL_NAME,
-  DEMO_STREAM_PROJECT_ID,
-  DEMO_UNIT_ID,
   getProject,
 } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
@@ -23,13 +20,16 @@ import ThirdColorPalette from "@/components/icons/third-color-palette";
 import CircleWithShadows from "@/components/icons/circle-with-shadows";
 
 export function demoCustomizeHref(style?: string) {
-  const q = new URLSearchParams({
-    project_id: DEMO_STREAM_PROJECT_ID,
-    layout_code: DEMO_LEVEL_NAME,
-    unit: DEMO_UNIT_ID,
-  });
-  if (style) q.set("style", style);
-  return `/configurator/${DEMO_STREAM_PROJECT_ID}?${q.toString()}`;
+  const project = CATALOG_PROJECTS[1] ?? CATALOG_PROJECTS[0];
+  return configuratorHref(
+    {
+      streamProjectId: project.streamProjectId,
+      projectId: project.projectId,
+      levelName: project.levelName,
+      layoutCode: project.layoutCode,
+    },
+    style ? { style } : undefined,
+  );
 }
 
 type Props = {
@@ -37,6 +37,7 @@ type Props = {
   onStartCustomizing?: () => void;
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
+  projectId?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -47,7 +48,8 @@ const SelectStyle = ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectStyle,
   projectSlug,
-  unitId,
+  projectId,
+  unitId: _unitId,
   levelName,
 }: Props) => {
   const project =
@@ -57,7 +59,7 @@ const SelectStyle = ({
 
   const customizeHref = configuratorHref({
     streamProjectId: project.streamProjectId,
-    unitId: unitId || project.unitId,
+    projectId: projectId || project.projectId,
     levelName: levelName || project.levelName,
     layoutCode: levelName || project.layoutCode || project.levelName,
   });

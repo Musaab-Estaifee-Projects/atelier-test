@@ -130,12 +130,16 @@ export async function submitDesign(args: {
     args.origin ??
     (typeof window !== "undefined" ? window.location.origin : "");
   const qs = new URLSearchParams({
-    project_id: session.backendProjectId,
     layout_code: configuration.levelName,
     design_code: designCode,
     view: "1",
   });
-  if (unitId) qs.set("unit", unitId);
+  if (
+    session.backendProjectId &&
+    session.backendProjectId !== streamProjectId
+  ) {
+    qs.set("project_id", session.backendProjectId);
+  }
   const shareUrl = `${origin}/configurator/${streamProjectId}?${qs.toString()}`;
 
   return { designCode, shareUrl, price, currency: "AED" };

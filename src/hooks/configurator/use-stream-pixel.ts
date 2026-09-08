@@ -15,6 +15,7 @@ import {
   markStreamPixelDisposed,
   streamPixelInitKey,
 } from "@/lib/stream-pixel/ensure-application";
+import { ensureSdkOverlayStubs } from "@/lib/stream-pixel/ensure-sdk-overlays";
 import { fitStreamDom, toggleFullscreen, waitForVideoFrame } from "@/lib/stream-pixel/fit-stream";
 import {
   AFK_CONFIG,
@@ -353,6 +354,7 @@ export function useStreamPixel({
       setLoadingProgress(LOADING_PROGRESS.initializing);
 
       try {
+        ensureSdkOverlayStubs(videoContainerRef.current);
         const result = await ensureStreamPixelApplication(initConfig);
 
         if (cancelled || !mountedRef.current) return;
@@ -396,6 +398,9 @@ export function useStreamPixel({
         }
 
         registerUeListeners(pixelStreaming);
+        ensureSdkOverlayStubs(
+          (appStream.rootElement as HTMLElement | null) ?? videoContainerRef.current,
+        );
 
         // UIControl is not always present — guard the whole object
         try {
@@ -453,6 +458,7 @@ export function useStreamPixel({
               container.appendChild(root);
             }
 
+            ensureSdkOverlayStubs((root as HTMLElement | null) ?? container);
             safeHideDefaultUi(appStream);
             fitStreamDom(container, appStream, pixelStreaming);
             setLoadingProgress((p) =>

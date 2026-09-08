@@ -22,18 +22,25 @@ function enqueueApply<T>(task: () => Promise<T>): Promise<T> {
 function ackTypesFor(fn: string): string[] {
   if (fn === "LoadLevel") return ["OpeningLevel"];
   if (fn === "ChangeMeshByName") return ["SelectMeshByName"];
-  if (fn === "ExitCamera") return ["ExitCamera", "ResetToDefault"];
   return [fn];
 }
+
+const SOFT_ACK = new Set(["ExitCamera", "MoveToZone", "SwitchCameraByName"]);
 
 async function sendAndWaitAck(
   send: SendFn,
   payload: UeInteractionPayload,
-  opts?: { attempts?: number; gapMs?: number; label?: string; timeoutMs?: number },
+  opts?: {
+    attempts?: number;
+    gapMs?: number;
+    label?: string;
+    timeoutMs?: number;
+  },
 ): Promise<boolean> {
   const fn = String((payload as { Function?: string }).Function ?? "");
   const types = ackTypesFor(fn);
-  const pending = waitForUeAck(types, opts?.timeoutMs ?? 2500);
+  const timeoutMs = opts?.timeoutMs ?? (SOFT_ACK.has(fn) ? 900 : 2500);
+  const pending = waitForUeAck(types, timeoutMs);
   const accepted = await sendUntilAccepted(send, payload, {
     attempts: opts?.attempts ?? 10,
     gapMs: opts?.gapMs ?? 280,
@@ -42,6 +49,7 @@ async function sendAndWaitAck(
   if (!accepted) return false;
   const ack = await pending;
   if (ack === "timeout") {
+    if (SOFT_ACK.has(fn)) return true;
     console.warn("[UE] ack timeout", fn, types);
     return false;
   }
@@ -291,7 +299,6 @@ export async function restoreCameraZoneToUe(
     await switchCameraByNameOnUe(send, camera, { mockLog: opts.mockLog });
     return;
   }
-  await exitCameraOnUe(send, { mockLog: opts.mockLog });
   if (zone) await moveToZoneOnUe(send, zone, { mockLog: opts.mockLog });
 }
 

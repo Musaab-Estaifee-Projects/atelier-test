@@ -39,6 +39,7 @@ import {
 } from "@/lib/configurator/zone-catalog";
 import { materialThumb } from "@/lib/configurator/chrome";
 import {
+  CATALOG_PROJECTS,
   DEMO_BACKEND_PROJECT_ID,
   DEFAULT_LAYOUT_CODE,
 } from "@/lib/projects/catalog";
@@ -65,6 +66,7 @@ import {
   extractUeCommandAck,
   parseUeResponse,
 } from "@/lib/stream-pixel/parse-ue-response";
+import { logUeResponse, logUeSend } from "@/lib/stream-pixel/ue-logger";
 import { noteUeAck, noteUeLoadId, noteCustomizationResult } from "@/lib/configurator/ue-load-id";
 import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
@@ -72,6 +74,7 @@ import StreamViewport from "./stream-viewport";
 import LoadingOverlay, { streamOverlayKind } from "./loading-overlay";
 import AfkWarningOverlay from "./afk-warning-overlay";
 import QuotationDialog from "./quotation-dialog";
+import UeLogSidebar from "./ue-log-sidebar";
 import ZoneTopBar from "./zone-top-bar";
 import ZoneSidePanel from "./zone-side-panel";
 import ConfiguratorDock from "./configurator-dock";
@@ -99,8 +102,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
   const unitId = params.unit?.trim() || null;
-  const backendProjectId =
-    params.backendProjectId?.trim() || DEMO_BACKEND_PROJECT_ID;
+  const selectedProjectId =
+    params.backendProjectId && params.backendProjectId !== projectId
+      ? params.backendProjectId
+      : null;
+  const storageProjectId =
+    selectedProjectId || CATALOG_PROJECTS[1]?.projectId || "reef-997";
+  const catalogApiProjectId = DEMO_BACKEND_PROJECT_ID;
   const layoutCode = params.layoutCode?.trim() || DEFAULT_LAYOUT_CODE;
 
   const returningVisitRef = useRef(false);
@@ -172,7 +180,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const selections = useSelectionMap({
     streamProjectId: projectId,
-    backendProjectId,
+    backendProjectId: storageProjectId,
     layoutCode,
     designCode,
     session,
@@ -196,6 +204,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         lastUeResponseKeyRef.current = key;
         lastUeResponseAtRef.current = now;
         console.info("[UE response]", parsed);
+        logUeResponse(parsed);
       }
 
       const ack = extractUeCommandAck(response);
@@ -263,6 +272,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       const fn = (payload as { Function?: string }).Function;
       if (fn !== "ConfiguratorReadyProbe") {
         console.info("[UE send]", payload);
+        logUeSend(payload);
       }
       if (MOCK_UE) {
         if (fn !== "ConfiguratorReadyProbe") {
@@ -407,7 +417,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
         const sess = await getConfiguratorSession({
           streamProjectId: projectId,
-          backendProjectId,
+          backendProjectId: catalogApiProjectId,
           layoutCode,
           unitId,
         });
@@ -417,7 +427,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
         const ensured = ensureDesignCode({
           streamProjectId: projectId,
-          projectId: backendProjectId,
+          projectId: storageProjectId,
           layoutCode: sess.layoutCode,
           urlDesignCode: params.designCode,
         });
@@ -427,10 +437,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
         setParams(
           {
-            backendProjectId: sess.backendProjectId,
+            backendProjectId: selectedProjectId,
             layoutCode: sess.layoutCode,
             designCode: ensured.designCode,
-            unit: unitId,
           },
           { replace: true },
         );
@@ -445,7 +454,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, backendProjectId, layoutCode, viewOnly]);
+  }, [projectId, storageProjectId, catalogApiProjectId, layoutCode, viewOnly]);
 
   // Hydrate FE selections from storage only — never paint them onto UE
   useEffect(() => {
@@ -649,35 +658,38 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const handleSelectZone = useCallback(
     (zoneId: string) => {
       if (!session) return;
+      const enterName = moveZoneName(zoneId) ?? zoneId;
       const sameZone = activeZoneIdRef.current === zoneId;
-      const lockedInZone = sameZone && Boolean(cameraParamRef.current);
-      if (lockedInZone) {
-        handleFreeCamera();
-        return;
-      }
-
-      const cams = camerasForZone(zoneId, sceneConfig);
-      const target = cams[0];
-      if (target) {
-        handleSelectCamera(target);
-        return;
-      }
+      const wasLocked = Boolean(cameraParamRef.current);
 
       ignoreUeZoneUntilRef.current = Date.now() + 1000;
-      const enterName = moveZoneName(zoneId) ?? zoneId;
+      if (zoneEnterTimerRef.current != null) {
+        window.clearTimeout(zoneEnterTimerRef.current);
+        zoneEnterTimerRef.current = null;
+      }
+
       lastZoneInUrlRef.current = enterName;
-      cameraParamRef.current = null;
       setActiveZoneId(zoneId);
       setSidePanelOpen(false);
       setFreeCameraActive(true);
       freeModeRef.current = true;
       setActiveRule(null);
       setActiveCameraKey(null);
+      cameraParamRef.current = null;
       cameraZone.setActiveCameraIndex(null);
       setParams({ zone: enterName, camera: null }, { replace: true });
-      void exitCameraOnUe(send, { mockLog: MOCK_UE });
+
+      if (sameZone) {
+        void exitCameraOnUe(send, { mockLog: MOCK_UE });
+        return;
+      }
+
+      void (async () => {
+        if (wasLocked) await exitCameraOnUe(send, { mockLog: MOCK_UE });
+        await moveToZoneOnUe(send, enterName, { mockLog: MOCK_UE });
+      })();
     },
-    [session, sceneConfig, cameraZone, setParams, send, handleFreeCamera, handleSelectCamera],
+    [session, cameraZone, setParams, send],
   );
 
   const handleEditReviewSlot = useCallback(
@@ -997,6 +1009,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   return (
     <div className="configurator-shell" ref={shellRef}>
       <StreamViewport ref={videoContainerRef} />
+      <UeLogSidebar />
 
       {showStreamOverlay ? (
         <LoadingOverlay

@@ -52,18 +52,6 @@ export default function ZoneTopBar({
 
       <nav className={glassPill} aria-label="Apartment zones">
         <ul className="m-0 flex list-none items-center overflow-x-auto p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <li>
-            <button
-              type="button"
-              className={`${chip}${freeCameraActive ? " bg-white/10" : " opacity-80"}`}
-              disabled={disabled}
-              onClick={onFreeCamera}
-              aria-pressed={freeCameraActive}
-              title="Free camera"
-            >
-              Free
-            </button>
-          </li>
           {zones.map((z) => {
             const active = zoneSelected && activeZoneId === z.id;
             return (
@@ -79,6 +67,19 @@ export default function ZoneTopBar({
               </li>
             );
           })}
+
+          <li className="ml-1.5">
+            <button
+              type="button"
+              className={`${chip}${freeCameraActive ? " bg-blue-500" : " opacity-80"}`}
+              disabled={disabled}
+              onClick={onFreeCamera}
+              aria-pressed={freeCameraActive}
+              title="Free camera"
+            >
+              Free
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -92,7 +93,7 @@ export default function ZoneTopBar({
                 <li key={key}>
                   <button
                     type="button"
-                    className={`${chip}${active ? " bg-white/10" : " opacity-80"}`}
+                    className={`${chip}${active ? " bg-white/10!" : " opacity-80 bg-transparent!"}`}
                     disabled={disabled}
                     onClick={() => onSelectCamera(cam)}
                   >

@@ -4,10 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ShareableConfiguratorParams } from "@/types/configurator";
 import { normalizeZone } from "@/lib/configurator/url-params";
-import {
-  DEMO_BACKEND_PROJECT_ID,
-  DEFAULT_LAYOUT_CODE,
-} from "@/lib/projects/catalog";
+import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
 
 function firstParam(
   searchParams: URLSearchParams,
@@ -38,9 +35,7 @@ export function useShareableParams(streamIdFromRoute: string) {
 
     return {
       streamId: streamIdFromRoute,
-      backendProjectId:
-        firstParam(searchParams, "project_id", "projectId") ??
-        DEMO_BACKEND_PROJECT_ID,
+      backendProjectId: firstParam(searchParams, "project_id", "projectId"),
       unit: firstParam(searchParams, "unit"),
       designCode: firstParam(searchParams, "design_code", "designCode", "loadId"),
       layoutCode:
@@ -66,23 +61,28 @@ export function useShareableParams(streamIdFromRoute: string) {
     const rawZone = searchParams.get("zone");
     const emptyZone =
       searchParams.has("zone") && normalizeZone(rawZone) == null;
-    const missingCanonical =
-      !searchParams.get("project_id") || !searchParams.get("layout_code");
-    if (!hasLegacy && !emptyZone && !missingCanonical) return;
+    const missingCanonical = !searchParams.get("layout_code");
+    if (!hasLegacy && !emptyZone && !missingCanonical && !searchParams.has("unit")) {
+      return;
+    }
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete("mesh");
     next.delete("material");
+    next.delete("unit");
     if (emptyZone) next.delete("zone");
 
-    const projectId =
-      firstParam(next, "project_id", "projectId") ?? DEMO_BACKEND_PROJECT_ID;
+    const projectId = firstParam(next, "project_id", "projectId");
     const layout =
       firstParam(next, "layout_code", "layoutCode", "level") ??
       DEFAULT_LAYOUT_CODE;
     const design = firstParam(next, "design_code", "designCode", "loadId");
 
-    next.set("project_id", projectId);
+    if (projectId && projectId !== streamIdFromRoute) {
+      next.set("project_id", projectId);
+    } else if (projectId === streamIdFromRoute) {
+      next.delete("project_id");
+    }
     next.set("layout_code", layout);
     if (design) next.set("design_code", design);
 
@@ -94,7 +94,7 @@ export function useShareableParams(streamIdFromRoute: string) {
 
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [searchParams, pathname, router]);
+  }, [searchParams, pathname, router, streamIdFromRoute]);
 
   const setParams = useCallback(
     (
@@ -108,11 +108,17 @@ export function useShareableParams(streamIdFromRoute: string) {
       next.delete("loadId");
       next.delete("level");
       next.delete("projectId");
+      next.delete("unit");
 
       if (patch.backendProjectId !== undefined) {
-        if (patch.backendProjectId) {
+        if (
+          patch.backendProjectId &&
+          patch.backendProjectId !== streamIdFromRoute
+        ) {
           next.set("project_id", patch.backendProjectId);
         } else next.delete("project_id");
+      } else if (next.get("project_id") === streamIdFromRoute) {
+        next.delete("project_id");
       }
       if (patch.layoutCode !== undefined) {
         if (patch.layoutCode) next.set("layout_code", patch.layoutCode);
@@ -121,10 +127,6 @@ export function useShareableParams(streamIdFromRoute: string) {
       if (patch.designCode !== undefined) {
         if (patch.designCode) next.set("design_code", patch.designCode);
         else next.delete("design_code");
-      }
-      if (patch.unit !== undefined) {
-        if (patch.unit) next.set("unit", patch.unit);
-        else next.delete("unit");
       }
       if (patch.camera !== undefined) {
         if (patch.camera) next.set("camera", patch.camera);

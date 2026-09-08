@@ -249,6 +249,7 @@ type Props = {
   overlay?: boolean;
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
+  projectId?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -257,6 +258,7 @@ const BrowseStyles = ({
   overlay = false,
   onSelectStyle,
   projectSlug,
+  projectId,
   unitId,
   levelName,
 }: Props) => {
@@ -362,7 +364,7 @@ const BrowseStyles = ({
                           : configuratorHref(
                               {
                                 streamProjectId: project.streamProjectId,
-                                unitId: unitId || project.unitId,
+                                projectId: projectId || project.projectId,
                                 levelName: levelName || project.levelName,
                                 layoutCode:
                                   levelName ||

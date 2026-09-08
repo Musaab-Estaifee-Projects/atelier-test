@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 type PageProps = {
   searchParams: Promise<{
     project?: string;
+    project_id?: string;
     unit?: string;
     level?: string;
     layout_code?: string;
@@ -21,6 +22,7 @@ const StylesPage = async ({ searchParams }: PageProps) => {
   return (
     <SelectStyle
       projectSlug={query.project}
+      projectId={query.project_id}
       unitId={query.unit}
       levelName={query.layout_code || query.level}
     />

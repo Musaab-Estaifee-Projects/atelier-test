@@ -215,23 +215,25 @@ const ConfiguratorDock = ({
             disabled={viewOnly || selectedItems.length === 0}
           />
 
-          <span
-            className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
-              saveStatus === "saving"
-                ? "opacity-70"
-                : saveStatus === "failed"
-                  ? "opacity-90"
-                  : ""
-            }`}
-            title={saveLabel(saveStatus, viewOnly)}
-            aria-label={saveLabel(saveStatus, viewOnly)}
-          >
-            {saveStatus === "failed" ? (
-              <CloudSlash className="size-4.5" />
-            ) : (
-              <CloudSaved className="w-full h-full" />
-            )}
-          </span>
+          {selectedItems.length > 0 && (
+            <span
+              className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
+                saveStatus === "saving"
+                  ? "opacity-70"
+                  : saveStatus === "failed"
+                    ? "opacity-90"
+                    : ""
+              }`}
+              title={saveLabel(saveStatus, viewOnly)}
+              aria-label={saveLabel(saveStatus, viewOnly)}
+            >
+              {saveStatus === "failed" ? (
+                <CloudSlash className="size-4.5" />
+              ) : (
+                <CloudSaved className="w-full h-full" />
+              )}
+            </span>
+          )}
         </div>
 
         {onQuote ? (
