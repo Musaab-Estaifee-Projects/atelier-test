@@ -25,7 +25,10 @@ import {
   syncDraftToUe,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { ensureDesignCode, appliedSelectionMap } from "@/lib/configurator/storage";
+import {
+  ensureDesignCode,
+  appliedSelectionMap,
+} from "@/lib/configurator/storage";
 import { normalizeZone, zoneUrlPatch } from "@/lib/configurator/url-params";
 import {
   camerasForZone,
@@ -67,7 +70,11 @@ import {
   parseUeResponse,
 } from "@/lib/stream-pixel/parse-ue-response";
 import { logUeResponse, logUeSend } from "@/lib/stream-pixel/ue-logger";
-import { noteUeAck, noteUeLoadId, noteCustomizationResult } from "@/lib/configurator/ue-load-id";
+import {
+  noteUeAck,
+  noteUeLoadId,
+  noteCustomizationResult,
+} from "@/lib/configurator/ue-load-id";
 import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
 import StreamViewport from "./stream-viewport";
@@ -231,8 +238,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (data.event === "exit") return;
 
       const zid =
-        matchZoneId(data.zone) ?? zoneIdFromCamera(data.cameras[0] ?? undefined);
-      const zoneUe = zid ? (moveZoneName(zid) ?? zid) : normalizeZone(data.zone);
+        matchZoneId(data.zone) ??
+        zoneIdFromCamera(data.cameras[0] ?? undefined);
+      const zoneUe = zid
+        ? (moveZoneName(zid) ?? zid)
+        : normalizeZone(data.zone);
       if (!zoneUe || zoneUe === lastZoneInUrlRef.current) return;
       if (zoneEnterTimerRef.current != null) {
         window.clearTimeout(zoneEnterTimerRef.current);
@@ -290,7 +300,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     mockUe: MOCK_UE,
     sceneConfig,
     videoContainerRef,
-    designCode,
+    design_code: designCode,
   });
   ingestRenderRef.current = finalDesign.ingestUeResponse;
   capturePhaseRef.current = finalDesign.phase;
@@ -772,7 +782,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
-        designCode: designCodeRef.current,
+        design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
       });
     },
@@ -787,7 +797,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (fallback) {
         void applyOneSelectionToUe(send, fallback, {
           mockLog: MOCK_UE,
-          designCode: designCodeRef.current,
+          design_code: designCodeRef.current,
           onSaveStatus: selections.markSaveStatus,
         });
         return;
@@ -823,7 +833,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (!selections.select(entry)) return;
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
-        designCode: designCodeRef.current,
+        design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
       });
     },

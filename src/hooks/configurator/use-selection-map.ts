@@ -202,6 +202,7 @@ export function useSelectionMap(args: {
     designCode,
   ]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const clearAfterSubmit = useCallback(() => {
     if (session?.layoutCode) {
       clearDraft(streamProjectId, backendProjectId, session.layoutCode);

@@ -141,10 +141,10 @@ export async function loadLevelOnUe(
 
 export async function saveCustomizationToUe(
   send: SendFn,
-  designCode: string,
+  design_code: string,
   opts?: { mockLog?: boolean },
 ): Promise<boolean> {
-  const code = designCode.trim();
+  const code = design_code.trim();
   if (!code) return false;
   if (opts?.mockLog) {
     console.info("[mock UE] SaveCustomization", code);
@@ -152,7 +152,7 @@ export async function saveCustomizationToUe(
   }
   const ok = await sendAndWaitAck(
     send,
-    { Function: "SaveCustomization", DesignCode: code },
+    { Function: "SaveCustomization", design_code: code },
     { attempts: 8, gapMs: 250, label: "SaveCustomization", timeoutMs: 4000 },
   );
   if (ok) noteUeLoadId(code);
@@ -161,10 +161,10 @@ export async function saveCustomizationToUe(
 
 export async function loadCustomizationFromUe(
   send: SendFn,
-  designCode: string,
+  design_code: string,
   opts?: { mockLog?: boolean },
 ): Promise<boolean> {
-  const code = designCode.trim();
+  const code = design_code.trim();
   if (!code) return false;
   if (opts?.mockLog) {
     console.info("[mock UE] LoadCustomization", code);
@@ -172,7 +172,7 @@ export async function loadCustomizationFromUe(
   }
   const ok = await sendAndWaitAck(
     send,
-    { Function: "LoadCustomization", DesignCode: code },
+    { Function: "LoadCustomization", design_code: code },
     {
       attempts: 10,
       gapMs: 300,
@@ -257,7 +257,7 @@ export async function applyOneSelectionToUe(
   entry: SelectionEntry,
   opts?: {
     mockLog?: boolean;
-    designCode?: string | null;
+    design_code?: string | null;
     onSaveStatus?: (status: "saving" | "saved" | "failed") => void;
     skipSave?: boolean;
   },
@@ -273,8 +273,8 @@ export async function applyOneSelectionToUe(
       opts?.onSaveStatus?.("saved");
       return true;
     }
-    if (opts?.designCode) {
-      const saved = await saveCustomizationToUe(send, opts.designCode, {
+    if (opts?.design_code) {
+      const saved = await saveCustomizationToUe(send, opts.design_code, {
         mockLog: opts.mockLog,
       });
       opts?.onSaveStatus?.(saved ? "saved" : "failed");

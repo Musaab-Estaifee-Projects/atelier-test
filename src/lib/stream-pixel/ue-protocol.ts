@@ -35,12 +35,12 @@ export type LoadLevelPayload = {
 
 export type SaveCustomizationPayload = {
   Function: "SaveCustomization";
-  DesignCode: string;
+  design_code: string;
 };
 
 export type LoadCustomizationPayload = {
   Function: "LoadCustomization";
-  DesignCode: string;
+  design_code: string;
 };
 
 export type ResetToDefaultPayload = {
@@ -49,12 +49,12 @@ export type ResetToDefaultPayload = {
 
 export type CaptureCamerasHighResPayload = {
   Function: "CaptureCamerasHighRes";
-  DesignCode: string;
+  design_code: string;
 };
 
 export type CaptureCamerasPayload = {
   Function: "CaptureCameras";
-  DesignCode: string;
+  design_code: string;
   CameraNames: string[];
 };
 

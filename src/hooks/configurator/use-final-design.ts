@@ -37,7 +37,7 @@ type Args = {
   mockUe: boolean;
   sceneConfig: MeshRulesConfig;
   videoContainerRef: React.RefObject<HTMLDivElement | null>;
-  designCode?: string | null;
+  design_code?: string | null;
 };
 
 function patchRooms(
@@ -108,11 +108,11 @@ export function useFinalDesign({
   mockUe,
   sceneConfig,
   videoContainerRef,
-  designCode,
+  design_code,
 }: Args) {
   void videoContainerRef;
-  const designCodeRef = useRef(designCode ?? "");
-  designCodeRef.current = designCode ?? "";
+  const designCodeRef = useRef(design_code ?? "");
+  designCodeRef.current = design_code ?? "";
 
   const [phase, setPhase] = useState<FinalDesignPhase>("idle");
   const [rooms, setRooms] = useState<RoomRenderCard[]>([]);
@@ -399,7 +399,7 @@ export function useFinalDesign({
       const code = designCodeRef.current;
       void emit({
         Function: "CaptureCamerasHighRes",
-        DesignCode: code || job,
+        design_code: code || job,
       });
     },
     [emit],
@@ -577,7 +577,7 @@ export function useFinalDesign({
       if (names.length) {
         void emit({
           Function: "CaptureCameras",
-          DesignCode: designCodeRef.current || job,
+          design_code: designCodeRef.current || job,
           CameraNames: names,
         });
       }
