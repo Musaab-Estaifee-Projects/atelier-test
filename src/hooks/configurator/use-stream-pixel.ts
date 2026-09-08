@@ -226,8 +226,6 @@ export function useStreamPixel({
       const forward = (response: unknown) => {
         onUeResponseRef.current(response);
       };
-      pixelStreaming.addResponseEventListener("cameraZone", forward);
-      pixelStreaming.addResponseEventListener("render", forward);
       pixelStreaming.addResponseEventListener("handle_responses", forward);
     } catch (err) {
       console.warn("[CameraZone] listener registration failed", err);

@@ -89,7 +89,7 @@ export default function DevToolsPanel({
             onChange={(e) => setUiJson(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
             rows={4}
-            placeholder='{"Function":"SwitchCameraByIndex","Index":3}'
+            placeholder='{"Function":"SwitchCameraByName","CameraName":"CAM-LV-TV"}'
           />
           {uiInteractionError && (
             <p className="ui-interaction-error">{uiInteractionError}</p>

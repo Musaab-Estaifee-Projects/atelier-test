@@ -11,7 +11,7 @@ import type {
 } from "@/types/configurator";
 import { estimatePriceFromSession } from "@/lib/configurator/pricing";
 import {
-  CONFIGURATOR_ZONES,
+  getCatalogZones,
   zoneDisplayLabel,
   zoneIdFromCamera,
   zoneIdFromSlot,
@@ -24,41 +24,42 @@ export const FINAL_STARTED_MS = 8000;
 export const FINAL_COMPLETED_MS = 45000;
 export const FINAL_UPLOAD_MS = 12000;
 
-/** Exact UE CaptureCamerasHighRes order from the live Blueprint. */
-export const UE_CAPTURE_CAMERAS: Array<{ name: string; index: number }> = [
-  { name: "CAM-LV-TV", index: 0 },
-  { name: "CAM-LV-FL", index: 1 },
-  { name: "CAM-LV-CL", index: 2 },
-  { name: "CAM-LV-KT", index: 3 },
-  { name: "CAM-BR-01-TV", index: 4 },
-  { name: "CAM-BR-01-HB", index: 5 },
-  { name: "CAM-BR-01-WD", index: 6 },
-  { name: "CAM-BR-01-FL", index: 7 },
-  { name: "CAM-BR-02-FL", index: 8 },
-  { name: "CAM-BR-02-HB", index: 9 },
-  { name: "CAM-BR-02-TV", index: 10 },
-  { name: "CAM-BR-02-WD", index: 11 },
-  { name: "CAM-LV-PT", index: 12 },
-  { name: "CAM-LV-SW", index: 13 },
-];
-
-const HERO_BY_ZONE: Record<string, string> = {
-  LivingArea: "CAM-LV-TV",
-  Kitchen: "CAM-LV-KT",
-  "bedroom-1": "CAM-BR-01-TV",
-  "bedroom-2": "CAM-BR-02-TV",
-};
-
-export function captureCamerasForZone(zoneId: string) {
-  return UE_CAPTURE_CAMERAS.filter(
-    (c) => zoneIdFromCamera({ name: c.name }) === zoneId,
+export function catalogCaptureCameras(
+  rules?: MeshRulesConfig,
+): Array<{ name: string; index: number; zoneId?: string }> {
+  const cameras = rules?.cameras ?? [];
+  if (cameras.length) {
+    return cameras.map((c, i) => ({
+      name: c.name,
+      index: c.index != null ? Number(c.index) : i,
+      zoneId: c.zoneId,
+    }));
+  }
+  return getCatalogZones().flatMap((z, zi) =>
+    z.cameras.map((c, i) => ({
+      name: c.name,
+      index: zi * 10 + i,
+      zoneId: z.id,
+    })),
   );
 }
 
-export function heroCaptureCamera(zoneId: string) {
-  const list = captureCamerasForZone(zoneId);
-  const heroName = HERO_BY_ZONE[zoneId];
-  return list.find((c) => c.name === heroName) ?? list[0] ?? null;
+export const UE_CAPTURE_CAMERAS: Array<{ name: string; index: number }> = [];
+
+export function captureCamerasForZone(
+  zoneId: string,
+  rules?: MeshRulesConfig,
+) {
+  return catalogCaptureCameras(rules).filter((c) => {
+    if (c.zoneId) return c.zoneId === zoneId;
+    return zoneIdFromCamera({ name: c.name }) === zoneId;
+  });
+}
+
+export function heroCaptureCamera(zoneId: string, rules?: MeshRulesConfig) {
+  const list = captureCamerasForZone(zoneId, rules);
+  const tv = list.find((c) => c.name.toUpperCase().includes("-TV"));
+  return tv ?? list[0] ?? null;
 }
 
 export type ReviewMaterialLine = {
@@ -78,12 +79,12 @@ export type ReviewRoomGroup = {
   subtotal: number;
 };
 
-export function buildRoomCards(_rules?: MeshRulesConfig): RoomRenderCard[] {
-  void _rules;
+export function buildRoomCards(rules?: MeshRulesConfig): RoomRenderCard[] {
   const cards: RoomRenderCard[] = [];
-  for (const zone of CONFIGURATOR_ZONES) {
-    const cams = captureCamerasForZone(zone.id);
-    const hero = heroCaptureCamera(zone.id);
+  const zones = getCatalogZones();
+  for (const zone of zones) {
+    const cams = captureCamerasForZone(zone.id, rules);
+    const hero = heroCaptureCamera(zone.id, rules);
     if (!hero) continue;
     cards.push({
       zoneId: zone.id,
@@ -118,14 +119,15 @@ export function resolveCaptureCamera(args: {
   file?: string;
 }): { name: string; index: number } | null {
   const name = args.name?.trim();
+  const catalog = catalogCaptureCameras();
   if (name) {
-    const fromName = UE_CAPTURE_CAMERAS.find(
+    const fromName = catalog.find(
       (c) => c.name.toUpperCase() === name.toUpperCase(),
     );
     if (fromName) return fromName;
   }
   if (args.index != null) {
-    const fromIndex = UE_CAPTURE_CAMERAS.find(
+    const fromIndex = catalog.find(
       (c) => Number(c.index) === Number(args.index),
     );
     if (fromIndex) return fromIndex;
@@ -189,7 +191,7 @@ export function reviewGroups(
   }
 
   const rooms: ReviewRoomGroup[] = [];
-  for (const zone of CONFIGURATOR_ZONES) {
+  for (const zone of getCatalogZones()) {
     const lines = byZone.get(zone.id);
     if (!lines?.length) continue;
     rooms.push({

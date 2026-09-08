@@ -24,8 +24,9 @@ import CircleWithShadows from "@/components/icons/circle-with-shadows";
 
 export function demoCustomizeHref(style?: string) {
   const q = new URLSearchParams({
+    project_id: DEMO_STREAM_PROJECT_ID,
+    layout_code: DEMO_LEVEL_NAME,
     unit: DEMO_UNIT_ID,
-    level: DEMO_LEVEL_NAME,
   });
   if (style) q.set("style", style);
   return `/configurator/${DEMO_STREAM_PROJECT_ID}?${q.toString()}`;
@@ -58,6 +59,7 @@ const SelectStyle = ({
     streamProjectId: project.streamProjectId,
     unitId: unitId || project.unitId,
     levelName: levelName || project.levelName,
+    layoutCode: levelName || project.layoutCode || project.levelName,
   });
 
   const Wrapper = overlay ? "div" : "main";

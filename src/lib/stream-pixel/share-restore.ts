@@ -9,7 +9,7 @@ export function shareRestoreKey(parts: {
   projectId: string;
   level?: string | null;
   zone?: string | null;
-  camera?: number | null;
+  camera?: string | number | null;
   mesh?: string | null;
   material?: string | null;
   designCode?: string | null;
@@ -68,9 +68,6 @@ export async function sendUntilAccepted(
   const gapMs = opts?.gapMs ?? 400;
   for (let i = 0; i < attempts; i++) {
     if (send(payload)) {
-      if (opts?.label) {
-        console.info(`[ShareRestore] sent ${opts.label} (attempt ${i + 1})`);
-      }
       return true;
     }
     await delay(gapMs);
@@ -89,12 +86,6 @@ export async function probeEnterZone(
 ): Promise<void> {
   const probes: UeInteractionPayload[] = [
     { Function: "MoveToZone", ZoneName: zoneName },
-    { Function: "EnterZone", ZoneName: zoneName },
-    { Function: "GoToZone", ZoneName: zoneName },
-    { Function: "TeleportToZone", ZoneName: zoneName },
-    { Function: "EnterCameraZone", ZoneName: zoneName },
-    { Function: "EnterZone", Zone: zoneName },
-    { Function: "TeleportToArea", AreaName: zoneName },
   ];
 
   for (const payload of probes) {

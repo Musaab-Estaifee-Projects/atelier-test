@@ -14,11 +14,9 @@ import {
 import { delay, sendUntilAccepted } from "@/lib/stream-pixel/share-restore";
 import {
   FINAL_COMPLETED_MS,
-  FINAL_STILL_HEIGHT,
-  FINAL_STILL_WIDTH,
   FINAL_STARTED_MS,
   FINAL_UPLOAD_MS,
-  UE_CAPTURE_CAMERAS,
+  catalogCaptureCameras,
   buildRoomCards,
   mockStillJpeg,
   newCaptureJobId,
@@ -39,6 +37,7 @@ type Args = {
   mockUe: boolean;
   sceneConfig: MeshRulesConfig;
   videoContainerRef: React.RefObject<HTMLDivElement | null>;
+  designCode?: string | null;
 };
 
 function patchRooms(
@@ -109,8 +108,11 @@ export function useFinalDesign({
   mockUe,
   sceneConfig,
   videoContainerRef,
+  designCode,
 }: Args) {
   void videoContainerRef;
+  const designCodeRef = useRef(designCode ?? "");
+  designCodeRef.current = designCode ?? "";
 
   const [phase, setPhase] = useState<FinalDesignPhase>("idle");
   const [rooms, setRooms] = useState<RoomRenderCard[]>([]);
@@ -394,12 +396,10 @@ export function useFinalDesign({
 
   const fireBulkCapture = useCallback(
     (job: string) => {
+      const code = designCodeRef.current;
       void emit({
         Function: "CaptureCamerasHighRes",
-        JobId: job,
-        Width: FINAL_STILL_WIDTH,
-        Height: FINAL_STILL_HEIGHT,
-        Format: "png",
+        DesignCode: code || job,
       });
     },
     [emit],
@@ -411,14 +411,14 @@ export function useFinalDesign({
       if (jobIdRef.current !== job) return;
       ingestRender({
         kind: "started",
-        cameraCount: UE_CAPTURE_CAMERAS.length,
-        cameras: UE_CAPTURE_CAMERAS.map((c) => ({
+        cameraCount: catalogCaptureCameras(sceneRef.current).length,
+        cameras: catalogCaptureCameras(sceneRef.current).map((c) => ({
           name: c.name,
           index: c.index,
         })),
         jobId: job,
       });
-      for (const cam of UE_CAPTURE_CAMERAS) {
+      for (const cam of catalogCaptureCameras(sceneRef.current)) {
         await delay(70);
         if (jobIdRef.current !== job) return;
         ingestRender({
@@ -433,8 +433,8 @@ export function useFinalDesign({
       if (jobIdRef.current !== job) return;
       ingestRender({
         kind: "completed",
-        cameraCount: UE_CAPTURE_CAMERAS.length,
-        cameras: UE_CAPTURE_CAMERAS.map((c) => ({
+        cameraCount: catalogCaptureCameras(sceneRef.current).length,
+        cameras: catalogCaptureCameras(sceneRef.current).map((c) => ({
           name: c.name,
           index: c.index,
           file: `Cam_${c.index}.png`,
@@ -573,16 +573,12 @@ export function useFinalDesign({
         return;
       }
 
-      for (const s of retryTargets) {
+      const names = retryTargets.map((s) => s.cameraName).filter(Boolean);
+      if (names.length) {
         void emit({
-          Function: "CaptureCameraHighRes",
-          JobId: job,
-          CameraName: s.cameraName,
-          CameraIndex: s.cameraIndex,
-          Index: s.cameraIndex,
-          Width: FINAL_STILL_WIDTH,
-          Height: FINAL_STILL_HEIGHT,
-          Format: "png",
+          Function: "CaptureCameras",
+          DesignCode: designCodeRef.current || job,
+          CameraNames: names,
         });
       }
       const retryJob = job;

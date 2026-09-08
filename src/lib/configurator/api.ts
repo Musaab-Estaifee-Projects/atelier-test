@@ -1,14 +1,15 @@
 /**
  * Configurator API façade.
- * // MOCK: replace function bodies with real fetch() — keep signatures stable.
  */
 import { computeAuthoritativePrice } from "@/lib/configurator/pricing";
+import { mapLayoutCatalogToSession } from "@/lib/configurator/map-layout-catalog";
 import {
   mockGenerateDesignCode,
   mockGetDesign,
   mockSaveDesign,
 } from "@/mocks/configurator/designs-store";
-import { buildMockSession } from "@/mocks/configurator/session";
+import { getLayoutCatalog } from "@/services/get-layout-catalog.service";
+import { DEMO_BACKEND_PROJECT_ID } from "@/lib/projects/catalog";
 import type {
   ConfiguratorSession,
   DesignConfiguration,
@@ -16,8 +17,6 @@ import type {
   StoredDesign,
   SubmitDesignResult,
 } from "@/types/configurator";
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class ApiError extends Error {
   status: number;
@@ -27,44 +26,45 @@ export class ApiError extends Error {
   }
 }
 
-/** // MOCK: GET /api/configurator/session?unit=&streamProjectId=&level= */
 export async function getConfiguratorSession(args: {
-  unitId: string;
   streamProjectId: string;
-  levelName?: string;
+  backendProjectId?: string | null;
+  layoutCode?: string | null;
+  unitId?: string | null;
 }): Promise<ConfiguratorSession> {
-  await delay(120);
-  if (!args.unitId?.trim()) {
-    throw new ApiError("unit is required", 400);
+  const backendProjectId =
+    args.backendProjectId?.trim() || DEMO_BACKEND_PROJECT_ID;
+  const layoutCode = args.layoutCode?.trim() || "1bhk_type_3";
+  try {
+    const catalog = await getLayoutCatalog(layoutCode, backendProjectId);
+    return mapLayoutCatalogToSession({
+      catalog,
+      streamProjectId: args.streamProjectId,
+      backendProjectId,
+      unitId: args.unitId,
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to load layout catalog";
+    throw new ApiError(message, 502);
   }
-  return buildMockSession({
-    unitId: args.unitId.trim(),
-    streamProjectId: args.streamProjectId,
-    levelName: args.levelName,
-  });
 }
 
-/** // MOCK: GET /api/configurator/designs/:designCode */
 export async function getDesign(designCode: string): Promise<StoredDesign> {
-  await delay(100);
   const code = designCode.trim().toUpperCase();
   const found = mockGetDesign(code);
   if (!found) throw new ApiError("Design not found", 404);
   return found;
 }
 
-/** // MOCK: POST /api/configurator/designs */
 export async function submitDesign(args: {
   streamProjectId: string;
   unitId: string;
   configuration: DesignConfiguration;
   contact: DesignContact;
-  /** Catalog used to validate + price (from session). */
   session: ConfiguratorSession;
   origin?: string;
 }): Promise<SubmitDesignResult> {
-  await delay(250);
-
   const { contact, configuration, session, streamProjectId, unitId } = args;
   if (
     !contact.name?.trim() ||
@@ -86,11 +86,15 @@ export async function submitDesign(args: {
     if (!meshIds.has(s.meshId)) {
       throw new ApiError(`Unknown mesh: ${s.meshId}`, 400);
     }
-    if (!matIds.has(s.materialId)) {
+    if (s.materialId && !matIds.has(s.materialId)) {
       throw new ApiError(`Unknown material: ${s.materialId}`, 400);
     }
     const allowed = session.materialsByMesh[s.meshId] ?? [];
-    if (allowed.length && !allowed.includes(s.materialId)) {
+    if (
+      s.materialId &&
+      allowed.length &&
+      !allowed.includes(s.materialId)
+    ) {
       throw new ApiError(
         `Material ${s.materialId} not allowed on ${s.meshId}`,
         400,
@@ -98,7 +102,6 @@ export async function submitDesign(args: {
     }
   }
 
-  // Authoritative mock price — do not use client total
   const price = computeAuthoritativePrice(session, configuration.selections);
   const designCode = mockGenerateDesignCode();
   const createdAt = new Date().toISOString();
@@ -126,7 +129,14 @@ export async function submitDesign(args: {
   const origin =
     args.origin ??
     (typeof window !== "undefined" ? window.location.origin : "");
-  const shareUrl = `${origin}/configurator/${streamProjectId}?unit=${encodeURIComponent(unitId)}&level=${encodeURIComponent(configuration.levelName)}&designCode=${designCode}`;
+  const qs = new URLSearchParams({
+    project_id: session.backendProjectId,
+    layout_code: configuration.levelName,
+    design_code: designCode,
+    view: "1",
+  });
+  if (unitId) qs.set("unit", unitId);
+  const shareUrl = `${origin}/configurator/${streamProjectId}?${qs.toString()}`;
 
   return { designCode, shareUrl, price, currency: "AED" };
 }

@@ -301,12 +301,15 @@ export function buildMockSession(args: {
     streamProjectId: args.streamProjectId,
     unitId: args.unitId,
     levelName,
+    layoutCode: levelName,
+    backendProjectId: args.streamProjectId,
     cameras: enrichCameras(),
     meshes: enrichMeshes(),
     materials: buildMaterialsCatalog(),
     materialsByMesh: { ...MESH_MATERIALS },
     meshAreas: DEFAULT_MESH_AREAS,
     slotLabels: SLOT_LABELS,
+    zones: [],
     defaults: [],
   };
 }

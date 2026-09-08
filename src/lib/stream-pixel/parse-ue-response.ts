@@ -105,10 +105,14 @@ export function extractCameraZoneFromResponse(
 export type CustomizationEvent = {
   kind: "saved" | "loaded" | "error";
   loadId?: string;
+  op?: "save" | "load";
 };
 
 function pickLoadId(obj: Record<string, unknown>): string | undefined {
   const keys = [
+    "DesignCode",
+    "designCode",
+    "design_code",
     "LoadID",
     "loadID",
     "LoadId",
@@ -138,6 +142,11 @@ function parseCustomizationPayload(raw: unknown): CustomizationEvent | null {
     obj.type ?? obj.Type ?? obj.event ?? obj.Event ?? obj.Function ?? "",
   ).toLowerCase();
   const loadId = pickLoadId(obj);
+  const statusRaw = obj.status ?? obj.Status ?? obj.code ?? obj.Code ?? "";
+  const status = String(statusRaw).toLowerCase();
+  const message = String(
+    obj.message ?? obj.Message ?? obj.error ?? obj.Error ?? "",
+  ).toLowerCase();
   const looksSaved =
     type.includes("savecustom") ||
     type.includes("customizationsaved") ||
@@ -148,15 +157,45 @@ function parseCustomizationPayload(raw: unknown): CustomizationEvent | null {
     type.includes("customizationloaded") ||
     type.includes("loadedcustom") ||
     type === "loaded";
+  const looks404 =
+    status === "404" ||
+    Number(statusRaw) === 404 ||
+    message.includes("404") ||
+    message.includes("not found") ||
+    message.includes("notfound");
   const looksError =
+    looks404 ||
     type.includes("customizationerror") ||
-    (type.includes("customization") &&
-      String(obj.status ?? obj.Status ?? "").toLowerCase() === "error");
+    ((type.includes("custom") ||
+      type.includes("save") ||
+      type.includes("load")) &&
+      (status === "error" || status === "failed" || status === "fail"));
+  const looksOk =
+    status === "ok" ||
+    status === "success" ||
+    status === "loaded" ||
+    status === "complete" ||
+    status === "completed" ||
+    Number(statusRaw) === 200;
 
-  if (looksError) return { kind: "error", loadId };
-  if (looksSaved) return { kind: "saved", loadId };
-  if (looksLoaded) return { kind: "loaded", loadId };
-  if (loadId && type.includes("custom")) return { kind: "saved", loadId };
+  const op: "save" | "load" | undefined = looksLoaded
+    ? "load"
+    : looksSaved
+      ? "save"
+      : undefined;
+
+  if (looksError) return { kind: "error", loadId, op };
+  if (looksSaved && !looksLoaded) return { kind: "saved", loadId, op: "save" };
+  if (looksLoaded && (looksOk || type.includes("loaded"))) {
+    return { kind: "loaded", loadId, op: "load" };
+  }
+  if (loadId && type.includes("custom") && looksOk) {
+    return {
+      kind: looksLoaded ? "loaded" : "saved",
+      loadId,
+      op: looksLoaded ? "load" : "save",
+    };
+  }
   return null;
 }
 
@@ -164,6 +203,13 @@ export function extractCustomizationEvent(
   response: unknown,
 ): CustomizationEvent | null {
   try {
+    if (
+      typeof response === "string" &&
+      /loadcustom/i.test(response) &&
+      (/404/.test(response) || /not\s*found/i.test(response))
+    ) {
+      return { kind: "error", op: "load" };
+    }
     const parsed = parseUeResponse(response) as Record<string, unknown> | null;
     if (!parsed || typeof parsed !== "object") return null;
     const candidates = [
@@ -176,6 +222,69 @@ export function extractCustomizationEvent(
     for (const candidate of candidates) {
       const result = parseCustomizationPayload(candidate);
       if (result) return result;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export type UeCommandAck = {
+  type: string;
+  ok: boolean;
+  status?: string;
+  code?: number;
+};
+
+const NON_ACK_TYPES = new Set([
+  "camerazone",
+  "camera_zone",
+  "render",
+  "screenshot",
+  "capture",
+  "highres",
+]);
+
+export function extractUeCommandAck(response: unknown): UeCommandAck | null {
+  try {
+    const parsed = parseUeResponse(response) as Record<string, unknown> | null;
+    if (!parsed || typeof parsed !== "object") return null;
+    const candidates = [
+      parsed,
+      parsed.message,
+      parsed.data,
+      parsed.payload,
+      parsed.result,
+    ].filter((item) => item && typeof item === "object") as Record<
+      string,
+      unknown
+    >[];
+    for (const obj of candidates) {
+      const type = String(obj.type ?? obj.Type ?? "").trim();
+      if (!type) continue;
+      const typeKey = type.toLowerCase();
+      if (NON_ACK_TYPES.has(typeKey)) continue;
+      const codeRaw = obj.code ?? obj.Code;
+      const code =
+        typeof codeRaw === "number"
+          ? codeRaw
+          : typeof codeRaw === "string" && /^\d+$/.test(codeRaw)
+            ? Number(codeRaw)
+            : undefined;
+      const status = String(obj.status ?? obj.Status ?? "").toLowerCase();
+      const message = String(obj.message ?? obj.Message ?? "").toLowerCase();
+      if (code === 404 || status === "failed" || status === "fail" || status === "error") {
+        return { type, ok: false, status: status || "failed", code: code ?? 404 };
+      }
+      if (
+        code === 200 ||
+        status === "success" ||
+        status === "ok" ||
+        status === "loaded" ||
+        message === "success"
+      ) {
+        return { type, ok: true, status: status || "success", code: code ?? 200 };
+      }
     }
     return null;
   } catch {

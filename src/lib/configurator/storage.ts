@@ -6,9 +6,10 @@ import type {
 
 export function draftStorageKey(
   streamProjectId: string,
-  unitId: string,
+  projectId: string,
+  layoutCode: string,
 ): string {
-  return `atelier:config:${streamProjectId}:${unitId}`;
+  return `atelier:config:${streamProjectId}:${projectId}:${layoutCode}`;
 }
 
 export type StorageWriteResult =
@@ -22,18 +23,25 @@ export function isUsingMemoryOnlyStorage(): boolean {
   return storageWarned;
 }
 
+function isDraft(value: unknown): value is LocalDraft {
+  if (!value || typeof value !== "object") return false;
+  const d = value as LocalDraft;
+  return d.version === 2 && typeof d.designCode === "string" && Array.isArray(d.selections);
+}
+
 export function loadDraft(
   streamProjectId: string,
-  unitId: string,
+  projectId: string,
+  layoutCode: string,
 ): LocalDraft | null {
-  const key = draftStorageKey(streamProjectId, unitId);
+  const key = draftStorageKey(streamProjectId, projectId, layoutCode);
   if (memoryFallback[key]) return memoryFallback[key];
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as LocalDraft;
-    if (parsed?.version !== 1 || !Array.isArray(parsed.selections)) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isDraft(parsed)) return null;
     memoryFallback[key] = parsed;
     return parsed;
   } catch {
@@ -42,12 +50,17 @@ export function loadDraft(
 }
 
 export function saveDraft(draft: LocalDraft): StorageWriteResult {
-  const key = draftStorageKey(draft.streamProjectId, draft.unitId);
+  const key = draftStorageKey(
+    draft.streamProjectId,
+    draft.projectId,
+    draft.layoutCode,
+  );
   const prev = memoryFallback[key] ?? null;
   const merged: LocalDraft = {
     ...prev,
     ...draft,
-    ueLoadId: draft.ueLoadId ?? prev?.ueLoadId,
+    designCode: draft.designCode || prev?.designCode || "",
+    version: 2,
   };
   memoryFallback[key] = merged;
   if (typeof window === "undefined") {
@@ -67,8 +80,12 @@ export function saveDraft(draft: LocalDraft): StorageWriteResult {
   }
 }
 
-export function clearDraft(streamProjectId: string, unitId: string): void {
-  const key = draftStorageKey(streamProjectId, unitId);
+export function clearDraft(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+): void {
+  const key = draftStorageKey(streamProjectId, projectId, layoutCode);
   delete memoryFallback[key];
   if (typeof window === "undefined") return;
   try {
@@ -78,35 +95,47 @@ export function clearDraft(streamProjectId: string, unitId: string): void {
   }
 }
 
-/** Persist UE LoadCustomization id without touching selections. */
-export function saveUeLoadId(
-  streamProjectId: string,
-  unitId: string,
-  ueLoadId: string,
-): void {
-  const existing = loadDraft(streamProjectId, unitId);
-  if (!existing) return;
-  saveDraft({ ...existing, ueLoadId, updatedAt: new Date().toISOString() });
+export function generateDesignCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let suffix = "";
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `AT-${suffix}`;
 }
 
-export function getUeLoadId(
-  streamProjectId: string,
-  unitId: string | null,
-): string | null {
-  if (!unitId) return null;
-  return loadDraft(streamProjectId, unitId)?.ueLoadId?.trim() || null;
-}
-
-/**
- * Reuse the stored UE LoadCustomization id for this unit.
- * Does not invent a LoadID — that arrives from SaveCustomization.
- */
-export function ensureCustomizationRef(
-  streamProjectId: string,
-  unitId: string,
-  _levelName?: string,
-): string | undefined {
-  return getUeLoadId(streamProjectId, unitId) ?? undefined;
+/** Reuse existing design_code or create one for this stream/project/layout. */
+export function ensureDesignCode(args: {
+  streamProjectId: string;
+  projectId: string;
+  layoutCode: string;
+  urlDesignCode?: string | null;
+}): { designCode: string; returning: boolean } {
+  const fromUrl = args.urlDesignCode?.trim() || "";
+  const draft = loadDraft(
+    args.streamProjectId,
+    args.projectId,
+    args.layoutCode,
+  );
+  const fromDraft = draft?.designCode?.trim() || "";
+  if (fromUrl) {
+    if (draft && fromDraft && fromDraft !== fromUrl) {
+      saveDraft({ ...draft, designCode: fromUrl, updatedAt: new Date().toISOString() });
+    }
+    return { designCode: fromUrl, returning: Boolean(fromDraft || fromUrl) };
+  }
+  if (fromDraft) return { designCode: fromDraft, returning: true };
+  const designCode = generateDesignCode();
+  saveDraft({
+    version: 2,
+    streamProjectId: args.streamProjectId,
+    projectId: args.projectId,
+    layoutCode: args.layoutCode,
+    designCode,
+    selections: draft?.selections ?? [],
+    updatedAt: new Date().toISOString(),
+  });
+  return { designCode, returning: false };
 }
 
 export function selectionsToMap(list: SelectionEntry[]): SelectionMap {
@@ -115,7 +144,6 @@ export function selectionsToMap(list: SelectionEntry[]): SelectionMap {
     if (!s.slot || !s.meshId) continue;
     map[s.slot] = {
       meshId: s.meshId,
-      // Empty string = mesh-only finish (no materials catalog)
       materialId: s.materialId ?? "",
       cameraId: s.cameraId,
       cameraIndex: s.cameraIndex,
@@ -132,4 +160,36 @@ export function mapToSelections(map: SelectionMap): SelectionEntry[] {
     cameraId: v.cameraId,
     cameraIndex: v.cameraIndex,
   }));
+}
+
+export function isDefaultEntry(
+  defaults: SelectionEntry[] | undefined,
+  entry: { slot: string; meshId: string; materialId?: string },
+): boolean {
+  const fallback = defaults?.find((d) => d.slot === entry.slot);
+  if (!fallback) return false;
+  return (
+    fallback.meshId === entry.meshId &&
+    (fallback.materialId || "") === (entry.materialId || "")
+  );
+}
+
+/** Drop catalog-default finishes so they are never stored as selections. */
+export function omitDefaults(
+  defaults: SelectionEntry[] | undefined,
+  map: SelectionMap,
+): SelectionMap {
+  const next: SelectionMap = {};
+  for (const [slot, value] of Object.entries(map)) {
+    if (!isDefaultEntry(defaults, { slot, ...value })) next[slot] = value;
+  }
+  return next;
+}
+
+/** Current applied finish for UI chips: custom override, else catalog default. */
+export function appliedSelectionMap(
+  defaults: SelectionEntry[] | undefined,
+  custom: SelectionMap,
+): SelectionMap {
+  return { ...selectionsToMap(defaults ?? []), ...custom };
 }

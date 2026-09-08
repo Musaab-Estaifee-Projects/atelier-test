@@ -4,10 +4,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { estimatePriceFromSession } from "@/lib/configurator/pricing";
 import {
   clearDraft,
-  ensureCustomizationRef,
+  isDefaultEntry,
   isUsingMemoryOnlyStorage,
   loadDraft,
   mapToSelections,
+  omitDefaults,
   saveDraft,
   selectionsToMap,
 } from "@/lib/configurator/storage";
@@ -17,56 +18,109 @@ import type {
   SelectionMap,
 } from "@/types/configurator";
 
-type SaveStatus = "idle" | "saving" | "saved" | "unsaved";
+export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
 /**
- * EDIT-mode FE map + localStorage persistence (selections only).
- * Camera/zone are never stored — URL only.
+ * EDIT-mode FE map + localStorage persistence (selections + designCode).
+ * Map stores custom (non-default) finishes only. Camera/zone are URL-only.
  */
 export function useSelectionMap(args: {
   streamProjectId: string;
-  unitId: string | null;
+  backendProjectId: string;
+  layoutCode: string;
+  designCode: string | null;
   session: ConfiguratorSession | null;
   viewOnly: boolean;
 }) {
-  const { streamProjectId, unitId, session, viewOnly } = args;
+  const {
+    streamProjectId,
+    backendProjectId,
+    layoutCode,
+    designCode,
+    session,
+    viewOnly,
+  } = args;
   const [map, setMap] = useState<SelectionMap>({});
   const [hydrated, setHydrated] = useState(false);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const hydratedKeyRef = useRef<string | null>(null);
 
+  const persist = useCallback(
+    (next: SelectionMap) => {
+      if (viewOnly || !designCode) return;
+      const custom = omitDefaults(session?.defaults, next);
+      const draft = {
+        version: 2 as const,
+        streamProjectId,
+        projectId: backendProjectId,
+        layoutCode: session?.layoutCode || layoutCode,
+        designCode,
+        selections: mapToSelections(custom),
+        updatedAt: new Date().toISOString(),
+      };
+      const result = saveDraft(draft);
+      if (!result.ok) {
+        setSaveStatus("failed");
+        setStorageWarning(
+          result.reason === "quota"
+            ? "Storage full — continuing in memory only."
+            : "Storage blocked — continuing in memory only.",
+        );
+      }
+    },
+    [
+      viewOnly,
+      designCode,
+      session?.defaults,
+      session?.layoutCode,
+      layoutCode,
+      streamProjectId,
+      backendProjectId,
+    ],
+  );
+
   const hydrateFromStorage = useCallback(() => {
-    if (viewOnly || !unitId || !session) return;
-    const key = `${streamProjectId}:${unitId}`;
+    if (viewOnly || !session || !designCode) return;
+    const key = `${streamProjectId}:${backendProjectId}:${session.layoutCode}:${designCode}`;
     if (hydratedKeyRef.current === key) {
       setHydrated(true);
       return;
     }
     hydratedKeyRef.current = key;
 
-    const draft = loadDraft(streamProjectId, unitId);
-    if (!draft) {
-      setMap({});
-      setSaveStatus("unsaved");
-      setHydrated(true);
-      return;
-    }
-
     const meshOk = new Set(session.meshes.map((m) => m.id));
     const matOk = new Set(session.materials.map((m) => m.id));
-    const cleaned = draft.selections.filter(
-      (s) => meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId)),
+    const valid = (s: SelectionEntry) =>
+      meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId));
+
+    const draft = loadDraft(
+      streamProjectId,
+      backendProjectId,
+      session.layoutCode,
     );
-    setMap(selectionsToMap(cleaned));
-    setSaveStatus(cleaned.length ? "saved" : "unsaved");
+    const stored = omitDefaults(
+      session.defaults,
+      selectionsToMap((draft?.selections ?? []).filter(valid)),
+    );
+    setMap(stored);
+    setSaveStatus("saved");
     setHydrated(true);
+    persist(stored);
+
     if (isUsingMemoryOnlyStorage()) {
       setStorageWarning(
         "Browser storage unavailable — edits stay in this tab only.",
       );
     }
-  }, [streamProjectId, unitId, session, viewOnly]);
+  }, [
+    streamProjectId,
+    backendProjectId,
+    session,
+    viewOnly,
+    designCode,
+    persist,
+  ]);
 
   const hydrateFromDesign = useCallback(
     (selections: SelectionEntry[]) => {
@@ -82,64 +136,34 @@ export function useSelectionMap(args: {
         (s) =>
           meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId)),
       );
-      setMap(selectionsToMap(cleaned));
+      setMap(omitDefaults(session.defaults, selectionsToMap(cleaned)));
       setSaveStatus("saved");
       setHydrated(true);
     },
     [session, streamProjectId],
   );
 
-  const persist = useCallback(
-    (next: SelectionMap) => {
-      if (viewOnly || !unitId || !session) return;
-      setSaveStatus("saving");
-      const ueLoadId = ensureCustomizationRef(
-        streamProjectId,
-        unitId,
-        session.levelName,
-      );
-      const draft = {
-        version: 1 as const,
-        streamProjectId,
-        unitId,
-        levelName: session.levelName,
-        selections: mapToSelections(next),
-        ueLoadId,
-        updatedAt: new Date().toISOString(),
-      };
-      const result = saveDraft(draft);
-      if (!result.ok) {
-        setSaveStatus("unsaved");
-        setStorageWarning(
-          result.reason === "quota"
-            ? "Storage full — continuing in memory only."
-            : "Storage blocked — continuing in memory only.",
-        );
-      }
-    },
-    [viewOnly, unitId, session, streamProjectId],
-  );
-
-  /** Commit selection immediately — source of truth for active UI. */
   const select = useCallback(
     (entry: SelectionEntry): boolean => {
       if (viewOnly) return false;
       setMap((prev) => {
-        const next = {
-          ...prev,
-          [entry.slot]: {
+        const next = { ...prev };
+        if (isDefaultEntry(session?.defaults, entry)) {
+          delete next[entry.slot];
+        } else {
+          next[entry.slot] = {
             meshId: entry.meshId,
             materialId: entry.materialId,
             cameraId: entry.cameraId,
             cameraIndex: entry.cameraIndex,
-          },
-        };
+          };
+        }
         persist(next);
         return next;
       });
       return true;
     },
-    [viewOnly, persist],
+    [viewOnly, persist, session?.defaults],
   );
 
   const removeSlot = useCallback(
@@ -159,24 +183,31 @@ export function useSelectionMap(args: {
   const resetAll = useCallback(() => {
     setMap({});
     setHydrated(true);
-    setSaveStatus("unsaved");
-    if (!unitId) return;
-    const ref = loadDraft(streamProjectId, unitId)?.ueLoadId;
+    setSaveStatus("saving");
+    if (!designCode) return;
     saveDraft({
-      version: 1,
+      version: 2,
       streamProjectId,
-      unitId,
-      levelName: session?.levelName ?? "",
+      projectId: backendProjectId,
+      layoutCode: session?.layoutCode || layoutCode,
+      designCode,
       selections: [],
-      ueLoadId: ref,
       updatedAt: new Date().toISOString(),
     });
-  }, [streamProjectId, unitId, session?.levelName]);
+  }, [
+    streamProjectId,
+    backendProjectId,
+    layoutCode,
+    session?.layoutCode,
+    designCode,
+  ]);
 
   const clearAfterSubmit = useCallback(() => {
-    if (unitId) clearDraft(streamProjectId, unitId);
+    if (session?.layoutCode) {
+      clearDraft(streamProjectId, backendProjectId, session.layoutCode);
+    }
     setSaveStatus("saved");
-  }, [streamProjectId, unitId]);
+  }, [streamProjectId, backendProjectId, session?.layoutCode]);
 
   const selections = useMemo(() => mapToSelections(map), [map]);
   const optimisticPrice = useMemo(() => {
@@ -188,10 +219,6 @@ export function useSelectionMap(args: {
     setSaveStatus(status);
   }, []);
 
-  const customizationRef = unitId
-    ? (loadDraft(streamProjectId, unitId)?.ueLoadId ?? null)
-    : null;
-
   return {
     map,
     selections,
@@ -199,11 +226,10 @@ export function useSelectionMap(args: {
     optimisticPrice,
     storageWarning,
     saveStatus,
-    customizationRef,
+    designCode,
     markSaveStatus,
     hydrateFromStorage,
     hydrateFromDesign,
-    /** @deprecated use select — kept for call-site compatibility */
     intendSelect: select,
     select,
     commit: select,

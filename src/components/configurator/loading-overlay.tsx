@@ -196,7 +196,7 @@ const SessionEnded = ({
   const saved =
     selectionCount > 0
       ? `Your selections are saved — ${selectionCount} items. Nothing was lost.`
-      : "Your selections are saved. Nothing was lost.";
+      : "In case you have selections. Nothing will be lost. All of your selections will be saved.";
 
   return (
     <div className="flex w-full max-w-180 flex-col items-center px-2">

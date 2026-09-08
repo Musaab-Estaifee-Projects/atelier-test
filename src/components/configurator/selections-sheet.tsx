@@ -8,6 +8,7 @@ import { buildSelectedItemSections } from "@/lib/configurator/review-selections"
 import type { ConfiguratorSession, SelectionEntry } from "@/types/configurator";
 import RemoveSelectionDialog from "./remove-selection-dialog";
 import SelectionRowMenu from "./selection-row-menu";
+import SidePanelClose from "../icons/configurator/side-panel-close";
 
 type Props = {
   open: boolean;
@@ -83,6 +84,16 @@ const SelectionsSheet = ({
             strokeWidth={1}
           >
             <div className="relative z-10 flex w-full flex-col items-center gap-5 px-5 py-6 sm:gap-6 sm:px-10 sm:py-10">
+              <button
+                type="button"
+                className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 sm:right-6 sm:top-6"
+                onClick={onClose}
+                aria-label="Close selected items"
+              >
+                <span className="relative block size-2.75 overflow-clip">
+                  <SidePanelClose className="h-full w-full" />
+                </span>
+              </button>
               <h2 className="w-full text-center font-baskerville text-[1.25rem] font-normal leading-[1.16] capitalize text-[#f2e9d8] sm:text-[1.625rem]">
                 Selected Items
               </h2>

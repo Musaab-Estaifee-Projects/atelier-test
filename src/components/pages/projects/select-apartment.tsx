@@ -33,8 +33,9 @@ const SelectApartment = ({ project }: Props) => {
               streamProjectId: design.streamProjectId,
               unitId: design.unitId,
               levelName: design.configuration.levelName,
+              layoutCode: design.configuration.levelName,
             },
-            { designCode: design.designCode },
+            { designCode: design.designCode, view: true },
           ),
         );
       } catch {
@@ -49,7 +50,8 @@ const SelectApartment = ({ project }: Props) => {
       stylesHref({
         slug: project.code,
         unitId: choice.unitId,
-        levelName: choice.levelName,
+        levelName: choice.layoutCode || choice.levelName,
+        layoutCode: choice.layoutCode || choice.levelName,
       }),
     );
   };

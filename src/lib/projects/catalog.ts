@@ -8,12 +8,16 @@ export type CatalogProject = {
   streamProjectId: string;
   unitId: string;
   levelName: string;
+  layoutCode?: string;
 };
 
 /** Shared StreamPixel session until each tower has its own app id. */
 export const DEMO_STREAM_PROJECT_ID = "6a427d215af97179992c7c66";
+/** Backend catalog project id until it is supplied by the API. */
+export const DEMO_BACKEND_PROJECT_ID = "6a427d215af97179992c7c66";
 export const DEMO_UNIT_ID = "LO-APT-2BHK-T02";
-export const DEMO_LEVEL_NAME = "2BHK_Type_2_Updated";
+export const DEMO_LEVEL_NAME = "1bhk_type_3";
+export const DEFAULT_LAYOUT_CODE = "1bhk_type_3";
 
 export const CATALOG_PROJECTS: CatalogProject[] = [
   {
@@ -25,6 +29,7 @@ export const CATALOG_PROJECTS: CatalogProject[] = [
     streamProjectId: DEMO_STREAM_PROJECT_ID,
     unitId: DEMO_UNIT_ID,
     levelName: DEMO_LEVEL_NAME,
+    layoutCode: DEFAULT_LAYOUT_CODE,
   },
   {
     slug: "reef-997",
@@ -35,6 +40,7 @@ export const CATALOG_PROJECTS: CatalogProject[] = [
     streamProjectId: DEMO_STREAM_PROJECT_ID,
     unitId: DEMO_UNIT_ID,
     levelName: DEMO_LEVEL_NAME,
+    layoutCode: DEFAULT_LAYOUT_CODE,
   },
   {
     slug: "reef-998",
@@ -45,6 +51,7 @@ export const CATALOG_PROJECTS: CatalogProject[] = [
     streamProjectId: DEMO_STREAM_PROJECT_ID,
     unitId: DEMO_UNIT_ID,
     levelName: DEMO_LEVEL_NAME,
+    layoutCode: DEFAULT_LAYOUT_CODE,
   },
 ];
 
@@ -53,25 +60,34 @@ export function getProject(slug: string): CatalogProject | undefined {
 }
 
 export function configuratorHref(
-  project: Pick<CatalogProject, "streamProjectId" | "unitId" | "levelName">,
-  extra?: { designCode?: string; style?: string },
+  project: Pick<CatalogProject, "streamProjectId" | "unitId" | "levelName"> & {
+    layoutCode?: string;
+    backendProjectId?: string;
+  },
+  extra?: { designCode?: string; style?: string; view?: boolean },
 ): string {
+  const layoutCode =
+    project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE;
   const q = new URLSearchParams({
-    unit: project.unitId,
-    level: project.levelName,
+    project_id: project.backendProjectId || DEMO_BACKEND_PROJECT_ID,
+    layout_code: layoutCode,
   });
-  if (extra?.designCode) q.set("designCode", extra.designCode);
+  if (project.unitId) q.set("unit", project.unitId);
+  if (extra?.designCode) q.set("design_code", extra.designCode);
   if (extra?.style) q.set("style", extra.style);
+  if (extra?.view) q.set("view", "1");
   return `/configurator/${project.streamProjectId}?${q.toString()}`;
 }
 
 export function stylesHref(
-  project: Pick<CatalogProject, "slug" | "unitId" | "levelName">,
+  project: Pick<CatalogProject, "slug" | "unitId" | "levelName"> & {
+    layoutCode?: string;
+  },
 ): string {
   const q = new URLSearchParams({
     project: project.slug,
     unit: project.unitId,
-    level: project.levelName,
+    layout_code: project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE,
   });
   return `/styles?${q.toString()}`;
 }

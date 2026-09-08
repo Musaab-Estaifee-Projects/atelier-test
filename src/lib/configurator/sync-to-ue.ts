@@ -1,48 +1,63 @@
 /**
- * Restore localStorage / design selections onto UE after reload or stream drop.
- * 1) LoadCustomization (UE snapshot)
- * 2) MoveToZone per room + SetMesh/ApplyMaterial for every stored finish
- * 3) Restore the URL camera/zone
+ * Boot Unreal: LoadLevel, optional LoadCustomization, restore URL view.
+ * If LoadCustomization 404s, paint stored finishes that differ from defaults.
  */
-import type { SelectionEntry } from "@/types/configurator";
 import type { UeInteractionPayload } from "@/lib/stream-pixel/ue-protocol";
-import { getUeLoadId, loadDraft } from "@/lib/configurator/storage";
+import type { SelectionEntry } from "@/types/configurator";
 import {
   loadCustomizationFromUe,
-  reconcileUeToSelections,
+  loadLevelOnUe,
+  paintSelectionsToUe,
   restoreCameraZoneToUe,
-  saveCustomizationToUe,
 } from "@/lib/configurator/apply-ue";
-import { normalizeZone } from "@/lib/configurator/url-params";
-import { delay, sendUntilAccepted } from "@/lib/stream-pixel/share-restore";
+import { delay } from "@/lib/stream-pixel/share-restore";
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
 export type SyncToUeArgs = {
   send: SendFn;
   isUeReady: () => boolean;
-  streamProjectId: string;
-  unitId: string | null;
-  levelName: string;
+  layoutCode: string;
+  designCode: string | null;
+  returningVisit: boolean;
+  selections?: SelectionEntry[];
+  defaults?: SelectionEntry[];
   zone?: string | null;
-  camera?: number | null;
-  designSelections?: SelectionEntry[] | null;
+  camera?: string | null;
   skipLoadLevel?: boolean;
-  forceLoadLevel?: boolean;
   force?: boolean;
   mockLog?: boolean;
   onProgress?: (msg: string) => void;
 };
 
+function entriesToPaint(
+  selections: SelectionEntry[] | undefined,
+  defaults: SelectionEntry[] | undefined,
+): SelectionEntry[] {
+  const list = selections?.filter((e) => e.meshId) ?? [];
+  if (!list.length) return [];
+  if (!defaults?.length) return list;
+  const bySlot = new Map(defaults.map((d) => [d.slot, d]));
+  return list.filter((entry) => {
+    const fallback = bySlot.get(entry.slot);
+    if (!fallback) return true;
+    return (
+      fallback.meshId !== entry.meshId ||
+      (fallback.materialId || "") !== (entry.materialId || "")
+    );
+  });
+}
 let inflight: Promise<boolean> | null = null;
 let inflightKey = "";
 let lastCompletedKey = "";
 
-function syncKey(args: SyncToUeArgs, list: SelectionEntry[]): string {
+function syncKey(args: SyncToUeArgs): string {
   return [
-    args.streamProjectId,
-    args.unitId ?? "",
-    list.map((s) => `${s.slot}:${s.meshId}:${s.materialId}`).join(","),
+    args.layoutCode,
+    args.designCode ?? "",
+    args.returningVisit ? "1" : "0",
+    args.zone ?? "",
+    args.camera ?? "",
   ].join("|");
 }
 
@@ -67,25 +82,7 @@ async function waitUntilEmitAccepted(send: SendFn): Promise<boolean> {
 }
 
 export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
-  const draft =
-    !args.designSelections && args.unitId
-      ? loadDraft(args.streamProjectId, args.unitId)
-      : null;
-
-  const list: SelectionEntry[] =
-    args.designSelections ?? draft?.selections ?? [];
-
-  const zone = normalizeZone(args.zone);
-  const camera =
-    args.camera !== undefined && args.camera !== null ? args.camera : null;
-
-  const key = syncKey(args, list);
-  args.onProgress?.(
-    list.length
-      ? `Restoring ${list.length} finish(es) from storage…`
-      : "Stream ready",
-  );
-
+  const key = syncKey(args);
   if (!args.force && inflight && inflightKey === key) return inflight;
 
   const previous = inflight;
@@ -94,87 +91,50 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
   const run = async (): Promise<boolean> => {
     if (previous) await previous.catch(() => false);
 
-    const defaultBootLevel = "2BHK_Type_2_Updated";
-    const shouldLoadLevel =
-      Boolean(args.levelName) &&
-      (args.forceLoadLevel ||
-        (!args.skipLoadLevel && args.levelName !== defaultBootLevel));
-
-    const readLatest = (): SelectionEntry[] => {
-      if (args.designSelections) return args.designSelections;
-      if (args.unitId) {
-        return loadDraft(args.streamProjectId, args.unitId)?.selections ?? [];
-      }
-      return list;
-    };
-
     if (!(await waitUntilReady(args.isUeReady, args.mockLog))) {
       console.warn("[UE sync] stream never ready");
-      return !readLatest().length;
+      return false;
     }
-    await delay(500);
+    await delay(400);
     if (!args.mockLog && !(await waitUntilEmitAccepted(args.send))) {
       console.warn("[UE sync] emit never accepted");
-      return !readLatest().length;
+      return false;
     }
 
-    if (shouldLoadLevel && args.levelName) {
-      args.onProgress?.(`Loading level ${args.levelName}…`);
-      await sendUntilAccepted(
-        args.send,
-        { Function: "LoadLevel", LevelName: args.levelName },
-        { attempts: 10, gapMs: 400, label: "LoadLevel" },
-      );
-      await delay(2200);
+    if (!args.skipLoadLevel && args.layoutCode) {
+      args.onProgress?.(`Loading level ${args.layoutCode}…`);
+      await loadLevelOnUe(args.send, args.layoutCode, {
+        mockLog: args.mockLog,
+      });
       await waitUntilEmitAccepted(args.send);
     }
 
-    const freshList = readLatest();
-    const loadId =
-      (args.unitId ? getUeLoadId(args.streamProjectId, args.unitId) : null) ??
-      args.unitId;
-
-    if (freshList.length && loadId) {
+    if (args.returningVisit && args.designCode) {
       args.onProgress?.("Loading saved customization…");
-      await loadCustomizationFromUe(args.send, {
-        loadId,
-        unitId: args.unitId,
+      const loaded = await loadCustomizationFromUe(args.send, args.designCode, {
         mockLog: args.mockLog,
       });
-    }
-
-    // Never ResetCustomization here — that wipes slots this Blueprint only
-    // paints while the matching camera is active.
-    const ok = await reconcileUeToSelections(args.send, freshList, {
-      mockLog: args.mockLog,
-      resetFirst: false,
-      onProgress: args.onProgress,
-    });
-
-    if (freshList.length && args.unitId) {
-      await saveCustomizationToUe(args.send, {
-        unitId: args.unitId,
-        streamProjectId: args.streamProjectId,
-        selections: freshList,
-        mockLog: args.mockLog,
-      });
+      if (!loaded) {
+        console.warn(
+          "[UE sync] LoadCustomization missing — applying stored finishes",
+        );
+        args.onProgress?.("Restoring finishes…");
+        await paintSelectionsToUe(
+          args.send,
+          entriesToPaint(args.selections, args.defaults),
+          { mockLog: args.mockLog },
+        );
+      }
     }
 
     args.onProgress?.("Restoring view…");
     await restoreCameraZoneToUe(args.send, {
-      zone,
-      camera,
+      zone: args.zone,
+      camera: args.camera,
       mockLog: args.mockLog,
     });
 
     lastCompletedKey = key;
-    if (!ok && freshList.length) {
-      console.warn("[UE sync] some finishes did not confirm");
-      return false;
-    }
-    console.info(
-      `[UE sync] done — ${freshList.length} finish(es) via LoadCustomization + MoveToZone`,
-    );
     return true;
   };
 

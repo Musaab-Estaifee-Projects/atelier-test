@@ -364,6 +364,10 @@ const BrowseStyles = ({
                                 streamProjectId: project.streamProjectId,
                                 unitId: unitId || project.unitId,
                                 levelName: levelName || project.levelName,
+                                layoutCode:
+                                  levelName ||
+                                  project.layoutCode ||
+                                  project.levelName,
                               },
                               { style: style.slug },
                             )

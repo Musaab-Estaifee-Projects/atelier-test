@@ -12,6 +12,9 @@ export type MeshOption = {
   displayName: string;
   /** Slot this mesh belongs to when known */
   slot?: string;
+  thumbnailUrl?: string;
+  pricePerSqm?: number;
+  isDefault?: boolean;
 };
 
 export type MaterialOption = {
@@ -29,8 +32,22 @@ export type CameraRule = {
   name: string;
   mode?: string;
   meshIds: string[];
-  /** Selection slot for this camera (e.g. living-tv-wall) */
+  /** Selection slot = camera UE id */
   slot?: string;
+  zoneId?: string;
+};
+
+export type ZoneCameraRef = {
+  name: string;
+  mode: string;
+};
+
+export type ZoneDefinition = {
+  id: string;
+  label: string;
+  ueZone: string;
+  aliases: string[];
+  cameras: ZoneCameraRef[];
 };
 
 export type MeshRulesConfig = {
@@ -40,18 +57,18 @@ export type MeshRulesConfig = {
 
 /**
  * Shareable URL contract.
- * EDIT:  /configurator/{streamProjectId}?unit=...&level=...&camera=&zone=
- * VIEW:  ...&designCode=AT-9F3K2
- *
- * Mesh/material are NEVER in the URL — only localStorage until submit.
+ * /configurator/{stream_id}?project_id=&layout_code=&design_code=&zone=&camera=
+ * Mesh/material are NEVER in the URL.
  */
 export type ShareableConfiguratorParams = {
-  projectId: string;
+  streamId: string;
+  backendProjectId: string | null;
   unit?: string | null;
   designCode?: string | null;
-  level?: string | null;
-  camera?: number | null;
+  layoutCode?: string | null;
+  camera?: string | null;
   zone?: string | null;
+  view?: boolean;
   streamerId?: string | null;
   sfuHost?: string | null;
   sfuPlayer?: string | null;
@@ -88,12 +105,15 @@ export type ConfiguratorSession = {
   streamProjectId: string;
   unitId: string;
   levelName: string;
+  layoutCode: string;
+  backendProjectId: string;
   cameras: CameraRule[];
   meshes: MeshOption[];
   materials: MaterialOption[];
   materialsByMesh: Record<string, string[]>;
   meshAreas: MeshArea[];
   slotLabels: Record<string, string>;
+  zones: ZoneDefinition[];
   defaults?: SelectionEntry[];
 };
 
@@ -153,14 +173,11 @@ export type RoomRenderCard = {
 export type FinalDesignPhase = "idle" | "confirm" | "capturing" | "review";
 
 export type LocalDraft = {
-  version: 1;
+  version: 2;
   streamProjectId: string;
-  unitId: string;
-  levelName: string;
+  projectId: string;
+  layoutCode: string;
+  designCode: string;
   selections: SelectionEntry[];
-  /** UE SaveCustomization id — used with LoadCustomization after reload / stream drop */
-  ueLoadId?: string;
-  /** Reserved — camera/zone live in the URL only, never persisted here */
-  ui?: Record<string, never>;
   updatedAt: string;
 };

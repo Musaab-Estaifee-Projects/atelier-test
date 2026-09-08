@@ -4,52 +4,94 @@ import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ShareableConfiguratorParams } from "@/types/configurator";
 import { normalizeZone } from "@/lib/configurator/url-params";
+import {
+  DEMO_BACKEND_PROJECT_ID,
+  DEFAULT_LAYOUT_CODE,
+} from "@/lib/projects/catalog";
+
+function firstParam(
+  searchParams: URLSearchParams,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = searchParams.get(key);
+    if (value != null && value.trim() !== "") return value.trim();
+  }
+  return null;
+}
 
 /**
  * Reads / writes shareable configurator state from the URL.
- * Mesh/material are NEVER in the URL — only localStorage until submit.
- * Zone is only present when a real non-empty zone exists.
+ * Mesh/material are NEVER in the URL.
  *
- * Route shape:
- * /configurator/[projectId]?unit=...&designCode=...&level=...&camera=...&zone=...
+ * /configurator/{stream_id}?project_id=&layout_code=&design_code=&zone=&camera=
  */
-export function useShareableParams(projectIdFromRoute: string) {
+export function useShareableParams(streamIdFromRoute: string) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const params: ShareableConfiguratorParams = useMemo(() => {
-    const cameraRaw = searchParams.get("camera");
+    const cameraRaw = firstParam(searchParams, "camera");
     const camera =
-      cameraRaw !== null && cameraRaw !== "" && !Number.isNaN(Number(cameraRaw))
-        ? Number(cameraRaw)
-        : null;
+      cameraRaw && /^\d+$/.test(cameraRaw) ? null : cameraRaw;
 
     return {
-      projectId: projectIdFromRoute,
-      unit: searchParams.get("unit"),
-      designCode: searchParams.get("designCode") ?? searchParams.get("loadId"),
-      level: searchParams.get("level"),
+      streamId: streamIdFromRoute,
+      backendProjectId:
+        firstParam(searchParams, "project_id", "projectId") ??
+        DEMO_BACKEND_PROJECT_ID,
+      unit: firstParam(searchParams, "unit"),
+      designCode: firstParam(searchParams, "design_code", "designCode", "loadId"),
+      layoutCode:
+        firstParam(searchParams, "layout_code", "layoutCode", "level") ??
+        DEFAULT_LAYOUT_CODE,
       camera,
       zone: normalizeZone(searchParams.get("zone")),
-      streamerId: searchParams.get("streamerId"),
-      sfuHost: searchParams.get("sfuHost"),
-      sfuPlayer: searchParams.get("sfuPlayer"),
+      view: searchParams.get("view") === "1",
+      streamerId: firstParam(searchParams, "streamerId"),
+      sfuHost: firstParam(searchParams, "sfuHost"),
+      sfuPlayer: firstParam(searchParams, "sfuPlayer"),
     };
-  }, [projectIdFromRoute, searchParams]);
+  }, [streamIdFromRoute, searchParams]);
 
-  // Strip legacy mesh/material and empty zone from the URL
   useEffect(() => {
-    const hasLegacy = searchParams.has("mesh") || searchParams.has("material");
+    const hasLegacy =
+      searchParams.has("mesh") ||
+      searchParams.has("material") ||
+      searchParams.has("designCode") ||
+      searchParams.has("loadId") ||
+      searchParams.has("level") ||
+      searchParams.has("projectId");
     const rawZone = searchParams.get("zone");
     const emptyZone =
       searchParams.has("zone") && normalizeZone(rawZone) == null;
-    if (!hasLegacy && !emptyZone) return;
+    const missingCanonical =
+      !searchParams.get("project_id") || !searchParams.get("layout_code");
+    if (!hasLegacy && !emptyZone && !missingCanonical) return;
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete("mesh");
     next.delete("material");
     if (emptyZone) next.delete("zone");
+
+    const projectId =
+      firstParam(next, "project_id", "projectId") ?? DEMO_BACKEND_PROJECT_ID;
+    const layout =
+      firstParam(next, "layout_code", "layoutCode", "level") ??
+      DEFAULT_LAYOUT_CODE;
+    const design = firstParam(next, "design_code", "designCode", "loadId");
+
+    next.set("project_id", projectId);
+    next.set("layout_code", layout);
+    if (design) next.set("design_code", design);
+
+    next.delete("projectId");
+    next.delete("layoutCode");
+    next.delete("level");
+    next.delete("designCode");
+    next.delete("loadId");
+
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, pathname, router]);
@@ -60,35 +102,55 @@ export function useShareableParams(projectIdFromRoute: string) {
       options?: { replace?: boolean },
     ) => {
       const next = new URLSearchParams(searchParams.toString());
-
       next.delete("mesh");
       next.delete("material");
+      next.delete("designCode");
+      next.delete("loadId");
+      next.delete("level");
+      next.delete("projectId");
 
-      const map: Record<string, string | number | null | undefined> = {
-        unit: patch.unit,
-        designCode: patch.designCode,
-        level: patch.level,
-        camera: patch.camera,
-        streamerId: patch.streamerId,
-        sfuHost: patch.sfuHost,
-        sfuPlayer: patch.sfuPlayer,
-      };
-
-      for (const [key, value] of Object.entries(map)) {
-        if (value === undefined) continue;
-        if (value === null || value === "") next.delete(key);
-        else next.set(key, String(value));
+      if (patch.backendProjectId !== undefined) {
+        if (patch.backendProjectId) {
+          next.set("project_id", patch.backendProjectId);
+        } else next.delete("project_id");
+      }
+      if (patch.layoutCode !== undefined) {
+        if (patch.layoutCode) next.set("layout_code", patch.layoutCode);
+        else next.delete("layout_code");
+      }
+      if (patch.designCode !== undefined) {
+        if (patch.designCode) next.set("design_code", patch.designCode);
+        else next.delete("design_code");
+      }
+      if (patch.unit !== undefined) {
+        if (patch.unit) next.set("unit", patch.unit);
+        else next.delete("unit");
+      }
+      if (patch.camera !== undefined) {
+        if (patch.camera) next.set("camera", patch.camera);
+        else next.delete("camera");
+      }
+      if (patch.view !== undefined) {
+        if (patch.view) next.set("view", "1");
+        else next.delete("view");
+      }
+      if (patch.streamerId !== undefined) {
+        if (patch.streamerId) next.set("streamerId", patch.streamerId);
+        else next.delete("streamerId");
+      }
+      if (patch.sfuHost !== undefined) {
+        if (patch.sfuHost) next.set("sfuHost", patch.sfuHost);
+        else next.delete("sfuHost");
+      }
+      if (patch.sfuPlayer !== undefined) {
+        if (patch.sfuPlayer) next.set("sfuPlayer", patch.sfuPlayer);
+        else next.delete("sfuPlayer");
       }
 
-      // Zone: only append when real; null/"" deletes; undefined leaves unchanged
       if (patch.zone !== undefined) {
         const z = normalizeZone(patch.zone);
         if (z) next.set("zone", z);
         else next.delete("zone");
-      }
-
-      if (patch.designCode !== undefined) {
-        next.delete("loadId");
       }
 
       const qs = next.toString();

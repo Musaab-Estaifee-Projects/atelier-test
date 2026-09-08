@@ -14,29 +14,34 @@ import {
 } from "@/lib/configurator/api";
 import {
   applyOneSelectionToUe,
-  resetCustomizationOnUe,
-  restoreCameraZoneToUe,
-  revertSlotOnUe,
+  exitCameraOnUe,
+  moveToZoneOnUe,
+  resetToDefaultOnUe,
+  saveCustomizationToUe,
+  switchCameraByNameOnUe,
 } from "@/lib/configurator/apply-ue";
 import {
   invalidateUeSyncCache,
   syncDraftToUe,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { getMaterialsForMesh } from "@/lib/configurator/materials";
-import { loadDraft, saveUeLoadId } from "@/lib/configurator/storage";
+import { ensureDesignCode, appliedSelectionMap } from "@/lib/configurator/storage";
 import { normalizeZone, zoneUrlPatch } from "@/lib/configurator/url-params";
 import {
   camerasForZone,
+  cameraKey,
   matchZoneId,
   moveZoneName,
+  setActiveCatalogZones,
   shortSurfaceLabel,
-  ueZoneName,
-  zoneCamerasForUi,
+  zoneIdForCamera,
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
 import { materialThumb } from "@/lib/configurator/chrome";
-import { slotFromCamera, slotFromMeshId } from "@/mocks/configurator/session";
+import {
+  DEMO_BACKEND_PROJECT_ID,
+  DEFAULT_LAYOUT_CODE,
+} from "@/lib/projects/catalog";
 import type {
   CameraRule,
   ConfiguratorCamera,
@@ -57,8 +62,10 @@ import { useUeInteraction } from "@/hooks/configurator/use-ue-interaction";
 import {
   extractCameraZoneFromResponse,
   extractCustomizationEvent,
+  extractUeCommandAck,
+  parseUeResponse,
 } from "@/lib/stream-pixel/parse-ue-response";
-import { noteUeLoadId } from "@/lib/configurator/ue-load-id";
+import { noteUeAck, noteUeLoadId, noteCustomizationResult } from "@/lib/configurator/ue-load-id";
 import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
 import StreamViewport from "./stream-viewport";
@@ -66,8 +73,10 @@ import LoadingOverlay, { streamOverlayKind } from "./loading-overlay";
 import AfkWarningOverlay from "./afk-warning-overlay";
 import QuotationDialog from "./quotation-dialog";
 import ZoneTopBar from "./zone-top-bar";
-import ZoneSidePanel, { cameraKey } from "./zone-side-panel";
+import ZoneSidePanel from "./zone-side-panel";
 import ConfiguratorDock from "./configurator-dock";
+import CustomizationRequiredDialog from "./customization-required-dialog";
+import ResetToDefaultDialog from "./reset-to-default-dialog";
 import SelectionsSheet from "./selections-sheet";
 import SubmitModal from "./submit-modal";
 import DesignSuccess from "./design-success";
@@ -84,33 +93,21 @@ const MOCK_UE =
   process.env.NEXT_PUBLIC_MOCK_UE === "true" ||
   process.env.NEXT_PUBLIC_STREAMPIXEL_MOCK === "true";
 
-function resolveLiveIndex(
-  rule: CameraRule,
-  live: ConfiguratorCamera[],
-): number | null {
-  // Prefer mock/session index so zone bar works without waiting for UE
-  if (rule.index != null && !Number.isNaN(Number(rule.index))) {
-    return Number(rule.index);
-  }
-  const hit = live.find(
-    (c) =>
-      c.name === rule.name &&
-      (!rule.mode ||
-        !c.mode ||
-        c.mode === rule.mode ||
-        c.mode.includes(rule.mode)),
-  );
-  if (hit?.index != null) return Number(hit.index);
-  const byName = live.find((c) => c.name === rule.name);
-  return byName?.index != null ? Number(byName.index) : null;
-}
-
 const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const { params, setParams } = useShareableParams(projectId);
-  const viewOnly = Boolean(params.designCode);
+  const viewOnly = Boolean(params.view);
   const unitId = params.unit?.trim() || null;
+  const backendProjectId =
+    params.backendProjectId?.trim() || DEMO_BACKEND_PROJECT_ID;
+  const layoutCode = params.layoutCode?.trim() || DEFAULT_LAYOUT_CODE;
+
+  const returningVisitRef = useRef(false);
+  const designCodeRef = useRef<string | null>(params.designCode ?? null);
+  const [designCode, setDesignCode] = useState<string | null>(
+    params.designCode ?? null,
+  );
 
   const [session, setSession] = useState<ConfiguratorSession | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -120,6 +117,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [customizationRequiredOpen, setCustomizationRequiredOpen] =
+    useState(false);
   const [streamOverlayDismissed, setStreamOverlayDismissed] = useState(false);
   const [browseStylesOpen, setBrowseStylesOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -128,14 +127,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [success, setSuccess] = useState<SubmitDesignResult | null>(null);
   const [ueSyncStatus, setUeSyncStatus] = useState<string | null>(null);
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
-  const [ueSyncNonce, setUeSyncNonce] = useState(0);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
     matchZoneId(params.zone),
   );
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [freeCameraActive, setFreeCameraActive] = useState(
-    () => params.camera == null,
+    () => !params.camera,
   );
   const [activeCameraKey, setActiveCameraKey] = useState<string | null>(null);
   const [activeRule, setActiveRule] = useState<CameraRule | null>(null);
@@ -148,6 +147,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const loadedLevelRef = useRef<string | null>(null);
   const lastZoneInUrlRef = useRef<string | null>(params.zone ?? null);
   const freeModeRef = useRef(true);
+  const cameraParamRef = useRef<string | null>(params.camera ?? null);
+  cameraParamRef.current = params.camera ?? null;
+  const lastUeResponseKeyRef = useRef<string>("");
+  const lastUeResponseAtRef = useRef(0);
+  const ignoreUeZoneUntilRef = useRef(0);
+  const zoneEnterTimerRef = useRef<number | null>(null);
   const activeZoneIdRef = useRef<string | null>(activeZoneId);
   activeZoneIdRef.current = activeZoneId;
   const ingestRenderRef = useRef<(response: unknown) => void>(() => {});
@@ -167,58 +172,71 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const selections = useSelectionMap({
     streamProjectId: projectId,
-    unitId,
+    backendProjectId,
+    layoutCode,
+    designCode,
     session,
     viewOnly,
   });
 
   const handleUeResponse = useCallback(
     (response: unknown) => {
-      const custom = extractCustomizationEvent(response);
-      if (custom?.loadId) {
-        noteUeLoadId(custom.loadId);
-        if (unitId) saveUeLoadId(projectId, unitId, custom.loadId);
+      let parsed: unknown = response;
+      try {
+        parsed = parseUeResponse(response);
+      } catch {
+        parsed = response;
       }
+      const key = JSON.stringify(parsed);
+      const now = Date.now();
+      if (
+        key !== lastUeResponseKeyRef.current ||
+        now - lastUeResponseAtRef.current > 200
+      ) {
+        lastUeResponseKeyRef.current = key;
+        lastUeResponseAtRef.current = now;
+        console.info("[UE response]", parsed);
+      }
+
+      const ack = extractUeCommandAck(response);
+      if (ack) noteUeAck(ack);
+
+      const custom = extractCustomizationEvent(response);
+      if (custom?.kind === "saved") selections.markSaveStatus("saved");
+      if (custom?.kind === "error" && custom.op !== "load") {
+        selections.markSaveStatus("failed");
+      }
+      if (custom?.kind === "loaded" || custom?.kind === "error") {
+        noteCustomizationResult(custom.kind);
+      }
+      if (custom?.loadId) noteUeLoadId(custom.loadId);
       ingestRenderRef.current(response);
       if (capturePhaseRef.current === "capturing") return;
       cameraZone.applyCameraZoneUpdate(response);
+
       const data = extractCameraZoneFromResponse(response);
-      if (!data || viewOnly) return;
+      if (!data) return;
+      if (Date.now() < ignoreUeZoneUntilRef.current) return;
+      // Fixed camera is FE-owned. Free roam: UE zone enter updates URL zone.
+      if (cameraParamRef.current) return;
+      if (data.event === "exit") return;
 
-      if (data.event === "exit") {
-        freeModeRef.current = true;
-        setFreeCameraActive(true);
-        setActiveCameraKey(null);
-        setActiveRule(null);
-        setSidePanelOpen(false);
-        setParams({ camera: null }, { replace: true });
-        return;
+      const zid =
+        matchZoneId(data.zone) ?? zoneIdFromCamera(data.cameras[0] ?? undefined);
+      const zoneUe = zid ? (moveZoneName(zid) ?? zid) : normalizeZone(data.zone);
+      if (!zoneUe || zoneUe === lastZoneInUrlRef.current) return;
+      if (zoneEnterTimerRef.current != null) {
+        window.clearTimeout(zoneEnterTimerRef.current);
       }
-
-      const z = normalizeZone(data.zone);
-      if (z && z !== lastZoneInUrlRef.current) {
-        lastZoneInUrlRef.current = z;
-        setParams({ ...zoneUrlPatch(z) }, { replace: true });
-      }
-      const zid = matchZoneId(z) ?? zoneIdFromCamera(data.cameras[0]);
-      if (zid) {
-        // Keep Kitchen chip when UE reports LivingArea (same volume)
-        const keepKitchen =
-          !freeModeRef.current &&
-          activeZoneIdRef.current === "Kitchen" &&
-          zid === "LivingArea";
-        if (!keepKitchen) setActiveZoneId(zid);
-      }
-
-      // Free roam into a zone: highlight zone chip; panel stays closed
-      if (freeModeRef.current) {
-        setFreeCameraActive(true);
-        setSidePanelOpen(false);
-      } else {
-        setFreeCameraActive(false);
-      }
+      zoneEnterTimerRef.current = window.setTimeout(() => {
+        zoneEnterTimerRef.current = null;
+        if (cameraParamRef.current) return;
+        if (Date.now() < ignoreUeZoneUntilRef.current) return;
+        lastZoneInUrlRef.current = zoneUe;
+        setParams({ zone: zoneUe, camera: null }, { replace: true });
+      }, 180);
     },
-    [cameraZone, setParams, viewOnly, unitId, projectId],
+    [cameraZone, selections, setParams],
   );
 
   const stream = useStreamPixel({
@@ -242,8 +260,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const send = useCallback(
     (payload: Parameters<typeof sendUEInteraction>[0]) => {
+      const fn = (payload as { Function?: string }).Function;
+      if (fn !== "ConfiguratorReadyProbe") {
+        console.info("[UE send]", payload);
+      }
       if (MOCK_UE) {
-        console.info("[mock UE]", payload);
+        if (fn !== "ConfiguratorReadyProbe") {
+          console.info("[mock UE]", payload);
+        }
         return true;
       }
       return sendUEInteraction(payload);
@@ -256,6 +280,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     mockUe: MOCK_UE,
     sceneConfig,
     videoContainerRef,
+    designCode,
   });
   ingestRenderRef.current = finalDesign.ingestUeResponse;
   capturePhaseRef.current = finalDesign.phase;
@@ -273,75 +298,63 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   }, [stream.pixelStreamingRef, stream.streamReadyRef]);
 
   const runUeSync = useCallback(
-    async (opts?: {
-      force?: boolean;
-      skipLoadLevel?: boolean;
-      forceLoadLevel?: boolean;
-    }) => {
+    async (opts?: { force?: boolean; skipLoadLevel?: boolean }) => {
       if (!session) return;
       if (viewOnly && !design) return;
 
-      const finishes =
-        viewOnly && design
-          ? design.configuration.selections
-          : unitId
-            ? (loadDraft(projectId, unitId)?.selections ?? [])
-            : [];
-      const hasFinishes = finishes.length > 0;
-
+      const code = designCodeRef.current;
       setUeSyncError(null);
-      if (hasFinishes) {
-        setUeSyncStatus("Applying finishes…");
+      if (returningVisitRef.current && code) {
+        setUeSyncStatus("Loading saved customization…");
       }
+
+      ignoreUeZoneUntilRef.current = Date.now() + 6000;
 
       const zone = normalizeZone(params.zone);
       const camera = params.camera ?? null;
-      const levelName = params.level || session.levelName;
-      const defaultBoot = "2BHK_Type_2_Updated";
+      const levelName = session.layoutCode || layoutCode;
 
-      if (camera != null) {
-        const rule = session.cameras.find(
-          (c) => c.index !== undefined && Number(c.index) === Number(camera),
-        );
+      if (camera) {
+        const rule = session.cameras.find((c) => c.name === camera);
         const camObj: ConfiguratorCamera = rule
-          ? { name: rule.name, index: Number(rule.index), mode: rule.mode }
-          : { name: `Camera ${camera}`, index: camera };
+          ? { name: rule.name, index: Number(rule.index ?? 0), mode: rule.mode }
+          : { name: camera, index: 0 };
         cameraZone.hydrateFromShare({
           zone,
           cameras: [camObj],
-          activeIndex: camera,
+          activeIndex: rule?.index != null ? Number(rule.index) : 0,
         });
         const zid = matchZoneId(zone) ?? zoneIdFromCamera(camObj);
         if (zid) setActiveZoneId(zid);
+        setActiveRule(rule ?? null);
+        setActiveCameraKey(rule ? cameraKey(rule) : camera);
+        setFreeCameraActive(false);
+        freeModeRef.current = false;
       } else if (zone) {
         const zid = matchZoneId(zone);
         if (zid) setActiveZoneId(zid);
+        setFreeCameraActive(true);
+        freeModeRef.current = true;
       }
 
       try {
         const ok = await syncDraftToUe({
           send,
           isUeReady,
-          streamProjectId: projectId,
-          unitId,
-          levelName,
+          layoutCode: levelName,
+          designCode: code,
+          returningVisit: returningVisitRef.current,
+          selections: selections.selections,
+          defaults: session.defaults,
           zone,
-          camera,
-          designSelections:
-            viewOnly && design ? design.configuration.selections : null,
-          // Stream usually boots into 2BHK — only LoadLevel when URL asks for another plan
-          skipLoadLevel:
-            opts?.skipLoadLevel ??
-            (!opts?.forceLoadLevel && levelName === defaultBoot),
-          forceLoadLevel: opts?.forceLoadLevel,
+          camera: camera ?? null,
+          skipLoadLevel: opts?.skipLoadLevel,
           force: opts?.force,
           mockLog: MOCK_UE,
-          onProgress: (msg) => {
-            if (hasFinishes) setUeSyncStatus(msg);
-          },
+          onProgress: (msg) => setUeSyncStatus(msg),
         });
 
-        if (ok || !hasFinishes) {
+        if (ok) {
           appliedReadyRef.current = true;
           loadedLevelRef.current = levelName;
           setUeSyncStatus(null);
@@ -349,18 +362,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         } else {
           appliedReadyRef.current = false;
           setUeSyncStatus(null);
-          setUeSyncError(
-            "Could not apply all finishes. Retry when the stream is ready.",
-          );
+          setUeSyncError("Could not restore the stream. Retry when ready.");
         }
       } catch {
         setUeSyncStatus(null);
-        if (hasFinishes) {
-          setUeSyncError("Sync failed. Retry when the stream is ready.");
-        } else {
-          setUeSyncError(null);
-          appliedReadyRef.current = true;
-        }
+        setUeSyncError("Sync failed. Retry when the stream is ready.");
       }
     },
     [
@@ -369,12 +375,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       design,
       params.zone,
       params.camera,
-      params.level,
+      layoutCode,
       cameraZone,
       send,
       isUeReady,
-      projectId,
-      unitId,
+      selections.selections,
     ],
   );
 
@@ -389,52 +394,49 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       setSessionError(null);
       setDesignError(null);
 
-      if (!unitId && !params.designCode) {
-        setSessionError(
-          "Missing ?unit= in the URL. Example: ?unit=LO-APT-2BHK-T02",
-        );
-        setSessionLoading(false);
-        return;
-      }
-
       try {
-        if (params.designCode) {
-          const stored = await getDesign(params.designCode);
-          if (cancelled) return;
-          setDesign(stored);
-          const unit = stored.unitId || unitId || "LO-APT-2BHK-T02";
-          const sess = await getConfiguratorSession({
-            unitId: unit,
-            streamProjectId: projectId,
-            levelName: params.level || stored.configuration.levelName,
-          });
-          if (cancelled) return;
-          setSession(sess);
-          if (!params.unit) {
-            setParams(
-              { unit, level: stored.configuration.levelName },
-              { replace: true },
-            );
-          }
-        } else if (unitId) {
-          const sess = await getConfiguratorSession({
-            unitId,
-            streamProjectId: projectId,
-            levelName: params.level || undefined,
-          });
-          if (cancelled) return;
-          setSession(sess);
-          if (!params.level) {
-            setParams({ level: sess.levelName }, { replace: true });
+        if (viewOnly && params.designCode) {
+          try {
+            const stored = await getDesign(params.designCode);
+            if (cancelled) return;
+            setDesign(stored);
+          } catch {
+            /* view-only share is optional; catalog still loads */
           }
         }
+
+        const sess = await getConfiguratorSession({
+          streamProjectId: projectId,
+          backendProjectId,
+          layoutCode,
+          unitId,
+        });
+        if (cancelled) return;
+        setActiveCatalogZones(sess.zones);
+        setSession(sess);
+
+        const ensured = ensureDesignCode({
+          streamProjectId: projectId,
+          projectId: backendProjectId,
+          layoutCode: sess.layoutCode,
+          urlDesignCode: params.designCode,
+        });
+        returningVisitRef.current = ensured.returning;
+        designCodeRef.current = ensured.designCode;
+        setDesignCode(ensured.designCode);
+
+        setParams(
+          {
+            backendProjectId: sess.backendProjectId,
+            layoutCode: sess.layoutCode,
+            designCode: ensured.designCode,
+            unit: unitId,
+          },
+          { replace: true },
+        );
       } catch (e: any) {
         if (cancelled) return;
-        if (params.designCode) {
-          setDesignError(e?.message ?? "Invalid design code");
-        } else {
-          setSessionError(e?.message ?? "Failed to load session");
-        }
+        setSessionError(e?.message ?? "Failed to load catalog");
       } finally {
         if (!cancelled) setSessionLoading(false);
       }
@@ -443,30 +445,18 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, unitId, params.designCode]);
+  }, [projectId, backendProjectId, layoutCode, viewOnly]);
 
-  // Hydrate selections after session ready — then force UE apply when draft exists
+  // Hydrate FE selections from storage only — never paint them onto UE
   useEffect(() => {
-    if (!session) return;
+    if (!session || !designCode) return;
     if (viewOnly && design) {
       selections.hydrateFromDesign(design.configuration.selections);
       return;
     }
-    if (!viewOnly && unitId) {
-      selections.hydrateFromStorage();
-      const draft = loadDraft(projectId, unitId);
-      if (draft?.selections?.length) {
-        console.info(
-          `[Configurator] localStorage has ${draft.selections.length} selection(s) — will apply to UE`,
-          draft.selections,
-        );
-        // Ensure sync effect re-runs after hydrate even if stream already ready
-        appliedReadyRef.current = false;
-        setUeSyncNonce((n) => n + 1);
-      }
-    }
+    if (!viewOnly) selections.hydrateFromStorage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, design, viewOnly, unitId]);
+  }, [session, design, viewOnly, designCode]);
 
   const designReady = Boolean(design);
 
@@ -491,11 +481,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     session,
     selections.hydrated,
     projectId,
-    unitId,
     viewOnly,
     designReady,
     params.designCode,
-    ueSyncNonce,
+    designCode,
   ]);
 
   useEffect(() => {
@@ -505,39 +494,69 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     }
   }, [stream.isLoading]);
 
-  // URL ?level= change → LoadLevel + re-apply localStorage finishes
+  // URL layout_code change → LoadLevel (customization restored via LoadCustomization)
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
-    const level = params.level || session.levelName;
+    const level = session.layoutCode || layoutCode;
     if (!level) return;
 
     if (loadedLevelRef.current == null) {
-      // First boot handled by runUeSync (LoadLevel when not default 2BHK)
       loadedLevelRef.current = level;
       return;
     }
     if (loadedLevelRef.current === level) return;
 
-    let cancelled = false;
     loadedLevelRef.current = level;
-    setUeSyncStatus(`Loading ${level}…`);
-
-    void (async () => {
-      send({ Function: "LoadLevel", LevelName: level });
-      await new Promise((r) => window.setTimeout(r, 2200));
-      if (cancelled) return;
-      await runUeSyncRef.current({ force: true, skipLoadLevel: true });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [params.level, stream.isLoading, session, selections.hydrated, send]);
+    void runUeSyncRef.current({ force: true });
+  }, [layoutCode, stream.isLoading, session, selections.hydrated]);
 
   const zoneCameras = useMemo(() => {
     if (!activeZoneId || !session) return [];
     return camerasForZone(activeZoneId, sceneConfig);
   }, [activeZoneId, session, sceneConfig]);
+
+  // URL is the view source of truth — keep top bar / panel in lockstep.
+  useEffect(() => {
+    if (!session) return;
+    const cameraName = params.camera?.trim() || null;
+    const urlZone = normalizeZone(params.zone);
+    const rule = cameraName
+      ? session.cameras.find((c) => c.name === cameraName)
+      : null;
+    const zoneId =
+      (rule ? zoneIdForCamera(rule) : null) ??
+      matchZoneId(urlZone) ??
+      (cameraName ? zoneIdFromCamera({ name: cameraName }) : null);
+    const zoneUe = zoneId ? (moveZoneName(zoneId) ?? zoneId) : null;
+
+    if (zoneId) setActiveZoneId(zoneId);
+    else setActiveZoneId(null);
+
+    if (rule) {
+      setActiveRule(rule);
+      setActiveCameraKey(cameraKey(rule));
+      setFreeCameraActive(false);
+      freeModeRef.current = false;
+    } else {
+      setActiveRule(null);
+      setActiveCameraKey(null);
+      setFreeCameraActive(true);
+      freeModeRef.current = true;
+      setSidePanelOpen(false);
+    }
+
+    if (rule && zoneUe && urlZone !== zoneUe) {
+      lastZoneInUrlRef.current = zoneUe;
+      setParams({ zone: zoneUe, camera: rule.name }, { replace: true });
+    } else if (zoneUe) {
+      lastZoneInUrlRef.current = zoneUe;
+    }
+  }, [session, params.zone, params.camera, setParams]);
+
+  const appliedPanelMap = useMemo(
+    () => appliedSelectionMap(session?.defaults, selections.map),
+    [session?.defaults, selections.map],
+  );
 
   const dockSelections = useMemo(() => {
     if (!session) return [];
@@ -562,134 +581,117 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const getMaterials = useCallback(
     (meshId: string): MaterialOption[] => {
-      if (!session) return getMaterialsForMesh(meshId);
+      if (!session) return [];
       const ids = session.materialsByMesh[meshId] ?? [];
-      if (!ids.length) return getMaterialsForMesh(meshId);
       const byId = new Map(session.materials.map((m) => [m.id, m]));
       return ids.map((id) => byId.get(id) ?? { id, displayName: id });
     },
     [session],
   );
 
-  const handleSelectZone = useCallback(
-    (zoneId: string) => {
-      if (!session) return;
-
-      setActiveZoneId(zoneId);
-      setSidePanelOpen(false);
-      setFreeCameraActive(false);
-      freeModeRef.current = false;
-
-      const enterName = moveZoneName(zoneId) ?? ueZoneName(zoneId);
-      const mockCams = zoneCamerasForUi(zoneId, sceneConfig);
-      const rules = camerasForZone(zoneId, sceneConfig);
-      const first = rules[0] ?? null;
-
-      // Seed from mock mesh-rules so cameras + meshes work immediately (like before)
-      cameraZone.hydrateFromShare({
-        zone: enterName,
-        cameras: mockCams,
-        activeIndex: first?.index != null ? Number(first.index) : null,
-      });
-      zoneCamerasRef.current = mockCams;
-
-      lastZoneInUrlRef.current = zoneId;
-      setParams(
-        {
-          ...zoneUrlPatch(zoneId),
-          camera: first?.index != null ? Number(first.index) : null,
-        },
-        { replace: true },
-      );
-
-      send({ Function: "MoveToZone", ZoneName: enterName });
-      send({ Function: "EnterZone", ZoneName: enterName });
-      send({ Function: "GoToZone", ZoneName: enterName });
-
-      if (first) {
-        setActiveRule(first);
-        setActiveCameraKey(cameraKey(first));
-        const idx = Number(first.index);
-        if (!Number.isNaN(idx)) {
-          cameraZone.setActiveCameraIndex(idx);
-          send({
-            Function: "SwitchCameraByIndex",
-            Index: idx,
-            ZoneName: enterName,
-          });
-        }
-      } else {
-        setActiveRule(null);
-        setActiveCameraKey(null);
-      }
-    },
-    [session, sceneConfig, cameraZone, setParams, send],
-  );
-
   const handleFreeCamera = useCallback(() => {
+    const alreadyFree = freeModeRef.current && !cameraParamRef.current;
+    ignoreUeZoneUntilRef.current = Date.now() + 1000;
+    if (zoneEnterTimerRef.current != null) {
+      window.clearTimeout(zoneEnterTimerRef.current);
+      zoneEnterTimerRef.current = null;
+    }
     freeModeRef.current = true;
+    cameraParamRef.current = null;
     setFreeCameraActive(true);
     setSidePanelOpen(false);
     setActiveCameraKey(null);
     setActiveRule(null);
     cameraZone.setActiveCameraIndex(null);
-    setParams({ camera: null }, { replace: true });
-    send({ Function: "ExitCamera" });
-  }, [cameraZone, setParams, send]);
+    const zone =
+      moveZoneName(activeZoneIdRef.current) ?? normalizeZone(params.zone);
+    lastZoneInUrlRef.current = zone;
+    setParams({ camera: null, zone }, { replace: true });
+    if (!alreadyFree) void exitCameraOnUe(send, { mockLog: MOCK_UE });
+  }, [cameraZone, setParams, send, params.zone]);
 
   const handleSelectCamera = useCallback(
     (rule: CameraRule) => {
+      const isActive = activeCameraKey === cameraKey(rule);
+      if (isActive) {
+        handleFreeCamera();
+        return;
+      }
+
+      const zoneId = zoneIdForCamera(rule);
+      const zoneUe = (zoneId ? moveZoneName(zoneId) : null) ?? zoneId;
+      ignoreUeZoneUntilRef.current = Date.now() + 1000;
+      if (zoneEnterTimerRef.current != null) {
+        window.clearTimeout(zoneEnterTimerRef.current);
+        zoneEnterTimerRef.current = null;
+      }
+      if (zoneId) setActiveZoneId(zoneId);
+      lastZoneInUrlRef.current = zoneUe;
+      cameraParamRef.current = rule.name;
+
       freeModeRef.current = false;
       setFreeCameraActive(false);
       setSidePanelOpen(true);
       setActiveRule(rule);
       setActiveCameraKey(cameraKey(rule));
-
-      const idx = resolveLiveIndex(rule, zoneCamerasRef.current);
-      const zoneId =
-        activeZoneId ??
-        matchZoneId(params.zone) ??
-        zoneIdFromCamera({ name: rule.name, mode: rule.mode });
-      const zone = moveZoneName(zoneId) ?? normalizeZone(params.zone);
-
-      if (idx != null) {
-        cameraZone.setActiveCameraIndex(idx);
-        setParams(
-          { camera: idx, ...zoneUrlPatch(activeZoneId ?? zone) },
-          { replace: true },
-        );
-        if (zone) {
-          send({ Function: "MoveToZone", ZoneName: zone });
-          send({ Function: "EnterZone", ZoneName: zone });
-        }
-        send({
-          Function: "SwitchCameraByIndex",
-          Index: idx,
-          ...(zone ? { ZoneName: zone } : {}),
-        });
-      } else {
-        console.warn("[Configurator] camera has no mock index", rule);
-        send({
-          Function: "SwitchCameraByName",
-          CameraName: rule.name,
-          ...(rule.mode ? { Mode: rule.mode } : {}),
-        });
-      }
+      setParams(
+        {
+          camera: rule.name,
+          zone: zoneUe,
+        },
+        { replace: true },
+      );
+      void switchCameraByNameOnUe(send, rule.name, { mockLog: MOCK_UE });
     },
-    [params.zone, activeZoneId, cameraZone, setParams, send],
+    [activeCameraKey, setParams, send, handleFreeCamera],
+  );
+
+  const handleSelectZone = useCallback(
+    (zoneId: string) => {
+      if (!session) return;
+      const sameZone = activeZoneIdRef.current === zoneId;
+      const lockedInZone = sameZone && Boolean(cameraParamRef.current);
+      if (lockedInZone) {
+        handleFreeCamera();
+        return;
+      }
+
+      const cams = camerasForZone(zoneId, sceneConfig);
+      const target = cams[0];
+      if (target) {
+        handleSelectCamera(target);
+        return;
+      }
+
+      ignoreUeZoneUntilRef.current = Date.now() + 1000;
+      const enterName = moveZoneName(zoneId) ?? zoneId;
+      lastZoneInUrlRef.current = enterName;
+      cameraParamRef.current = null;
+      setActiveZoneId(zoneId);
+      setSidePanelOpen(false);
+      setFreeCameraActive(true);
+      freeModeRef.current = true;
+      setActiveRule(null);
+      setActiveCameraKey(null);
+      cameraZone.setActiveCameraIndex(null);
+      setParams({ zone: enterName, camera: null }, { replace: true });
+      void exitCameraOnUe(send, { mockLog: MOCK_UE });
+    },
+    [session, sceneConfig, cameraZone, setParams, send, handleFreeCamera, handleSelectCamera],
   );
 
   const handleEditReviewSlot = useCallback(
     (slot: string) => {
       setReviewOpen(false);
       setQuoteDialogOpen(false);
+      setSelectionsOpen(false);
       if (!session) {
         setSidePanelOpen(true);
         return;
       }
       const rule =
         session.cameras.find((c) => c.slot === slot) ??
-        session.cameras.find((c) => slotFromCamera(c.name, c.mode) === slot);
+        session.cameras.find((c) => c.name === slot);
       if (rule) handleSelectCamera(rule);
       else setSidePanelOpen(true);
     },
@@ -711,9 +713,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       return;
     }
 
-    const fallbackZone = activeZoneId ?? "LivingArea";
-    if (!activeZoneId) {
+    const fallbackZone = activeZoneId ?? session.zones[0]?.id;
+    if (!activeZoneId && fallbackZone) {
       handleSelectZone(fallbackZone);
+    }
+    if (!fallbackZone) {
+      setSidePanelOpen(true);
+      return;
     }
     const first = camerasForZone(fallbackZone, sceneConfig)[0];
     if (first) handleSelectCamera(first);
@@ -731,7 +737,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const handleSelectMesh = useCallback(
     (mesh: MeshOption) => {
       if (viewOnly) return;
-      const slot = mesh.slot || slotFromMeshId(mesh.id);
+      const slot = activeRule?.slot || activeRule?.name || mesh.slot || mesh.id;
       if (!slot) return;
 
       const mats = getMaterials(mesh.id);
@@ -748,56 +754,46 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         meshId: mesh.id,
         materialId,
         cameraId: activeRule?.name,
-        cameraIndex:
-          activeRule?.index != null ? Number(activeRule.index) : undefined,
       };
 
       if (!selections.select(entry)) return;
 
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
-        skipMove: true,
-        unitId,
-        streamProjectId: projectId,
+        designCode: designCodeRef.current,
+        onSaveStatus: selections.markSaveStatus,
       });
     },
-    [viewOnly, getMaterials, selections, activeRule, send, unitId, projectId],
+    [viewOnly, getMaterials, selections, activeRule, send],
   );
 
   const handleRemoveSelection = useCallback(
     (slot: string) => {
       if (viewOnly) return;
       selections.removeSlot(slot);
-      invalidateUeSyncCache();
-      if (!session) return;
-      const remaining = (
-        (unitId ? loadDraft(projectId, unitId)?.selections : null) ??
-        selections.selections
-      ).filter((s) => s.slot !== slot);
-      void revertSlotOnUe(send, session, slot, remaining, {
-        mockLog: MOCK_UE,
-        zone: normalizeZone(params.zone),
-        camera: params.camera ?? null,
-        unitId,
-        streamProjectId: projectId,
-      });
+      const fallback = session?.defaults?.find((d) => d.slot === slot);
+      if (fallback) {
+        void applyOneSelectionToUe(send, fallback, {
+          mockLog: MOCK_UE,
+          designCode: designCodeRef.current,
+          onSaveStatus: selections.markSaveStatus,
+        });
+        return;
+      }
+      if (designCodeRef.current) {
+        selections.markSaveStatus("saving");
+        void saveCustomizationToUe(send, designCodeRef.current, {
+          mockLog: MOCK_UE,
+        }).then((ok) => selections.markSaveStatus(ok ? "saved" : "failed"));
+      }
     },
-    [
-      viewOnly,
-      selections,
-      session,
-      send,
-      params.zone,
-      params.camera,
-      unitId,
-      projectId,
-    ],
+    [viewOnly, selections, session, send],
   );
 
   const handleLoadLevel = useCallback(
     (levelName: string) => {
       if (viewOnly) return;
-      setParams({ level: levelName }, { replace: true });
+      setParams({ layoutCode: levelName }, { replace: true });
     },
     [viewOnly, setParams],
   );
@@ -805,38 +801,58 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const handleSelectMaterial = useCallback(
     (meshId: string, material: MaterialOption) => {
       if (viewOnly) return;
-      const slot = slotFromMeshId(meshId);
+      const slot = activeRule?.slot || activeRule?.name || meshId;
       const entry: SelectionEntry = {
         slot,
         meshId,
         materialId: material.id,
         cameraId: activeRule?.name,
-        cameraIndex:
-          activeRule?.index != null ? Number(activeRule.index) : undefined,
       };
       if (!selections.select(entry)) return;
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
-        skipMove: true,
-        unitId,
-        streamProjectId: projectId,
+        designCode: designCodeRef.current,
+        onSaveStatus: selections.markSaveStatus,
       });
     },
-    [viewOnly, activeRule, selections, send, unitId, projectId],
+    [viewOnly, activeRule, selections, send, session],
   );
 
+  const handleOpenQuote = useCallback(() => {
+    setSelectionsOpen(false);
+    setSettingsOpen(false);
+    setSidePanelOpen(false);
+    if (!selections.selections.length) {
+      setCustomizationRequiredOpen(true);
+      return;
+    }
+    setQuoteDialogOpen(true);
+  }, [selections.selections.length]);
+
   const handleReset = useCallback(() => {
+    setResetDialogOpen(true);
+  }, []);
+
+  const confirmReset = useCallback(() => {
+    setResetDialogOpen(false);
     selections.resetAll();
     invalidateUeSyncCache();
     void (async () => {
-      await resetCustomizationOnUe(send, { mockLog: MOCK_UE });
-      await restoreCameraZoneToUe(send, {
-        zone: normalizeZone(params.zone),
-        camera: params.camera ?? null,
-        mockLog: MOCK_UE,
-      });
+      selections.markSaveStatus("saving");
+      await resetToDefaultOnUe(send, { mockLog: MOCK_UE });
+      if (designCodeRef.current) {
+        const ok = await saveCustomizationToUe(send, designCodeRef.current, {
+          mockLog: MOCK_UE,
+        });
+        selections.markSaveStatus(ok ? "saved" : "failed");
+      } else {
+        selections.markSaveStatus("saved");
+      }
+      const zone = moveZoneName(activeZoneId) ?? normalizeZone(params.zone);
+      if (zone) await moveToZoneOnUe(send, zone, { mockLog: MOCK_UE });
+      handleFreeCamera();
     })();
-  }, [selections, send, params.zone, params.camera]);
+  }, [selections, send, params.zone, activeZoneId, handleFreeCamera]);
 
   const handleChangeResolution = useCallback(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
@@ -863,18 +879,18 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const handleSubmit = useCallback(
     async (contact: { name: string; email: string; phone: string }) => {
-      if (!session || !unitId) return;
+      if (!session) return;
       setSubmitPending(true);
       setSubmitError(null);
       try {
         const result = await submitDesign({
           streamProjectId: projectId,
-          unitId,
+          unitId: unitId || "catalog",
           session,
           contact,
           configuration: {
             version: 1,
-            levelName: params.level || session.levelName,
+            levelName: session.layoutCode,
             selections: selections.selections,
             meta: { source: "submit" },
           },
@@ -887,9 +903,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         setParams(
           {
             designCode: result.designCode,
-            level: params.level || session.levelName,
+            layoutCode: session.layoutCode,
             unit: unitId,
             camera: params.camera,
+            view: true,
             ...zoneUrlPatch(params.zone),
           },
           { replace: true },
@@ -916,7 +933,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const handleStartOwn = useCallback(() => {
     setDesign(null);
     setSuccess(null);
-    setParams({ designCode: null }, { replace: true });
+    setParams({ view: false }, { replace: true });
     selections.resetAll();
   }, [setParams, selections]);
 
@@ -991,7 +1008,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           }
           unitSubtitle={reviewUnitSubtitle(
             unitId,
-            params.level || session?.levelName,
+            params.layoutCode || session?.layoutCode,
           )}
           queuePosition={stream.queuePosition}
           selectionCount={selections.selections.length}
@@ -1035,7 +1052,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             className="cfg-primary-btn"
             onClick={() => {
               setUeSyncError(null);
-              setUeSyncNonce((n) => n + 1);
+              void runUeSyncRef.current({ force: true });
             }}
           >
             Re-apply finishes
@@ -1066,15 +1083,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       {!stream.isLoading && session && (
         <div inert={showAfkWarning ? true : undefined}>
           <ZoneTopBar
+            zones={session.zones}
             activeZoneId={activeZoneId}
             freeCameraActive={freeCameraActive}
-            onSelectZone={(zoneId) => {
-              if (zoneId === activeZoneId && !freeCameraActive) {
-                handleFreeCamera();
-                return;
-              }
-              handleSelectZone(zoneId);
-            }}
+            onSelectZone={handleSelectZone}
+            onFreeCamera={handleFreeCamera}
             cameras={zoneCameras}
             activeCameraKey={activeCameraKey}
             onSelectCamera={handleSelectCamera}
@@ -1086,7 +1099,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               activeCameraKey={activeCameraKey}
               onSelectCamera={handleSelectCamera}
               meshes={panelMeshes}
-              selectionMap={selections.map}
+              selectionMap={appliedPanelMap}
               onSelectMesh={handleSelectMesh}
               getMaterials={getMaterials}
               onSelectMaterial={handleSelectMaterial}
@@ -1101,9 +1114,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               viewOnly
                 ? "saved"
                 : selections.saveStatus === "idle"
-                  ? selections.selections.length
-                    ? "saved"
-                    : "unsaved"
+                  ? "saved"
                   : selections.saveStatus
             }
             selectionsOpen={selectionsOpen}
@@ -1118,15 +1129,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             viewOnly={viewOnly}
             materialsOpen={sidePanelOpen && !freeCameraActive}
             onShowMaterials={handleShowMaterials}
-            onQuote={() => {
-              setSelectionsOpen(false);
-              setSettingsOpen(false);
-              setSidePanelOpen(false);
-              setQuoteDialogOpen(true);
-            }}
+            onQuote={handleOpenQuote}
             selectedItems={dockSelections}
             levels={[]}
-            activeLevel={params.level || session.levelName}
+            activeLevel={session.layoutCode}
             onLoadLevel={handleLoadLevel}
           />
 
@@ -1174,6 +1180,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             }}
           />
 
+          <CustomizationRequiredDialog
+            open={customizationRequiredOpen && !viewOnly}
+            onClose={() => setCustomizationRequiredOpen(false)}
+          />
+
           <ReviewSelections
             open={reviewOpen && !viewOnly}
             session={session}
@@ -1203,10 +1214,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           <FinalDesignProgress
             open={finalDesign.phase === "capturing"}
             rooms={finalDesign.rooms}
-            unitSubtitle={reviewUnitSubtitle(
-              unitId,
-              params.level || session.levelName,
-            )}
+            unitSubtitle={reviewUnitSubtitle(unitId, session.layoutCode)}
             error={finalDesign.globalError}
             submitPending={submitPending}
             submitError={submitError}
@@ -1232,12 +1240,22 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             selections={selections.selections}
             onBack={finalDesign.backToCustomize}
             onQuote={() => {
+              if (!selections.selections.length) {
+                setCustomizationRequiredOpen(true);
+                return;
+              }
               finalDesign.backToCustomize();
               setReviewOpen(true);
             }}
           />
         </>
       ) : null}
+
+      <ResetToDefaultDialog
+        open={resetDialogOpen}
+        onCancel={() => setResetDialogOpen(false)}
+        onConfirm={confirmReset}
+      />
     </div>
   );
 };

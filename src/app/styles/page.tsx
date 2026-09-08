@@ -12,6 +12,7 @@ type PageProps = {
     project?: string;
     unit?: string;
     level?: string;
+    layout_code?: string;
   }>;
 };
 
@@ -21,7 +22,7 @@ const StylesPage = async ({ searchParams }: PageProps) => {
     <SelectStyle
       projectSlug={query.project}
       unitId={query.unit}
-      levelName={query.level}
+      levelName={query.layout_code || query.level}
     />
   );
 };

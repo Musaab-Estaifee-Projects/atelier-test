@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
 import { RESOLUTION_OPTIONS } from "@/lib/stream-pixel/types";
 import CloudSaved from "../icons/configurator/cloud-saved";
+import CloudSlash from "../icons/configurator/cloud-slash";
 import Diamond from "../icons/configurator/diamond";
 import Expand from "../icons/configurator/expand";
 import Settings from "../icons/configurator/settings";
 import Reset from "../icons/configurator/reset";
 import Pen from "../icons/configurator/pen";
+import EmptySelectionIcon from "../icons/configurator/empty-selection-icon";
 
-export type SaveStatus = "idle" | "saving" | "saved" | "unsaved";
+export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
 export type DockSelectionPreview = {
   slot: string;
@@ -46,8 +48,8 @@ function saveLabel(status: SaveStatus, viewOnly?: boolean): string {
       return "Saving…";
     case "saved":
       return "Saved";
-    case "unsaved":
-      return "Not saved";
+    case "failed":
+      return "Save failed";
     default:
       return "Saved";
   }
@@ -105,7 +107,7 @@ const ConfiguratorDock = ({
   const summary =
     selectedItems.length > 0
       ? selectedItems.map((item) => item.label).join(" , ")
-      : "No selections yet";
+      : "No items selected";
 
   return (
     <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]">
@@ -134,69 +136,73 @@ const ConfiguratorDock = ({
 
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="relative flex items-center">
-              <span className="flex items-center">
-                {(selectedItems.length
-                  ? selectedItems
-                  : [
-                      {
-                        slot: "empty-1",
-                        label: "",
-                        thumbnailUrl: "/images/configurator/swatch-1.png",
-                      },
-                      {
-                        slot: "empty-2",
-                        label: "",
-                        thumbnailUrl: "/images/configurator/swatch-2.png",
-                      },
-                      {
-                        slot: "empty-3",
-                        label: "",
-                        thumbnailUrl: "/images/configurator/swatch-3.png",
-                      },
-                    ]
-                )
-                  .slice(0, 3)
-                  .map((item, index, list) => (
-                    <span
-                      key={item.slot}
-                      className={`relative size-8 overflow-clip rounded-full border-[1.2px] border-white ${
-                        index < list.length - 1 ? "-mr-2.5" : ""
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.thumbnailUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </span>
-                  ))}
-              </span>
-              <button
-                type="button"
-                className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
-                onClick={onToggleSelections}
-                aria-pressed={selectionsOpen}
-                aria-label="Edit selected items"
-                title="Edit selected items"
-              >
-                <span className="relative block size-[10.5px] overflow-clip">
-                  <Pen className="w-full h-full" />
+            {selectedItems.length > 0 ? (
+              <span className="relative flex items-center">
+                <span className="flex items-center">
+                  {(selectedItems.length
+                    ? selectedItems
+                    : [
+                        {
+                          slot: "empty-1",
+                          label: "",
+                          thumbnailUrl: "/images/configurator/swatch-1.png",
+                        },
+                        {
+                          slot: "empty-2",
+                          label: "",
+                          thumbnailUrl: "/images/configurator/swatch-2.png",
+                        },
+                        {
+                          slot: "empty-3",
+                          label: "",
+                          thumbnailUrl: "/images/configurator/swatch-3.png",
+                        },
+                      ]
+                  )
+                    .slice(0, 3)
+                    .map((item, index, list) => (
+                      <span
+                        key={item.slot}
+                        className={`relative size-8 overflow-clip rounded-full border-[1.2px] border-white ${
+                          index < list.length - 1 ? "-mr-2.5" : ""
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.thumbnailUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                    ))}
                 </span>
-              </button>
-            </span>
+                <button
+                  type="button"
+                  className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
+                  onClick={onToggleSelections}
+                  aria-pressed={selectionsOpen}
+                  aria-label="Edit selected items"
+                  title="Edit selected items"
+                >
+                  <span className="relative block size-[10.5px] overflow-clip">
+                    <Pen className="w-full h-full" />
+                  </span>
+                </button>
+              </span>
+            ) : (
+              <EmptySelectionIcon />
+            )}
             <button
               type="button"
-              className="hidden min-w-0 flex-col items-start gap-1.5 sm:flex"
+              className="hidden min-w-0 flex-col items-start gap-1 sm:flex"
               onClick={onToggleSelections}
               aria-pressed={selectionsOpen}
               title="Selected items"
             >
-              <span className="font-sans text-[10px] uppercase tracking-[1.1px] text-white/70">
+              <span className="font-sans text-[0.625rem] uppercase tracking-[0.06875rem] text-white/70">
                 Selected Items
               </span>
-              <span className="max-w-36 truncate font-sans text-[13px] leading-[1.16] text-white">
+              <span className="max-w-36 truncate font-sans text-[0.8125rem] leading-[1.16] text-white">
                 {summary}
               </span>
             </button>
@@ -206,21 +212,25 @@ const ConfiguratorDock = ({
             icon={<Reset className="w-full h-full" />}
             label="Reset selections"
             onClick={onReset}
-            disabled={viewOnly}
+            disabled={viewOnly || selectedItems.length === 0}
           />
 
           <span
-            className={`relative block size-8 shrink-0 overflow-clip ${
+            className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
               saveStatus === "saving"
                 ? "opacity-70"
-                : saveStatus === "unsaved"
-                  ? "opacity-55"
+                : saveStatus === "failed"
+                  ? "opacity-90"
                   : ""
             }`}
             title={saveLabel(saveStatus, viewOnly)}
             aria-label={saveLabel(saveStatus, viewOnly)}
           >
-            <CloudSaved className="w-full h-full" />
+            {saveStatus === "failed" ? (
+              <CloudSlash className="size-4.5" />
+            ) : (
+              <CloudSaved className="w-full h-full" />
+            )}
           </span>
         </div>
 
@@ -232,8 +242,8 @@ const ConfiguratorDock = ({
             onClick={onQuote}
             disabled={viewOnly}
           >
-            <span className="hidden sm:inline">Get My Quotation</span>
-            <span className="sm:hidden">Quote</span>
+            <span className="hidden sm:inline uppercase">Get My Quotation</span>
+            <span className="sm:hidden uppercase">Quote</span>
           </Button>
         ) : null}
 

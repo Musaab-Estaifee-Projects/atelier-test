@@ -196,12 +196,16 @@ export function getMeshesForCamera(
       (c.index !== undefined &&
         c.index !== null &&
         Number(c.index) === Number(camera.index)) ||
+      c.name === camera.name ||
       (c.name === camera.name &&
         (!c.mode || !camera.mode || c.mode === camera.mode)),
   );
 
   if (!configCam?.meshIds?.length) return [];
-  return configCam.meshIds.map((id) => ({ id, displayName: id }));
+  const byId = new Map(rules.meshes.map((m) => [m.id, m]));
+  return configCam.meshIds.map(
+    (id) => byId.get(id) ?? { id, displayName: id, slot: configCam.slot },
+  );
 }
 
 /**

@@ -58,12 +58,13 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
       const design = await getDesign(reference);
       router.push(
         configuratorHref(
-          {
-            streamProjectId: design.streamProjectId,
-            unitId: design.unitId,
-            levelName: design.configuration.levelName,
-          },
-          { designCode: design.designCode },
+            {
+              streamProjectId: design.streamProjectId,
+              unitId: design.unitId,
+              levelName: design.configuration.levelName,
+              layoutCode: design.configuration.levelName,
+            },
+            { designCode: design.designCode, view: true },
         ),
       );
     } catch {

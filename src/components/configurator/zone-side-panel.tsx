@@ -12,7 +12,6 @@ import {
   finishTypeDisplayName,
   surfaceDisplayLabel,
 } from "@/lib/configurator/zone-catalog";
-import { slotFromMeshId } from "@/mocks/configurator/session";
 import SidePanelClear from "../icons/configurator/side-panel-clear";
 import SidePanelClose from "../icons/configurator/side-panel-close";
 import PanelFrame from "../icons/configurator/panel-frame";
@@ -31,10 +30,6 @@ type Props = {
   onClose: () => void;
 };
 
-function meshSlot(mesh: MeshOption): string {
-  return mesh.slot || slotFromMeshId(mesh.id);
-}
-
 const ZoneSidePanel = ({
   cameras,
   activeCameraKey,
@@ -51,7 +46,7 @@ const ZoneSidePanel = ({
   const activeCamera =
     cameras.find((cam) => cameraKey(cam) === activeCameraKey) ?? null;
   const activeSlot =
-    activeCamera?.slot || (meshes[0] ? meshSlot(meshes[0]) : "");
+    activeCamera?.slot || activeCamera?.name || meshes[0]?.slot || "";
   const activeEntry = activeSlot ? selectionMap[activeSlot] : undefined;
   const activeMesh =
     meshes.find((mesh) => mesh.id === activeEntry?.meshId) ?? null;
@@ -120,6 +115,20 @@ const ZoneSidePanel = ({
                 </button>
               ) : null}
             </div>
+          ) : activeMesh ? (
+            <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
+              <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={finishThumb(activeMesh.id, activeMesh.thumbnailUrl)}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              </span>
+              <p className="min-w-0 flex-1 truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
+                {finishTypeDisplayName(activeMesh)}
+              </p>
+            </div>
           ) : (
             <p className="rounded-full bg-white/5 px-4 py-3 font-sans text-[12px] text-white/60">
               No finish selected for this surface
@@ -185,7 +194,7 @@ const ZoneSidePanel = ({
                       <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={finishThumb(mesh.id)}
+                          src={finishThumb(mesh.id, mesh.thumbnailUrl)}
                           alt=""
                           className="h-full w-full object-cover"
                         />

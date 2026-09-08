@@ -19,13 +19,20 @@ export function estimatePriceFromSession(
   let total = 0;
   for (const sel of list) {
     const mat = matById.get(sel.materialId);
-    if (!mat) continue;
-    if (mat.fixedPrice != null) {
-      total += mat.fixedPrice;
+    if (mat) {
+      if (mat.fixedPrice != null) {
+        total += mat.fixedPrice;
+        continue;
+      }
+      const area = areaByMesh.get(sel.meshId) ?? 1;
+      total += (mat.pricePerSqm ?? 0) * area;
       continue;
     }
-    const area = areaByMesh.get(sel.meshId) ?? 1;
-    total += (mat.pricePerSqm ?? 0) * area;
+    const mesh = session.meshes.find((m) => m.id === sel.meshId);
+    if (mesh?.pricePerSqm) {
+      const area = areaByMesh.get(sel.meshId) ?? 1;
+      total += mesh.pricePerSqm * area;
+    }
   }
   return Math.round(total);
 }

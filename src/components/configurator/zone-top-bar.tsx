@@ -4,7 +4,6 @@ import AtelierLogo from "@/components/icons/atelier-logo";
 import ReefWord from "@/components/icons/reef-word";
 import type { CameraRule } from "@/types/configurator";
 import {
-  CONFIGURATOR_ZONES,
   cameraKey,
   surfaceDisplayLabel,
   zoneDisplayLabel,
@@ -12,9 +11,11 @@ import {
 import ByWord from "../icons/by-word";
 
 type Props = {
+  zones: { id: string; label: string }[];
   activeZoneId: string | null;
   freeCameraActive: boolean;
   onSelectZone: (zoneId: string) => void;
+  onFreeCamera: () => void;
   cameras: CameraRule[];
   activeCameraKey: string | null;
   onSelectCamera: (camera: CameraRule) => void;
@@ -28,15 +29,17 @@ const chip =
   "h-8 shrink-0 rounded-full px-[13px] font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white whitespace-nowrap transition hover:bg-white/10 disabled:opacity-40";
 
 export default function ZoneTopBar({
+  zones,
   activeZoneId,
   freeCameraActive,
   onSelectZone,
+  onFreeCamera,
   cameras,
   activeCameraKey,
   onSelectCamera,
   disabled,
 }: Props) {
-  const zoneSelected = Boolean(activeZoneId) && !freeCameraActive;
+  const zoneSelected = Boolean(activeZoneId);
   const showSurfaces = zoneSelected && cameras.length > 0;
 
   return (
@@ -49,7 +52,19 @@ export default function ZoneTopBar({
 
       <nav className={glassPill} aria-label="Apartment zones">
         <ul className="m-0 flex list-none items-center overflow-x-auto p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {CONFIGURATOR_ZONES.map((z) => {
+          <li>
+            <button
+              type="button"
+              className={`${chip}${freeCameraActive ? " bg-white/10" : " opacity-80"}`}
+              disabled={disabled}
+              onClick={onFreeCamera}
+              aria-pressed={freeCameraActive}
+              title="Free camera"
+            >
+              Free
+            </button>
+          </li>
+          {zones.map((z) => {
             const active = zoneSelected && activeZoneId === z.id;
             return (
               <li key={z.id}>
