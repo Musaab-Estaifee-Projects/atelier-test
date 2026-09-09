@@ -22,6 +22,7 @@ export type SyncToUeArgs = {
   returningVisit: boolean;
   selections?: SelectionEntry[];
   defaults?: SelectionEntry[];
+  materialsByMesh?: Record<string, string[]>;
   zone?: string | null;
   camera?: string | null;
   skipLoadLevel?: boolean;
@@ -102,7 +103,7 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
     }
 
     if (!args.skipLoadLevel && args.layoutCode) {
-      args.onProgress?.(`Loading level ${args.layoutCode}…`);
+      args.onProgress?.("Opening your apartment…");
       const levelOk = await loadLevelOnUe(args.send, args.layoutCode, {
         mockLog: args.mockLog,
       });
@@ -122,7 +123,7 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
       if (!streamOk) {
         console.warn("[UE sync] skip LoadCustomization — stream not ready");
       } else {
-        args.onProgress?.("Loading saved customization…");
+        args.onProgress?.("Restoring your saved finishes…");
         const loaded = await loadCustomizationFromUe(
           args.send,
           args.designCode!,
@@ -132,17 +133,20 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
           console.warn(
             "[UE sync] LoadCustomization missing — applying stored finishes",
           );
-          args.onProgress?.("Restoring finishes…");
+          args.onProgress?.("Applying your selections…");
           await paintSelectionsToUe(
             args.send,
             entriesToPaint(args.selections, args.defaults),
-            { mockLog: args.mockLog },
+            {
+              mockLog: args.mockLog,
+              materialsByMesh: args.materialsByMesh,
+            },
           );
         }
       }
     }
 
-    args.onProgress?.("Restoring view…");
+    args.onProgress?.("Setting your view…");
     await restoreCameraZoneToUe(args.send, {
       zone: args.zone,
       camera: args.camera,

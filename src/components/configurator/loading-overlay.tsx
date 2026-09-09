@@ -30,6 +30,7 @@ type Props = {
   layout?: "absolute" | "fixed";
   bootError?: string | null;
   onRetryBoot?: () => void;
+  progressLabel?: string | null;
 };
 
 const SessionBackdrop = ({ src }: { src: string }) => {
@@ -52,11 +53,13 @@ const LoadingUnit = ({
   unitSubtitle,
   bootError,
   onRetryBoot,
+  progressLabel,
 }: {
   progress: number;
   unitSubtitle: string;
   bootError?: string | null;
   onRetryBoot?: () => void;
+  progressLabel?: string | null;
 }) => {
   const pct = Math.min(100, Math.max(0, progress));
 
@@ -74,6 +77,11 @@ const LoadingUnit = ({
           style={{ width: `${pct}%` }}
         />
       </div>
+      {progressLabel ? (
+        <p className="mt-3 text-center text-[12px] leading-[1.4] tracking-[0.02em] text-white/55">
+          {progressLabel}
+        </p>
+      ) : null}
 
       <div className="mt-8 grid w-full max-w-112.5 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         <HintCard
@@ -318,6 +326,7 @@ const LoadingOverlay = ({
   layout = "absolute",
   bootError,
   onRetryBoot,
+  progressLabel,
 }: Props) => {
   const ended = kind === "disconnected" || kind === "idle";
   const bg = ended
@@ -346,6 +355,7 @@ const LoadingOverlay = ({
               unitSubtitle={unitSubtitle}
               bootError={bootError}
               onRetryBoot={onRetryBoot}
+              progressLabel={progressLabel}
             />
           ) : null}
 

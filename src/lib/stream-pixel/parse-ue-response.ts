@@ -260,7 +260,9 @@ export function extractUeCommandAck(response: unknown): UeCommandAck | null {
       unknown
     >[];
     for (const obj of candidates) {
-      const type = String(obj.type ?? obj.Type ?? "").trim();
+      const type = String(
+        obj.type ?? obj.Type ?? obj.Function ?? obj.function ?? "",
+      ).trim();
       if (!type) continue;
       const typeKey = type.toLowerCase();
       if (NON_ACK_TYPES.has(typeKey)) continue;
@@ -278,7 +280,12 @@ export function extractUeCommandAck(response: unknown): UeCommandAck | null {
       }
       if (
         typeKey === "openinglevel" ||
-        typeKey === "loadlevel"
+        typeKey === "loadlevel" ||
+        typeKey === "selectmeshbyname" ||
+        typeKey === "changemeshbyname" ||
+        typeKey === "applymaterialtomesh" ||
+        typeKey === "applymaterial" ||
+        typeKey === "savecustomization"
       ) {
         return { type, ok: true, status: status || "success", code: code ?? 200 };
       }

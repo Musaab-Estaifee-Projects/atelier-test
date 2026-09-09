@@ -20,12 +20,26 @@ function enqueueApply<T>(task: () => Promise<T>): Promise<T> {
 }
 
 function ackTypesFor(fn: string): string[] {
-  if (fn === "LoadLevel") return ["OpeningLevel"];
-  if (fn === "ChangeMeshByName") return ["SelectMeshByName"];
+  if (fn === "LoadLevel") return ["OpeningLevel", "LoadLevel"];
+  if (fn === "ChangeMeshByName") {
+    return ["SelectMeshByName", "ChangeMeshByName", "ChangeMesh"];
+  }
+  if (fn === "ApplyMaterialToMesh") {
+    return ["ApplyMaterialToMesh", "ApplyMaterial"];
+  }
+  if (fn === "SaveCustomization") {
+    return ["SaveCustomization", "CustomizationSaved", "Saved"];
+  }
   return [fn];
 }
 
 const SOFT_ACK = new Set(["ExitCamera", "MoveToZone", "SwitchCameraByName"]);
+const PROCEED_ON_TIMEOUT = new Set([
+  ...SOFT_ACK,
+  "LoadLevel",
+  "ChangeMeshByName",
+  "ApplyMaterialToMesh",
+]);
 
 async function sendAndWaitAck(
   send: SendFn,
@@ -55,7 +69,7 @@ async function sendAndWaitAck(
   if (!accepted) return false;
   const ack = await pending;
   if (ack === "timeout") {
-    if (SOFT_ACK.has(fn) || fn === "LoadLevel") return true;
+    if (PROCEED_ON_TIMEOUT.has(fn)) return true;
     console.warn("[UE] ack timeout", fn, types);
     return false;
   }
@@ -191,10 +205,17 @@ export async function loadCustomizationFromUe(
   return ok;
 }
 
+export function shouldApplyMaterialToMesh(
+  meshId: string,
+  materialsByMesh?: Record<string, string[]>,
+): boolean {
+  return (materialsByMesh?.[meshId]?.length ?? 0) > 1;
+}
+
 export async function paintSelectionsToUe(
   send: SendFn,
   entries: SelectionEntry[],
-  opts?: { mockLog?: boolean },
+  opts?: { mockLog?: boolean; materialsByMesh?: Record<string, string[]> },
 ): Promise<boolean> {
   const list = entries.filter((e) => e.meshId);
   if (!list.length) return true;
@@ -204,6 +225,10 @@ export async function paintSelectionsToUe(
       const ok = await paintEntry(send, entry, {
         mockLog: opts?.mockLog,
         attempts: 8,
+        applyMaterial: shouldApplyMaterialToMesh(
+          entry.meshId,
+          opts?.materialsByMesh,
+        ),
       });
       if (!ok) allOk = false;
       await delay(120);
@@ -232,10 +257,12 @@ export async function resetToDefaultOnUe(
 async function paintEntry(
   send: SendFn,
   entry: SelectionEntry,
-  opts?: { mockLog?: boolean; attempts?: number },
+  opts?: { mockLog?: boolean; attempts?: number; applyMaterial?: boolean },
 ): Promise<boolean> {
   if (opts?.mockLog) {
-    console.info("[mock UE] ChangeMesh/ApplyMaterial", entry);
+    console.info("[mock UE] ChangeMesh/ApplyMaterial", entry, {
+      applyMaterial: opts.applyMaterial,
+    });
     return true;
   }
   const attempts = opts?.attempts ?? 12;
@@ -245,7 +272,7 @@ async function paintEntry(
     { attempts, gapMs: 250, label: `ChangeMesh ${entry.meshId}` },
   );
   if (!meshOk) return false;
-  if (!entry.materialId) return true;
+  if (!opts?.applyMaterial || !entry.materialId) return true;
   await delay(180);
   return sendAndWaitAck(
     send,
@@ -266,11 +293,15 @@ export async function applyOneSelectionToUe(
     design_code?: string | null;
     onSaveStatus?: (status: "saving" | "saved" | "failed") => void;
     skipSave?: boolean;
+    applyMaterial?: boolean;
   },
 ): Promise<boolean> {
   return enqueueApply(async () => {
     opts?.onSaveStatus?.("saving");
-    const ok = await paintEntry(send, entry, { mockLog: opts?.mockLog });
+    const ok = await paintEntry(send, entry, {
+      mockLog: opts?.mockLog,
+      applyMaterial: Boolean(opts?.applyMaterial),
+    });
     if (!ok) {
       opts?.onSaveStatus?.("failed");
       return false;
@@ -279,15 +310,17 @@ export async function applyOneSelectionToUe(
       opts?.onSaveStatus?.("saved");
       return true;
     }
-    if (opts?.design_code) {
-      const saved = await saveCustomizationToUe(send, opts.design_code, {
-        mockLog: opts.mockLog,
-      });
-      opts?.onSaveStatus?.(saved ? "saved" : "failed");
-      return saved;
+    const code = opts?.design_code?.trim();
+    if (!code) {
+      console.warn("[UE] SaveCustomization skipped — missing design_code");
+      opts?.onSaveStatus?.("failed");
+      return false;
     }
-    opts?.onSaveStatus?.("saved");
-    return true;
+    const saved = await saveCustomizationToUe(send, code, {
+      mockLog: opts?.mockLog,
+    });
+    opts?.onSaveStatus?.(saved ? "saved" : "failed");
+    return saved;
   });
 }
 

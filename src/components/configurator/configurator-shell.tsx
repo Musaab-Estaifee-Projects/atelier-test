@@ -18,6 +18,7 @@ import {
   moveToZoneOnUe,
   resetToDefaultOnUe,
   saveCustomizationToUe,
+  shouldApplyMaterialToMesh,
   switchCameraByNameOnUe,
 } from "@/lib/configurator/apply-ue";
 import {
@@ -341,7 +342,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       const code = designCodeRef.current;
       setUeSyncError(null);
       if (returningVisitRef.current && code) {
-        setUeSyncStatus("Loading saved customization…");
+        setUeSyncStatus("Restoring your saved finishes…");
       }
 
       ignoreUeZoneUntilRef.current = Date.now() + 6000;
@@ -382,6 +383,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           returningVisit: returningVisitRef.current,
           selections: selections.selections,
           defaults: session.defaults,
+          materialsByMesh: session.materialsByMesh,
           zone,
           camera: camera ?? null,
           skipLoadLevel: opts?.skipLoadLevel,
@@ -692,6 +694,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (!session) return;
       const enterName = moveZoneName(zoneId) ?? zoneId;
       const sameZone = activeZoneIdRef.current === zoneId;
+      const wasLocked = Boolean(cameraParamRef.current);
 
       ignoreUeZoneUntilRef.current = Date.now() + 1000;
       if (zoneEnterTimerRef.current != null) {
@@ -711,7 +714,15 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       setParams({ zone: enterName, camera: null }, { replace: true });
 
       if (sameZone) {
-        void exitCameraOnUe(send, { mockLog: MOCK_UE });
+        if (wasLocked) void exitCameraOnUe(send, { mockLog: MOCK_UE });
+        return;
+      }
+
+      if (wasLocked) {
+        void (async () => {
+          await exitCameraOnUe(send, { mockLog: MOCK_UE });
+          await moveToZoneOnUe(send, enterName, { mockLog: MOCK_UE });
+        })();
         return;
       }
 
@@ -781,7 +792,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       if (!slot) return;
 
       const mats = getMaterials(mesh.id);
-      const prevMat = selections.map[slot]?.materialId;
+      const current = appliedPanelMap[slot];
+      if (current?.meshId === mesh.id) return;
+
+      const prevMat = current?.materialId;
       const materialId =
         mats.length === 0
           ? ""
@@ -802,12 +816,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
+        applyMaterial: mats.length > 1,
       }).then((ok) => {
         if (ok) selections.commitSlot(slot, entry);
         else selections.revertSlot(slot);
       });
     },
-    [viewOnly, getMaterials, selections, activeRule, send],
+    [viewOnly, getMaterials, selections, activeRule, send, appliedPanelMap],
   );
 
   const handleRemoveSelection = useCallback(
@@ -820,6 +835,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           mockLog: MOCK_UE,
           design_code: designCodeRef.current,
           onSaveStatus: selections.markSaveStatus,
+          applyMaterial: shouldApplyMaterialToMesh(
+            fallback.meshId,
+            session?.materialsByMesh,
+          ),
         }).then((ok) => {
           if (ok) selections.commitSlot(slot, null);
           else selections.revertSlot(slot);
@@ -852,6 +871,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     (meshId: string, material: MaterialOption) => {
       if (viewOnly) return;
       const slot = activeRule?.slot || activeRule?.name || meshId;
+      const current = appliedPanelMap[slot];
+      if (
+        current?.meshId === meshId &&
+        (current.materialId || "") === material.id
+      ) {
+        return;
+      }
       const entry: SelectionEntry = {
         slot,
         meshId,
@@ -863,12 +889,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
+        applyMaterial: shouldApplyMaterialToMesh(
+          meshId,
+          session?.materialsByMesh,
+        ),
       }).then((ok) => {
         if (ok) selections.commitSlot(slot, entry);
         else selections.revertSlot(slot);
       });
     },
-    [viewOnly, activeRule, selections, send, session],
+    [viewOnly, activeRule, selections, send, session, appliedPanelMap],
   );
 
   const handleOpenQuote = useCallback(() => {
@@ -1100,6 +1130,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             redirect("/");
           }}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
+          progressLabel={
+            overlayKind === "loading"
+              ? ueSyncStatus || stream.loadingStatus || null
+              : null
+          }
           bootError={
             overlayKind === "loading" && ueSyncError ? ueSyncError : null
           }
@@ -1274,7 +1309,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             session={session}
             selections={selections.selections}
             unitId={unitId}
-            actionsDisabled={streamBlocking}
+            actionsDisabled={streamBlocking && overlayKind !== "disconnected" && overlayKind !== "idle"}
+            streamOffline={overlayKind === "disconnected" || overlayKind === "idle"}
+            onReconnect={() => window.location.reload()}
             onBack={() => {
               setReviewOpen(false);
               setQuoteDialogOpen(false);

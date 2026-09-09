@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Undo2 } from "lucide-react";
+import { Plug, Undo2 } from "lucide-react";
 import SelectionRowMenu from "./selection-row-menu";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ type Props = {
   onRemove?: (slot: string) => void;
   onEdit?: (slot: string) => void;
   actionsDisabled?: boolean;
+  streamOffline?: boolean;
+  onReconnect?: () => void;
 };
 
 const Dirham = ({
@@ -144,6 +146,8 @@ const ReviewSelections = ({
   onRemove,
   onEdit,
   actionsDisabled,
+  streamOffline,
+  onReconnect,
 }: Props) => {
   const { sections, total } = useMemo(
     () => buildReviewSections(session, selections),
@@ -156,6 +160,7 @@ const ReviewSelections = ({
   } | null>(null);
 
   const subtitle = reviewUnitSubtitle(unitId, session.levelName);
+  const rowMenuDisabled = Boolean(actionsDisabled || streamOffline);
 
   if (!open) return null;
 
@@ -246,7 +251,7 @@ const ReviewSelections = ({
                           <div className="md:hidden">
                             <SelectionRowMenu
                               selected={line.selected}
-                              disabled={actionsDisabled}
+                              disabled={rowMenuDisabled}
                               // onRemove={
                               //   onRemove ? () => onRemove(line.slot) : undefined
                               // }
@@ -301,7 +306,7 @@ const ReviewSelections = ({
                         <div className="hidden px-2 py-3 md:flex md:items-center md:justify-end">
                           <SelectionRowMenu
                             selected={line.selected}
-                            disabled={actionsDisabled}
+                            disabled={rowMenuDisabled}
                             onRemove={
                               onRemove
                                 ? () =>
@@ -366,19 +371,25 @@ const ReviewSelections = ({
               variant="pill"
               size="pill"
               className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
-              onClick={onBack}
+              onClick={streamOffline ? onReconnect : onBack}
             >
-              <Undo2 className="size-4.5" strokeWidth={1.75} />
-              Back to customize
+              {streamOffline ? (
+                <Plug className="size-4.5" strokeWidth={1.75} />
+              ) : (
+                <Undo2 className="size-4.5" strokeWidth={1.75} />
+              )}
+              {streamOffline ? "Reconnect" : "Back to customize"}
             </Button>
-            <Button
-              type="button"
-              size="pill"
-              className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-44.5"
-              onClick={onConfirm}
-            >
-              Prepare final renders
-            </Button>
+            {!streamOffline ? (
+              <Button
+                type="button"
+                size="pill"
+                className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-44.5"
+                onClick={onConfirm}
+              >
+                Prepare final renders
+              </Button>
+            ) : null}
           </div>
         </div>
       </footer>
