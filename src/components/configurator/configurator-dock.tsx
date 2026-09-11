@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
 import { RESOLUTION_OPTIONS } from "@/lib/stream-pixel/types";
@@ -215,7 +216,7 @@ const ConfiguratorDock = ({
             disabled={viewOnly || selectedItems.length === 0}
           />
 
-          {selectedItems.length > 0 && (
+          {(saveStatus === "saving" || selectedItems.length > 0) && (
             <span
               className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
                 saveStatus === "saving"
@@ -227,7 +228,9 @@ const ConfiguratorDock = ({
               title={saveLabel(saveStatus, viewOnly)}
               aria-label={saveLabel(saveStatus, viewOnly)}
             >
-              {saveStatus === "failed" ? (
+              {saveStatus === "saving" ? (
+                <Loader2 className="size-4.5 animate-spin text-white" />
+              ) : saveStatus === "failed" ? (
                 <CloudSlash className="size-4.5" />
               ) : (
                 <CloudSaved className="w-full h-full" />
@@ -280,9 +283,7 @@ const ConfiguratorDock = ({
                     <div className="cfg-settings-divider" />
                   </>
                 ) : null}
-                <p className="cfg-settings-title text-white">
-                  Stream resolution
-                </p>
+                <p className="cfg-settings-title">Stream resolution</p>
                 {!resolutionEnabled ? (
                   <p className="cfg-muted">Resolution locked by stream</p>
                 ) : null}

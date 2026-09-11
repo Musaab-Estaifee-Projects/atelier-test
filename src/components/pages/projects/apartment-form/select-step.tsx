@@ -60,6 +60,11 @@ const SelectStep = ({
 
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<{
+    id: string;
+    number: string;
+    layoutCode: string;
+  } | null>(null);
 
   // Search + pagination state
   const [suggestions, setSuggestions] = useState<TApartmentSearchItem[]>([]);
@@ -116,6 +121,7 @@ const SelectStep = ({
       setPage(1);
       setHasMore(false);
       setActiveQuery("");
+      setSelectedUnit(null);
       return;
     }
 
@@ -209,6 +215,7 @@ const SelectStep = ({
   const handleCategory = (id: string) => {
     form.setValue("categoryId", id);
     form.setValue("typeId", "");
+    setSelectedUnit(null);
     setLocalError(null);
     setOpenMenu(null);
   };
@@ -218,13 +225,13 @@ const SelectStep = ({
     if (!item) return;
 
     form.setValue("query", item.apartment_number);
-    setOpenMenu(null);
-
-    submitChoice({
-      unitId: item.apartment_number,
-      levelName: "",
+    setSelectedUnit({
+      id: String(item.id),
+      number: item.apartment_number,
       layoutCode: item.layout.code,
     });
+    setLocalError(null);
+    setOpenMenu(null);
   };
 
   const handleSubmit = (values: FormValues) => {
@@ -235,6 +242,15 @@ const SelectStep = ({
         unitId: "",
         levelName: "",
         designCode: normalizeDesignCode(trimmed),
+      });
+      return;
+    }
+
+    if (selectedUnit) {
+      submitChoice({
+        unitId: selectedUnit.number,
+        levelName: "",
+        layoutCode: selectedUnit.layoutCode,
       });
       return;
     }
@@ -311,6 +327,7 @@ const SelectStep = ({
                         }}
                         onChange={(e) => {
                           field.onChange(e);
+                          setSelectedUnit(null);
                           setLocalError(null);
                           setOpenMenu("search");
                         }}
@@ -379,6 +396,7 @@ const SelectStep = ({
               }
               onChange={(id) => {
                 form.setValue("typeId", id);
+                setSelectedUnit(null);
                 setLocalError(null);
                 setOpenMenu(null);
               }}

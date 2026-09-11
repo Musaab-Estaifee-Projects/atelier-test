@@ -1,13 +1,11 @@
 /**
  * Boot Unreal: LoadLevel, optional LoadCustomization, restore URL view.
- * If LoadCustomization 404s, paint stored finishes that differ from defaults.
+ * LoadCustomization miss/timeout leaves the live scene as UE last left it.
  */
 import type { UeInteractionPayload } from "@/lib/stream-pixel/ue-protocol";
-import type { SelectionEntry } from "@/types/configurator";
 import {
   loadCustomizationFromUe,
   loadLevelOnUe,
-  paintSelectionsToUe,
   restoreCameraZoneToUe,
 } from "@/lib/configurator/apply-ue";
 import { delay } from "@/lib/stream-pixel/share-restore";
@@ -20,9 +18,6 @@ export type SyncToUeArgs = {
   layoutCode: string;
   designCode: string | null;
   returningVisit: boolean;
-  selections?: SelectionEntry[];
-  defaults?: SelectionEntry[];
-  materialsByMesh?: Record<string, string[]>;
   zone?: string | null;
   camera?: string | null;
   skipLoadLevel?: boolean;
@@ -31,23 +26,6 @@ export type SyncToUeArgs = {
   onProgress?: (msg: string) => void;
 };
 
-function entriesToPaint(
-  selections: SelectionEntry[] | undefined,
-  defaults: SelectionEntry[] | undefined,
-): SelectionEntry[] {
-  const list = selections?.filter((e) => e.meshId) ?? [];
-  if (!list.length) return [];
-  if (!defaults?.length) return list;
-  const bySlot = new Map(defaults.map((d) => [d.slot, d]));
-  return list.filter((entry) => {
-    const fallback = bySlot.get(entry.slot);
-    if (!fallback) return true;
-    return (
-      fallback.meshId !== entry.meshId ||
-      (fallback.materialId || "") !== (entry.materialId || "")
-    );
-  });
-}
 let inflight: Promise<boolean> | null = null;
 let inflightKey = "";
 let lastCompletedKey = "";
@@ -131,16 +109,7 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
         );
         if (!loaded) {
           console.warn(
-            "[UE sync] LoadCustomization missing — applying stored finishes",
-          );
-          args.onProgress?.("Applying your selections…");
-          await paintSelectionsToUe(
-            args.send,
-            entriesToPaint(args.selections, args.defaults),
-            {
-              mockLog: args.mockLog,
-              materialsByMesh: args.materialsByMesh,
-            },
+            "[UE sync] LoadCustomization failed — leaving Unreal as source of truth",
           );
         }
       }

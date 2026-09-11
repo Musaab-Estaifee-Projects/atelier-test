@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
+import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import {
@@ -20,7 +22,18 @@ type OverlayDialogProps = {
   children: React.ReactNode;
   onPointerDownOutside?: (event: Event) => void;
   onInteractOutside?: (event: Event) => void;
+  container?: HTMLElement | null;
 };
+
+function getFullscreenRoot(): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  const doc = document as Document & {
+    webkitFullscreenElement?: Element | null;
+  };
+  const fs = (document.fullscreenElement ??
+    doc.webkitFullscreenElement) as HTMLElement | null;
+  return fs ?? document.body;
+}
 
 const OverlayDialog = ({
   open,
@@ -33,10 +46,27 @@ const OverlayDialog = ({
   children,
   onPointerDownOutside,
   onInteractOutside,
+  container,
 }: OverlayDialogProps) => {
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const sync = () => setPortalEl(container ?? getFullscreenRoot());
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    document.addEventListener("webkitfullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      document.removeEventListener("webkitfullscreenchange", sync);
+    };
+  }, [container]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPortal>
+      <DialogPortal
+        container={portalEl ?? undefined}
+        key={portalEl && portalEl !== document.body ? "fs" : "body"}
+      >
         <DialogOverlay
           className={cn(
             "bg-black/80",

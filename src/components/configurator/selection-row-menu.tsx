@@ -12,12 +12,18 @@ type Props = {
   disabled?: boolean;
 };
 
-function getPortalContainer(): HTMLElement {
-  const dialogContent = document.querySelector(
-    '[data-slot="overlay-dialog-content"]',
-  ) as HTMLElement | null;
-  return dialogContent ?? document.body;
+type MenuPos = { top: number; left: number };
+
+function getMenuPortalRoot(): HTMLElement {
+  const doc = document as Document & {
+    webkitFullscreenElement?: Element | null;
+  };
+  const fs = (document.fullscreenElement ??
+    doc.webkitFullscreenElement) as HTMLElement | null;
+  return fs ?? document.body;
 }
+
+const MENU_WIDTH = 102;
 
 const SelectionRowMenu = ({
   selected,
@@ -26,7 +32,7 @@ const SelectionRowMenu = ({
   disabled = false,
 }: Props) => {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState<MenuPos>({ top: 0, left: 0 });
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -37,7 +43,7 @@ const SelectionRowMenu = ({
     const rect = btn.getBoundingClientRect();
     setPos({
       top: rect.bottom + 6,
-      left: rect.right - 102,
+      left: Math.max(8, rect.right - MENU_WIDTH),
     });
   };
 
@@ -47,31 +53,37 @@ const SelectionRowMenu = ({
       setPortalEl(null);
       return;
     }
-    setPortalEl(getPortalContainer());
+    const root = getMenuPortalRoot();
+    setPortalEl(root);
     updatePosition();
 
+    const isInMenuTree = (target: EventTarget | null) => {
+      const node = target as Node | null;
+      return Boolean(
+        (node && menuRef.current?.contains(node)) ||
+          (node && buttonRef.current?.contains(node)),
+      );
+    };
+
     const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (
-        menuRef.current?.contains(target) ||
-        buttonRef.current?.contains(target)
-      ) {
-        return;
-      }
+      if (isInMenuTree(e.target)) return;
       setOpen(false);
     };
 
     const handleScroll = () => updatePosition();
 
-    // Use capture so we win against dialog dismiss timing
     document.addEventListener("pointerdown", handlePointerDown, true);
     window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", handleScroll);
+    document.addEventListener("fullscreenchange", handleScroll);
+    document.addEventListener("webkitfullscreenchange", handleScroll);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", handleScroll);
+      document.removeEventListener("fullscreenchange", handleScroll);
+      document.removeEventListener("webkitfullscreenchange", handleScroll);
     };
   }, [open]);
 
@@ -81,6 +93,21 @@ const SelectionRowMenu = ({
   }, [disabled]);
 
   if (!onRemove && !onEdit) return null;
+
+  const runRemove = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selected) return;
+    onRemove?.();
+    setOpen(false);
+  };
+
+  const runEdit = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEdit?.();
+    setOpen(false);
+  };
 
   return (
     <>
@@ -113,10 +140,10 @@ const SelectionRowMenu = ({
             style={{
               position: "fixed",
               top: pos.top,
-              left: Math.max(8, pos.left),
-              zIndex: 200,
+              left: pos.left,
+              zIndex: 400,
             }}
-            className="w-25.5! h-21.25! space-y-1 rounded-none border border-white/5 bg-[#001f24] p-1.25 text-[12px] text-white/70 shadow-lg"
+            className="pointer-events-auto w-25.5! h-21.25! space-y-1 rounded-none border border-white/5 bg-[#001f24] p-1.25 text-[12px] text-white/70 shadow-lg"
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
@@ -126,11 +153,7 @@ const SelectionRowMenu = ({
                 type="button"
                 disabled={!selected}
                 className="w-full bg-white/5 p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/10 disabled:opacity-40"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove();
-                  setOpen(false);
-                }}
+                onPointerDown={runRemove}
               >
                 Remove
               </button>
@@ -140,11 +163,7 @@ const SelectionRowMenu = ({
               <button
                 type="button"
                 className="w-full p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/5"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                  setOpen(false);
-                }}
+                onPointerDown={runEdit}
               >
                 Edit
               </button>

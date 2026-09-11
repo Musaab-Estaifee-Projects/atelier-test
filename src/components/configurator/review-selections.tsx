@@ -166,7 +166,7 @@ const ReviewSelections = ({
 
   return (
     <div
-      className="absolute inset-0 z-55 flex flex-col bg-[#00272d] text-white"
+      className="cfg-review absolute inset-0 z-55 flex flex-col bg-[#00272d] text-white"
       role="dialog"
       aria-modal="true"
       aria-labelledby="review-selections-title"

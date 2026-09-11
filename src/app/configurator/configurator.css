@@ -19,6 +19,10 @@ html.configurator-active body > div {
   overflow: hidden !important;
 }
 
+.cfg-review {
+  z-index: 55;
+}
+
 .configurator-shell {
   position: fixed;
   inset: 0;
@@ -124,16 +128,23 @@ html.configurator-active #afkOverlay {
 .configurator-shell:fullscreen .cfg-settings-pop,
 .configurator-shell:fullscreen .cfg-sync-overlay,
 .configurator-shell:fullscreen .cfg-sync-error,
+.configurator-shell:fullscreen .cfg-review,
 .configurator-shell:-webkit-full-screen .cfg-zone-bar,
 .configurator-shell:-webkit-full-screen .cfg-side-panel,
 .configurator-shell:-webkit-full-screen .cfg-dock-wrap,
 .configurator-shell:-webkit-full-screen .cfg-sheet,
 .configurator-shell:-webkit-full-screen .cfg-settings-pop,
 .configurator-shell:-webkit-full-screen .cfg-sync-overlay,
-.configurator-shell:-webkit-full-screen .cfg-sync-error {
+.configurator-shell:-webkit-full-screen .cfg-sync-error,
+.configurator-shell:-webkit-full-screen .cfg-review {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
+}
+
+.configurator-shell:fullscreen .cfg-review,
+.configurator-shell:-webkit-full-screen .cfg-review {
+  z-index: 80;
 }
 
 .camera-zone-panel {
@@ -682,35 +693,54 @@ html.configurator-active #afkOverlay {
   position: absolute;
   bottom: calc(100% + 10px);
   right: 0;
-  min-width: 180px;
-  padding: 10px;
-  border-radius: 12px;
-  background: rgba(12, 14, 18, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 20px;
+  border: 0.5px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    to left,
+    rgba(173, 165, 153, 0.55),
+    rgba(77, 69, 57, 0.55)
+  );
+  backdrop-filter: blur(25px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .cfg-settings-title {
-  margin: 0 0 6px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  margin: 0;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
 }
 .cfg-settings-opt {
   border: 0;
   text-align: left;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #ffffff;
   background: transparent;
   cursor: pointer;
 }
 .cfg-settings-opt.is-active,
 .cfg-settings-opt:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #00272d;
+  color: #f2e9d8;
+}
+.cfg-settings-opt:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.cfg-settings-opt:disabled:hover {
+  background: transparent;
+  color: #ffffff;
 }
 
 .cfg-sheet {

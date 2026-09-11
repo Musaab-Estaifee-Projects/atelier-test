@@ -10,21 +10,6 @@ import type {
 import type { LayoutCatalogData } from "@/types/layout-catalog";
 import { setActiveCatalogZones } from "@/lib/configurator/zone-catalog";
 
-function aliasesForZone(name: string, ueId: string): string[] {
-  const extra: string[] = [];
-  const n = name.trim().toLowerCase();
-  extra.push(n, ueId);
-  if (n.includes("living")) extra.push("living", "livingarea", "living-area");
-  if (n.includes("kitchen")) extra.push("kitchen", "kt");
-  if (n.includes("bedroom") && n.includes("01")) {
-    extra.push("bedroom-1", "bedroom-01", "br-01");
-  }
-  if (n.includes("bedroom") && n.includes("02")) {
-    extra.push("bedroom-2", "bedroom-02", "br-02");
-  }
-  return extra;
-}
-
 export function mapLayoutCatalogToSession(args: {
   catalog: LayoutCatalogData;
   streamProjectId: string;
@@ -47,7 +32,6 @@ export function mapLayoutCatalogToSession(args: {
       id: zoneId,
       label: zone.name,
       ueZone: zone.ue_id,
-      aliases: aliasesForZone(zone.name, zone.ue_id),
       cameras: zone.cameras.map((cam) => {
         const slot = cam.ue_id;
         slotLabels[slot] = cam.name;

@@ -50,8 +50,11 @@ export type ResolutionOption = {
 };
 
 export const RESOLUTION_OPTIONS: ResolutionOption[] = [
-  { label: "Auto (Dashboard)" },
-  { label: "720p", width: 1280, height: 720 },
-  { label: "1080p", width: 1920, height: 1080 },
-  { label: "1440p", width: 2560, height: 1440 },
+  { label: "Auto" },
+  { label: "360", width: 640, height: 360 },
+  { label: "480", width: 854, height: 480 },
+  { label: "720", width: 1280, height: 720 },
+  { label: "1080", width: 1920, height: 1080 },
+  { label: "1440", width: 2560, height: 1440 },
+  { label: "4K", width: 3840, height: 2160 },
 ];

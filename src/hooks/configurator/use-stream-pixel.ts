@@ -604,29 +604,19 @@ export function useStreamPixel({
         streamEventHandlers.onAfkActivate = (e: any) => {
           if (cancelled || !mountedRef.current || failedRef.current) return;
           if (idleTimedOutRef.current) return;
-          const n = Number(e?.data?.countDown);
-          afkWarningRef.current = true;
-          setAfkWarning(true);
-          setAfkCountdown(
-            Number.isFinite(n) && n > 0 ? n : AFK_CONFIG.countdownSeconds,
-          );
           dismissAfkRef.current =
             typeof e?.data?.dismissAfk === "function"
               ? e.data.dismissAfk
               : null;
         };
-        streamEventHandlers.onAfkUpdate = (e: any) => {
-          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
-          const n = Number(e?.data?.countDown);
-          if (Number.isFinite(n)) setAfkCountdown(n);
+        streamEventHandlers.onAfkUpdate = () => {
+          /* Client watchdog owns the displayed countdown. */
         };
         streamEventHandlers.onAfkDeactivate = () => {
-          afkWarningRef.current = false;
-          setAfkWarning(false);
-          dismissAfkRef.current = null;
+          /* Keep client warning until I am Back / overlay close. */
         };
         streamEventHandlers.onAfkTimedOut = () => {
-          fail(DISCONNECT_COPY.dropped, "idle");
+          /* Client 60s tick disconnects; ignore Epic's shorter timeout. */
         };
 
         streamEventHandlers.onReconnectState = (data) => {
@@ -978,20 +968,23 @@ export function useStreamPixel({
       idleTimer = setTimeout(startCountdown, idleMs);
     };
 
-    const onActivity = (event?: Event) => {
+    const onActivity = () => {
       if (idleTimedOutRef.current || failedRef.current) return;
-      if (warning && event?.type === "pointermove") return;
-      if (warning) {
-        warning = false;
-        stopTick();
-        afkWarningRef.current = false;
-        setAfkWarning(false);
-        dismissAfkRef.current?.();
-      }
+      if (warning) return;
       armIdle();
     };
 
-    resetAfkWatchdogRef.current = () => onActivity();
+    const stayAndRearm = () => {
+      if (idleTimedOutRef.current || failedRef.current) return;
+      warning = false;
+      stopTick();
+      afkWarningRef.current = false;
+      setAfkWarning(false);
+      dismissAfkRef.current?.();
+      armIdle();
+    };
+
+    resetAfkWatchdogRef.current = stayAndRearm;
 
     const opts: AddEventListenerOptions = { capture: true, passive: true };
     const events = [
@@ -1022,7 +1015,6 @@ export function useStreamPixel({
   }, [isLoading, streamPhase, endDueToIdle]);
 
   const dismissAfk = useCallback(() => {
-    dismissAfkRef.current?.();
     resetAfkWatchdogRef.current?.();
   }, []);
 

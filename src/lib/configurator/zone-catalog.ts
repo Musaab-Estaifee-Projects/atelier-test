@@ -1,5 +1,6 @@
 /**
  * Catalog-driven zones. Populated when layout catalog loads.
+ * Display names and ids come from the backend catalog (name / ue_id).
  */
 import type {
   CameraRule,
@@ -22,11 +23,8 @@ export function CONFIGURATOR_ZONES(): ZoneDefinition[] {
   return catalogZones;
 }
 
-function norm(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, "-");
+function sameId(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 export function matchZoneId(
@@ -34,16 +32,17 @@ export function matchZoneId(
   zones: ZoneDefinition[] = catalogZones,
 ): string | null {
   if (!zone) return null;
-  const n = norm(zone);
   const raw = zone.trim();
+  if (!raw) return null;
   for (const z of zones) {
-    if (z.id === raw || z.ueZone === raw) return z.id;
-    if (norm(z.id) === n || norm(z.ueZone) === n) return z.id;
-    if (z.aliases.some((a) => norm(a) === n || n.includes(norm(a)))) {
+    if (
+      sameId(z.id, raw) ||
+      sameId(z.ueZone, raw) ||
+      sameId(z.label, raw)
+    ) {
       return z.id;
     }
   }
-  if (raw.toUpperCase().startsWith("ZONE-")) return raw;
   return null;
 }
 
@@ -61,17 +60,11 @@ export function zoneIdFromCamera(
   zones: ZoneDefinition[] = catalogZones,
 ): string | null {
   if (!camera?.name && !camera?.mode) return null;
-  const name = (camera.name ?? "").toUpperCase();
-  const mode = (camera.mode ?? "").toLowerCase();
+  const name = (camera.name ?? "").trim();
+  const mode = (camera.mode ?? "").trim();
   for (const z of zones) {
-    if (z.cameras.some((c) => c.name.toUpperCase() === name)) return z.id;
-    if (mode && z.cameras.some((c) => c.mode.toLowerCase() === mode)) {
-      return z.id;
-    }
-  }
-  if (name.includes("KT")) {
-    const kitchen = zones.find((z) => /kitchen/i.test(z.label));
-    if (kitchen) return kitchen.id;
+    if (name && z.cameras.some((c) => sameId(c.name, name))) return z.id;
+    if (mode && z.cameras.some((c) => sameId(c.mode, mode))) return z.id;
   }
   return null;
 }
@@ -121,7 +114,7 @@ export function cameraDisplayLabel(camera: {
   mode?: string;
 }): string {
   if (camera.mode?.trim()) return camera.mode.trim();
-  return (camera.name ?? "Camera").replace(/^CAM-/, "");
+  return camera.name?.trim() || "Camera";
 }
 
 export function cameraKey(c: {
@@ -136,29 +129,11 @@ export function surfaceDisplayLabel(camera: {
   name?: string;
   mode?: string;
 }): string {
-  if (camera.mode?.trim()) return camera.mode.trim();
-  const name = (camera.name ?? "").toUpperCase();
-  if (name.includes("-SW")) return "Sofa Wall";
-  if (name.includes("-FL")) return "Floor";
-  if (name.includes("-CL")) return "Ceiling";
-  if (name.includes("-HB")) return "Headboard";
-  if (name.includes("-WD")) return "Wardrobe";
-  if (name.includes("-PT")) return "Glass Partition";
-  if (name.includes("-KT")) return "Kitchen";
-  if (name.includes("-TV")) return "TV Wall";
-  if (name.includes("-DR")) return "Door";
   return cameraDisplayLabel(camera);
 }
 
 export function shortSurfaceLabel(label: string): string {
-  return (
-    label
-      .replace(/^Living\s+/i, "")
-      .replace(/^Bedroom\s+0?\d\s+/i, "")
-      .replace(/\s+Cabinets$/i, "")
-      .replace(/\s+unit wall$/i, " Wall")
-      .trim() || label
-  );
+  return label;
 }
 
 export function finishTypeDisplayName(mesh: {
@@ -166,8 +141,7 @@ export function finishTypeDisplayName(mesh: {
   displayName?: string;
 }): string {
   const raw = mesh.displayName?.trim();
-  if (raw && raw !== mesh.id && !raw.startsWith("MSH-")) return raw;
-  return raw || mesh.id.replace(/^MSH-/, "");
+  return raw || mesh.id;
 }
 
 export function ueZoneName(zoneId: string): string {
@@ -185,13 +159,7 @@ export function moveZoneName(zoneId: string | null | undefined): string | null {
 
 export function zoneDisplayLabel(zoneId: string): string {
   const z = catalogZones.find((item) => item.id === zoneId);
-  if (z) {
-    if (/living/i.test(z.label) && !/room/i.test(z.label)) {
-      return "Living Room";
-    }
-    return z.label;
-  }
-  return zoneId;
+  return z ? z.label : zoneId;
 }
 
 export function heroCameraForZone(
@@ -228,13 +196,9 @@ export function roomStillTargets(rules: MeshRulesConfig): RoomStillTarget[] {
 
 export function zoneIdFromSlot(slot: string): string | null {
   for (const z of catalogZones) {
-    if (z.cameras.some((c) => c.name === slot)) return z.id;
+    if (z.cameras.some((c) => c.name === slot || c.mode === slot)) {
+      return z.id;
+    }
   }
-  const fromCam = zoneIdFromCamera({ name: slot });
-  if (fromCam) return fromCam;
-  if (slot.startsWith("living-")) return matchZoneId("ZONE-LV");
-  if (slot.startsWith("kitchen-")) return matchZoneId("ZONE-KT");
-  if (slot.startsWith("bedroom-01")) return matchZoneId("ZONE-BR-01");
-  if (slot.startsWith("bedroom-02")) return matchZoneId("ZONE-BR-02");
-  return null;
+  return zoneIdFromCamera({ name: slot });
 }

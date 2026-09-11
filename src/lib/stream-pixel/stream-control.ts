@@ -16,15 +16,19 @@ import type { ResolutionOption } from "@/lib/stream-pixel/types";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const RESOLUTION_1080P: ResolutionOption = {
-  label: "1080p",
+  label: "1080",
   width: 1920,
   height: 1080,
 };
 
 const RESOLUTION_LABEL: Record<string, string> = {
-  "720p": "720p (1280x720)",
-  "1080p": "1080p (1920x1080)",
-  "1440p": "1440p (2560x1440)",
+  Auto: "Auto",
+  "360": "360 (640x360)",
+  "480": "480 (854x480)",
+  "720": "720 (1280x720)",
+  "1080": "1080 (1920x1080)",
+  "1440": "1440 (2560x1440)",
+  "4K": "4K (3840x2160)",
 };
 
 type StreamHandles = {

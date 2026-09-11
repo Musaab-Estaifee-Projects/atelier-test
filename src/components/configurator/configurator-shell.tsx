@@ -6,6 +6,7 @@
 import "@/app/configurator/configurator.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ApiError,
   getConfiguratorSession,
@@ -97,8 +98,8 @@ import FinalDesignProgress from "./final-design/final-design-progress";
 import FinalDesignViewer from "./final-design/final-design-viewer";
 import FinalDesignReview from "./final-design/final-design-review";
 import ReviewSelections from "./review-selections";
+import LeaveConfiguratorDialog from "./leave-configurator-dialog";
 import SelectStyle from "@/components/pages/styles/select-style";
-import { redirect } from "next/navigation";
 
 const MOCK_UE =
   process.env.NEXT_PUBLIC_MOCK_UE === "true" ||
@@ -107,6 +108,7 @@ const MOCK_UE =
 const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
   const unitId = params.unit?.trim() || null;
@@ -144,6 +146,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [ueSyncStatus, setUeSyncStatus] = useState<string | null>(null);
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
     matchZoneId(params.zone),
@@ -156,8 +159,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [activeRule, setActiveRule] = useState<CameraRule | null>(null);
   const [selectionsOpen, setSelectionsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentResolution, setCurrentResolution] =
-    useState("Auto (Dashboard)");
+  const [currentResolution, setCurrentResolution] = useState("Auto");
 
   const appliedReadyRef = useRef(false);
   const [sceneReady, setSceneReady] = useState(false);
@@ -174,6 +176,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   activeZoneIdRef.current = activeZoneId;
   const ingestRenderRef = useRef<(response: unknown) => void>(() => {});
   const capturePhaseRef = useRef<string>("idle");
+  const allowUnloadRef = useRef(false);
+  const skipPopGuardRef = useRef(false);
+  const pendingLeaveRef = useRef<"back" | string | null>(null);
+  const stayHrefRef = useRef("");
 
   const sceneConfig: MeshRulesConfig = useMemo(
     () =>
@@ -381,9 +387,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           layoutCode: levelName,
           designCode: code,
           returningVisit: returningVisitRef.current,
-          selections: selections.selections,
-          defaults: session.defaults,
-          materialsByMesh: session.materialsByMesh,
           zone,
           camera: camera ?? null,
           skipLoadLevel: opts?.skipLoadLevel,
@@ -654,9 +657,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   }, [cameraZone, setParams, send, params.zone]);
 
   const handleSelectCamera = useCallback(
-    (rule: CameraRule) => {
+    (rule: CameraRule, opts?: { edit?: boolean }) => {
       const isActive = activeCameraKey === cameraKey(rule);
+
       if (isActive) {
+        if (opts?.edit) {
+          setSidePanelOpen(true);
+          setReviewOpen(false);
+          setSelectionsOpen(false);
+          return;
+        }
         handleFreeCamera();
         return;
       }
@@ -684,6 +694,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         },
         { replace: true },
       );
+
       void switchCameraByNameOnUe(send, rule.name, { mockLog: MOCK_UE });
     },
     [activeCameraKey, setParams, send, handleFreeCamera],
@@ -743,7 +754,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       const rule =
         session.cameras.find((c) => c.slot === slot) ??
         session.cameras.find((c) => c.name === slot);
-      if (rule) handleSelectCamera(rule);
+      if (rule) handleSelectCamera(rule, { edit: true });
       else setSidePanelOpen(true);
     },
     [session, handleSelectCamera],
@@ -1070,6 +1081,83 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     setBrowseStylesOpen(false);
   }, [overlayKind]);
 
+  const reloadSession = useCallback(() => {
+    allowUnloadRef.current = true;
+    window.location.reload();
+  }, []);
+
+  const requestLeave = useCallback((target: "back" | string) => {
+    pendingLeaveRef.current = target;
+    setLeaveOpen(true);
+  }, []);
+
+  const stayOnConfigurator = useCallback(() => {
+    pendingLeaveRef.current = null;
+    setLeaveOpen(false);
+  }, []);
+
+  const confirmLeave = useCallback(() => {
+    const target = pendingLeaveRef.current;
+    allowUnloadRef.current = true;
+    skipPopGuardRef.current = true;
+    setLeaveOpen(false);
+    if (typeof target === "string" && target) {
+      window.location.assign(target);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (leaveOpen) return;
+    stayHrefRef.current = window.location.href;
+  }, [
+    leaveOpen,
+    params.zone,
+    params.camera,
+    params.layoutCode,
+    params.designCode,
+    params.view,
+  ]);
+
+  useEffect(() => {
+    allowUnloadRef.current = false;
+    skipPopGuardRef.current = false;
+    stayHrefRef.current = window.location.href;
+
+    const restoreStayHref = () => {
+      const stay = stayHrefRef.current;
+      if (!stay) return;
+      window.history.pushState({ atelierLeaveGuard: true }, "", stay);
+      try {
+        const url = new URL(stay, window.location.origin);
+        router.replace(`${url.pathname}${url.search}`, { scroll: false });
+      } catch {
+        /* keep pushState restore */
+      }
+    };
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (allowUnloadRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    const onPopState = () => {
+      if (skipPopGuardRef.current || allowUnloadRef.current) return;
+      const popped = window.location.href;
+      const stay = stayHrefRef.current;
+      if (!stay || popped === stay) return;
+      restoreStayHref();
+      requestLeave(popped);
+    };
+    window.addEventListener("popstate", onPopState, true);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState, true);
+    };
+  }, [requestLeave, router]);
+
   if (designError) {
     return (
       <div className="configurator-shell flex flex-col items-center justify-center gap-3 p-6 text-white">
@@ -1092,7 +1180,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         <button
           type="button"
           className="rounded-lg bg-white/10 px-4 py-2 text-sm"
-          onClick={() => window.location.reload()}
+          onClick={reloadSession}
         >
           Retry
         </button>
@@ -1119,16 +1207,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           reconnectSubtitle={stream.loadingSubtitle}
           endedEyebrow={stream.endedCopy.eyebrow}
           endedTitle={stream.endedCopy.title}
-          onReconnect={() => window.location.reload()}
+          onReconnect={reloadSession}
           onContinueToSummary={() => {
             setStreamOverlayDismissed(true);
             setQuoteDialogOpen(false);
             setReviewOpen(true);
           }}
-          onBackHome={() => {
-            // window.location.assign("/");
-            redirect("/");
-          }}
+          onBackHome={() => requestLeave("/")}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
           progressLabel={
             overlayKind === "loading"
@@ -1262,10 +1347,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             slotLabels={session.slotLabels}
             onClose={() => setSelectionsOpen(false)}
             onRemove={handleRemoveSelection}
-            onEdit={(slot) => {
-              setSelectionsOpen(false);
-              handleEditReviewSlot(slot);
-            }}
+            onEdit={handleEditReviewSlot}
             viewOnly={viewOnly}
           />
         </div>
@@ -1311,7 +1393,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             unitId={unitId}
             actionsDisabled={streamBlocking && overlayKind !== "disconnected" && overlayKind !== "idle"}
             streamOffline={overlayKind === "disconnected" || overlayKind === "idle"}
-            onReconnect={() => window.location.reload()}
+            onReconnect={reloadSession}
             onBack={() => {
               setReviewOpen(false);
               setQuoteDialogOpen(false);
@@ -1376,6 +1458,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         open={resetDialogOpen}
         onCancel={() => setResetDialogOpen(false)}
         onConfirm={confirmReset}
+      />
+
+      <LeaveConfiguratorDialog
+        open={leaveOpen}
+        onStay={stayOnConfigurator}
+        onLeave={confirmLeave}
       />
     </div>
   );

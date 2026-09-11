@@ -174,7 +174,7 @@ export function reviewGroups(
   );
 
   for (const sel of selections) {
-    const zoneId = zoneIdFromSlot(sel.slot) ?? "LivingArea";
+    const zoneId = zoneIdFromSlot(sel.slot) ?? sel.slot;
     const mat = matById.get(sel.materialId);
     const line: ReviewMaterialLine = {
       slot: sel.slot,
