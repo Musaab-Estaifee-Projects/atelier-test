@@ -64,7 +64,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
               levelName: design.configuration.levelName,
               layoutCode: design.configuration.levelName,
             },
-            { designCode: design.designCode, view: true },
+            { view: true },
         ),
       );
     } catch {

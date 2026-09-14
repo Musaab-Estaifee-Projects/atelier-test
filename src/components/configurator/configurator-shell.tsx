@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation";
 import {
   ApiError,
   getConfiguratorSession,
-  getDesign,
   submitDesign,
 } from "@/lib/configurator/api";
 import {
@@ -27,10 +26,8 @@ import {
   syncDraftToUe,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import {
-  ensureDesignCode,
-  appliedSelectionMap,
-} from "@/lib/configurator/storage";
+import { appliedSelectionMap, clearDraft } from "@/lib/configurator/storage";
+import { ensureBackendDesign } from "@/lib/configurator/ensure-design";
 import { normalizeZone, zoneUrlPatch } from "@/lib/configurator/url-params";
 import {
   camerasForZone,
@@ -43,11 +40,10 @@ import {
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
 import { materialThumb } from "@/lib/configurator/chrome";
-import {
-  CATALOG_PROJECTS,
-  DEMO_BACKEND_PROJECT_ID,
-  DEFAULT_LAYOUT_CODE,
-} from "@/lib/projects/catalog";
+import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
+import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
+import { backendProjectIdFromUrl } from "@/lib/projects/project-id";
+import { getValidJourneyToken, readJourney } from "@/lib/journey";
 import type {
   CameraRule,
   ConfiguratorCamera,
@@ -79,6 +75,8 @@ import {
 } from "@/lib/configurator/ue-load-id";
 import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
+import { useDesignSummary } from "@/hooks/configurator/use-design-summary";
+import { useRenderJob } from "@/hooks/configurator/use-render-job";
 import StreamViewport from "./stream-viewport";
 import LoadingOverlay, { streamOverlayKind } from "./loading-overlay";
 import AfkWarningOverlay from "./afk-warning-overlay";
@@ -91,14 +89,14 @@ import CustomizationRequiredDialog from "./customization-required-dialog";
 import ResetToDefaultDialog from "./reset-to-default-dialog";
 import SelectionsSheet from "./selections-sheet";
 import SubmitModal from "./submit-modal";
-import DesignSuccess from "./design-success";
+import QuotationReady from "./quotation-ready";
+import RendersNotReadyDialog from "./renders-not-ready-dialog";
 import ViewOnlyBanner from "./view-only-banner";
-import FinalDesignPrompt from "./final-design/final-design-prompt";
 import FinalDesignProgress from "./final-design/final-design-progress";
 import FinalDesignViewer from "./final-design/final-design-viewer";
-import FinalDesignReview from "./final-design/final-design-review";
 import ReviewSelections from "./review-selections";
 import LeaveConfiguratorDialog from "./leave-configurator-dialog";
+import JourneyGate from "./journey-gate";
 import SelectStyle from "@/components/pages/styles/select-style";
 
 const MOCK_UE =
@@ -112,20 +110,18 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
   const unitId = params.unit?.trim() || null;
-  const selectedProjectId =
-    params.backendProjectId && params.backendProjectId !== projectId
-      ? params.backendProjectId
-      : null;
-  const storageProjectId =
-    selectedProjectId || CATALOG_PROJECTS[1]?.projectId || "reef-997";
-  const catalogApiProjectId = DEMO_BACKEND_PROJECT_ID;
+  const apartmentId = params.apartmentId?.trim() || null;
+  const catalogApiProjectId = backendProjectIdFromUrl(
+    params.backendProjectId,
+    projectId,
+  );
+  const storageProjectId = catalogApiProjectId || "";
   const layoutCode = params.layoutCode?.trim() || DEFAULT_LAYOUT_CODE;
 
+  const [journeyReady, setJourneyReady] = useState<boolean | null>(null);
   const returningVisitRef = useRef(false);
-  const designCodeRef = useRef<string | null>(params.designCode ?? null);
-  const [designCode, setDesignCode] = useState<string | null>(
-    params.designCode ?? null,
-  );
+  const designCodeRef = useRef<string | null>(null);
+  const [designCode, setDesignCode] = useState<string | null>(null);
 
   const [session, setSession] = useState<ConfiguratorSession | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -143,6 +139,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [submitPending, setSubmitPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SubmitDesignResult | null>(null);
+  const [quotationReady, setQuotationReady] = useState(false);
+  const [rendersNotReadyOpen, setRendersNotReadyOpen] = useState(false);
   const [ueSyncStatus, setUeSyncStatus] = useState<string | null>(null);
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -197,6 +195,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     streamProjectId: projectId,
     backendProjectId: storageProjectId,
     layoutCode,
+    apartmentId,
     designCode,
     session,
     viewOnly,
@@ -328,6 +327,46 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   ingestRenderRef.current = finalDesign.ingestUeResponse;
   capturePhaseRef.current = finalDesign.phase;
 
+  const designSummary = useDesignSummary({
+    enabled:
+      journeyReady === true &&
+      !viewOnly &&
+      Boolean(session && designCode && selections.hydrated),
+    streamProjectId: projectId,
+    backendProjectId: storageProjectId,
+    layoutCode,
+    apartmentId,
+    designCode,
+    session,
+    customMap: selections.map,
+  });
+
+  const renderJob = useRenderJob({
+    enabled: journeyReady === true && !viewOnly,
+    send,
+    mockUe: MOCK_UE,
+    streamProjectId: projectId,
+    backendProjectId: storageProjectId,
+    layoutCode,
+    apartmentId,
+    designCode,
+    session,
+    customMap: selections.map,
+  });
+  const resumedRendersRef = useRef(false);
+
+  useEffect(() => {
+    if (viewOnly) {
+      setJourneyReady(true);
+      return;
+    }
+    setJourneyReady(Boolean(getValidJourneyToken()));
+  }, [viewOnly]);
+
+  useEffect(() => {
+    if (journeyReady === false) setSessionLoading(false);
+  }, [journeyReady]);
+
   const isUeReady = useCallback(() => {
     if (MOCK_UE) return true;
     const ps = stream.pixelStreamingRef.current as {
@@ -343,7 +382,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const runUeSync = useCallback(
     async (opts?: { force?: boolean; skipLoadLevel?: boolean }) => {
       if (!session) return;
-      if (viewOnly && !design) return;
+      if (viewOnly) return;
 
       const code = designCodeRef.current;
       setUeSyncError(null);
@@ -434,6 +473,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   // Boot session / design
   useEffect(() => {
+    if (journeyReady !== true) return;
     let cancelled = false;
     (async () => {
       setSessionLoading(true);
@@ -441,14 +481,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       setDesignError(null);
 
       try {
-        if (viewOnly && params.designCode) {
-          try {
-            const stored = await getDesign(params.designCode);
-            if (cancelled) return;
-            setDesign(stored);
-          } catch {
-            /* view-only share is optional; catalog still loads */
-          }
+        if (!catalogApiProjectId) {
+          throw new Error(
+            "A valid project is required to load this apartment catalog.",
+          );
         }
 
         const sess = await getConfiguratorSession({
@@ -461,27 +497,33 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         setActiveCatalogZones(sess.zones);
         setSession(sess);
 
-        const ensured = ensureDesignCode({
-          streamProjectId: projectId,
-          projectId: storageProjectId,
-          layoutCode: sess.layoutCode,
-          urlDesignCode: params.designCode,
-        });
-        returningVisitRef.current = ensured.returning;
-        designCodeRef.current = ensured.designCode;
-        setDesignCode(ensured.designCode);
+        if (!viewOnly) {
+          const ensured = await ensureBackendDesign({
+            streamProjectId: projectId,
+            backendProjectId: catalogApiProjectId,
+            layoutCode: sess.layoutCode,
+            apartmentId,
+          });
+          if (cancelled) return;
+          returningVisitRef.current = ensured.returning;
+          designCodeRef.current = ensured.designCode;
+          setDesignCode(ensured.designCode);
+        }
 
         setParams(
           {
-            backendProjectId: selectedProjectId,
+            backendProjectId: catalogApiProjectId,
             layoutCode: sess.layoutCode,
-            designCode: ensured.designCode,
+            apartmentId,
+            unit: unitId,
           },
           { replace: true },
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setSessionError(e?.message ?? "Failed to load catalog");
+        const message =
+          e instanceof Error ? e.message : "Failed to load catalog";
+        setSessionError(message);
       } finally {
         if (!cancelled) setSessionLoading(false);
       }
@@ -490,7 +532,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, storageProjectId, catalogApiProjectId, layoutCode, viewOnly]);
+  }, [
+    journeyReady,
+    projectId,
+    catalogApiProjectId,
+    layoutCode,
+    apartmentId,
+    viewOnly,
+  ]);
 
   // Hydrate FE selections from storage only — never paint them onto UE
   useEffect(() => {
@@ -503,11 +552,24 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, design, viewOnly, designCode]);
 
-  const designReady = Boolean(design);
+  useEffect(() => {
+    if (
+      !params.renders ||
+      viewOnly ||
+      !designCode ||
+      !session ||
+      resumedRendersRef.current
+    ) {
+      return;
+    }
+    resumedRendersRef.current = true;
+    setReviewOpen(false);
+    renderJob.resume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.renders, viewOnly, designCode, session]);
 
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
-    if (viewOnly && !designReady) return;
 
     // Also runs after reconnect: isLoading true invalidates the UE cache,
     // then this effect force-syncs finishes/camera when the stream is live again.
@@ -527,8 +589,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     selections.hydrated,
     projectId,
     viewOnly,
-    designReady,
-    params.designCode,
     designCode,
   ]);
 
@@ -1006,7 +1066,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         finalDesign.backToCustomize();
         setParams(
           {
-            designCode: result.designCode,
             layoutCode: session.layoutCode,
             unit: unitId,
             camera: params.camera,
@@ -1114,8 +1173,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     params.zone,
     params.camera,
     params.layoutCode,
-    params.designCode,
     params.view,
+    params.renders,
+    params.apartmentId,
   ]);
 
   useEffect(() => {
@@ -1239,6 +1299,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           overlay
           onStartCustomizing={() => setBrowseStylesOpen(false)}
           onSelectStyle={() => setBrowseStylesOpen(false)}
+          projectId={catalogApiProjectId}
+          apartmentId={apartmentId}
+          unitId={unitId}
+          levelName={layoutCode}
         />
       ) : null}
 
@@ -1267,15 +1331,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       {showAfkWarning ? (
         <AfkWarningOverlay
           countdown={stream.afkCountdown}
+          total={AFK_CONFIG.countdownSeconds}
           onStay={stream.dismissAfk}
         />
       ) : null}
 
-      {viewOnly && params.designCode && (
-        <ViewOnlyBanner
-          designCode={params.designCode}
-          onStartOwn={handleStartOwn}
-        />
+      {viewOnly && designCode && (
+        <ViewOnlyBanner designCode={designCode} onStartOwn={handleStartOwn} />
       )}
 
       {selections.storageWarning && !viewOnly && (
@@ -1361,13 +1423,25 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         onSubmit={handleSubmit}
       />
 
-      <DesignSuccess
-        open={Boolean(success)}
-        designCode={success?.designCode ?? ""}
-        shareUrl={success?.shareUrl ?? ""}
-        price={success?.price ?? 0}
-        currency={success?.currency}
-        onClose={() => setSuccess(null)}
+      <QuotationReady
+        open={quotationReady || Boolean(success)}
+        designCode={success?.designCode ?? designCode ?? ""}
+        shareUrl={
+          success?.shareUrl ??
+          (typeof window !== "undefined"
+            ? `${window.location.origin}${window.location.pathname}?${new URLSearchParams(
+                {
+                  ...(catalogApiProjectId
+                    ? { project_id: catalogApiProjectId }
+                    : {}),
+                  layout_code: layoutCode,
+                  ...(apartmentId ? { apartment_id: apartmentId } : {}),
+                },
+              ).toString()}`
+            : "")
+        }
+        unitSubtitle={reviewUnitSubtitle(unitId, session?.layoutCode ?? layoutCode)}
+        email={readJourney()?.customer.email}
       />
 
       {session ? (
@@ -1386,70 +1460,88 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             onClose={() => setCustomizationRequiredOpen(false)}
           />
 
+          <RendersNotReadyDialog
+            open={rendersNotReadyOpen}
+            onClose={() => setRendersNotReadyOpen(false)}
+          />
+
           <ReviewSelections
-            open={reviewOpen && !viewOnly}
+            open={reviewOpen && !viewOnly && !renderJob.active}
             session={session}
             selections={selections.selections}
             unitId={unitId}
-            actionsDisabled={streamBlocking && overlayKind !== "disconnected" && overlayKind !== "idle"}
-            streamOffline={overlayKind === "disconnected" || overlayKind === "idle"}
+            summary={designSummary.data}
+            summaryLoading={designSummary.loading}
+            summaryError={designSummary.error}
+            confirmPending={renderJob.preparing}
+            confirmError={renderJob.active ? null : renderJob.error}
+            actionsDisabled={
+              streamBlocking &&
+              overlayKind !== "disconnected" &&
+              overlayKind !== "idle"
+            }
+            streamOffline={
+              overlayKind === "disconnected" || overlayKind === "idle"
+            }
             onReconnect={reloadSession}
             onBack={() => {
               setReviewOpen(false);
               setQuoteDialogOpen(false);
             }}
-            onConfirm={() => {
-              setReviewOpen(false);
+            onConfirm={async () => {
+              const ok = await renderJob.start();
+              if (!ok) return;
+              resumedRendersRef.current = true;
               setQuoteDialogOpen(false);
               setSubmitOpen(false);
-              finalDesign.startCapture();
+              setReviewOpen(false);
+              setParams({ renders: true }, { replace: true });
             }}
             onRemove={handleRemoveSelection}
             onEdit={handleEditReviewSlot}
           />
 
-          <FinalDesignPrompt
-            open={finalDesign.phase === "confirm"}
-            onBack={finalDesign.backToCustomize}
-            onStart={finalDesign.startCapture}
-          />
-
           <FinalDesignProgress
-            open={finalDesign.phase === "capturing"}
-            rooms={finalDesign.rooms}
+            open={
+              !viewOnly &&
+              !quotationReady &&
+              (renderJob.active || Boolean(params.renders))
+            }
+            rooms={renderJob.rooms}
             unitSubtitle={reviewUnitSubtitle(unitId, session.layoutCode)}
-            error={finalDesign.globalError}
-            submitPending={submitPending}
-            submitError={submitError}
+            error={renderJob.error}
+            total={Number(designSummary.data?.total_amount ?? 0)}
+            onConfirm={() => {
+              if (!renderJob.allReady) {
+                setRendersNotReadyOpen(true);
+                return;
+              }
+              clearDraft(
+                projectId,
+                storageProjectId,
+                session.layoutCode || layoutCode,
+                apartmentId,
+              );
+              renderJob.stop();
+              setParams({ renders: false }, { replace: true });
+              setQuotationReady(true);
+            }}
             onBack={() => {
-              finalDesign.backToCustomize();
+              renderJob.stop();
+              setParams({ renders: false }, { replace: true });
+              resumedRendersRef.current = false;
               setReviewOpen(true);
             }}
-            onView={finalDesign.openViewer}
-            onRetry={finalDesign.retryRoom}
+            onView={renderJob.openViewer}
+            onRetry={renderJob.retryRoom}
             onSubmit={handleSubmit}
           />
 
           <FinalDesignViewer
-            key={finalDesign.viewerRoom?.zoneId ?? "none"}
-            room={finalDesign.viewerRoom}
-            onClose={finalDesign.closeViewer}
-          />
-
-          <FinalDesignReview
-            open={finalDesign.phase === "review"}
-            rooms={finalDesign.rooms}
-            session={session}
-            selections={selections.selections}
-            onBack={finalDesign.backToCustomize}
-            onQuote={() => {
-              if (!selections.selections.length) {
-                setCustomizationRequiredOpen(true);
-                return;
-              }
-              finalDesign.backToCustomize();
-              setReviewOpen(true);
-            }}
+            stills={renderJob.stills}
+            index={renderJob.lightboxIndex}
+            onIndexChange={renderJob.setLightboxIndex}
+            onClose={renderJob.closeViewer}
           />
         </>
       ) : null}
@@ -1465,6 +1557,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         onStay={stayOnConfigurator}
         onLeave={confirmLeave}
       />
+
+      {journeyReady === false ? (
+        <JourneyGate onReady={() => setJourneyReady(true)} />
+      ) : null}
     </div>
   );
 };

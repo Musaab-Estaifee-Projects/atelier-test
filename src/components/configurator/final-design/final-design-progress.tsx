@@ -1,40 +1,52 @@
 "use client";
 
 import { useMemo } from "react";
+import Image from "next/image";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
 import type { RoomRenderCard } from "@/types/configurator";
 import type { SubmitContactForm } from "@/components/configurator/submit-modal";
-import BackArrow from "@/components/icons/configurator/back-arrow";
+// import BackArrow from "@/components/icons/configurator/back-arrow";
 import DiamondRule from "@/components/icons/configurator/diamond-rule";
 import TitleRule from "@/components/icons/title-rule";
-// import CustomHeaderStyle from "@/components/icons/configurator/custom-header-style";
-// import CustomChevron from "@/components/icons/custom-chevron";
-// import FromFrame from "@/components/icons/form-frame";
-// import { Input } from "@/components/ui/input";
-// import ContactForm from "@/components/shared/contact-form";
-// import { ContactInfo } from "@/types/types";/
-
-// const ROLES = [
-//   { id: "considering", label: "Considering a purchase" },
-//   { id: "owner", label: "An owner of this unit" },
-//   { id: "agent", label: "An agent" },
-// ] as const;
-
-// type RoleId = (typeof ROLES)[number]["id"];
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
   rooms: RoomRenderCard[];
   unitSubtitle: string;
   error?: string | null;
+  total?: number;
+  confirmDisabled?: boolean;
+  onConfirm?: () => void;
   submitPending?: boolean;
   submitError?: string | null;
-  onBack: () => void;
-  onView: (zoneId: string) => void;
+  onBack?: () => void;
+  onView: (zoneId: string, cameraName?: string) => void;
   onRetry: (zoneId: string) => void;
   onSubmit: (contact: SubmitContactForm) => void;
+};
+
+const Dirham = ({
+  className,
+  size,
+}: {
+  className?: string;
+  size: "sm" | "md" | "lg";
+}) => {
+  const box =
+    size === "lg"
+      ? "h-[17px] w-[20px]"
+      : size === "md"
+        ? "h-4 w-[19px]"
+        : "h-[9px] w-[11px]";
+  return (
+    <span className={cn(box, "shrink-0 overflow-clip", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/review/dirham.svg" alt="" className="h-full w-full" />
+    </span>
+  );
 };
 
 function stillProgress(room: RoomRenderCard) {
@@ -49,7 +61,7 @@ const RoomBlock = ({
   onRetry,
 }: {
   room: RoomRenderCard;
-  onView: (zoneId: string) => void;
+  onView: (zoneId: string, cameraName?: string) => void;
   onRetry: (zoneId: string) => void;
 }) => {
   const { done, total } = stillProgress(room);
@@ -90,16 +102,18 @@ const RoomBlock = ({
               disabled={!ready && !failed}
               onClick={() => {
                 if (failed) onRetry(room.zoneId);
-                else if (ready) onView(room.zoneId);
+                else if (ready) onView(room.zoneId, still.cameraName);
               }}
               className="relative aspect-711/398 w-full overflow-hidden bg-[#003d43] text-left disabled:cursor-default"
             >
-              {ready ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+              {ready && still.imageUrl ? (
+                <Image
                   src={still.imageUrl}
                   alt={`${room.label} view ${index + 1}`}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 560px"
                 />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -154,18 +168,18 @@ const FinalDesignProgress = ({
   rooms,
   unitSubtitle,
   error,
-  // submitPending = false,
-  // submitError = null,
+  total = 0,
+  confirmDisabled = true,
+  onConfirm,
   onBack,
   onView,
   onRetry,
-  // onSubmit,
 }: Props) => {
   if (!open) return null;
 
   return (
     <div
-      className="absolute inset-0 z-60 overflow-y-auto overflow-x-hidden bg-[#00272d] text-white"
+      className="absolute inset-0 z-60 overflow-y-auto hidden-scrollbar overflow-x-hidden bg-[#00272d] text-white pt-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="fd-progress-title"
@@ -174,9 +188,9 @@ const FinalDesignProgress = ({
         <CustomHeaderStyle className="h-full w-full object-cover object-[center_top]" />
       </div> */}
 
-      <div className="relative z-10 mx-auto flex w-full max-w-360 flex-col px-4 pt-5 pb-16 sm:px-9">
+      <div className="relative z-10 mx-auto flex w-full max-w-360 flex-col px-4 pt-5 pb-[calc(11rem+env(safe-area-inset-bottom))] sm:px-9 md:pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
         <header className="relative flex items-center justify-between gap-3">
-          <Button
+          {/* <Button
             type="button"
             variant="pill-solid"
             size="pill-sm"
@@ -184,7 +198,7 @@ const FinalDesignProgress = ({
           >
             <BackArrow className="w-[0.28125rem]! h-auto" />
             Back To summary
-          </Button>
+          </Button> */}
           <div className="absolute left-1/2 hidden -translate-x-1/2 sm:block">
             <AtelierMark />
           </div>
@@ -234,6 +248,28 @@ const FinalDesignProgress = ({
           /> */}
         </div>
       </div>
+
+      <footer className="fixed pointer-events-none inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-4 md:pb-10">
+        <div className="pointer-events-auto flex w-full max-w-187.25 flex-col gap-3 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.2)] to-[rgba(77,69,57,0.2)] py-3 pr-3 pl-5 backdrop-blur-[25px] md:min-h-13 md:flex-row md:items-center md:justify-between md:gap-3 md:rounded-full md:py-1.5 md:pr-1.5 md:pl-6.25">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="font-baskerville text-[14px] leading-[1.16] tracking-wider text-white">
+              Total :
+            </p>
+            <p className="flex items-center gap-0.5 font-baskerville text-[24px] leading-[1.16] tracking-wider text-white sm:text-[28px]">
+              <Dirham size="lg" />
+              {Number.isFinite(total) ? total.toLocaleString() : "0"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="pill"
+            className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-56"
+            onClick={onConfirm}
+          >
+            Confirm My Selection
+          </Button>
+        </div>
+      </footer>
     </div>
   );
 };

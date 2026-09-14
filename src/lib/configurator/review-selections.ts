@@ -25,7 +25,9 @@ export type ReviewSection = {
   subtotal: number;
 };
 
-function swatchForMaterial(mat?: MaterialOption): "wood" | "marble" | undefined {
+function swatchForMaterial(
+  mat?: MaterialOption,
+): "wood" | "marble" | undefined {
   const cat = (mat?.category ?? "").toLowerCase();
   if (cat === "floor") return "marble";
   if (mat) return "wood";

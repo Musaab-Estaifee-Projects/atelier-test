@@ -1,5 +1,17 @@
-import { CONTACT_STORAGE_KEY } from "@/constants/const";
-import { ContactInfo } from "@/types/types";
+import { CONTACT_STORAGE_KEY, ROLES } from "@/constants/const";
+import { ContactInfo, RoleId } from "@/types/types";
+
+const ROLE_IDS = new Set<RoleId>(ROLES.map((role) => role.id));
+
+export function normalizeRoleId(role: string | undefined): RoleId {
+  if (role === "considering") return "considering_purchase";
+  if (role && ROLE_IDS.has(role as RoleId)) return role as RoleId;
+  return "owner";
+}
+
+export function toE164Phone(value: string): string {
+  return value.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
+}
 
 export function clearStoredContact(): void {
   if (typeof window === "undefined") return;
@@ -22,7 +34,12 @@ export function readContact(): ContactInfo | null {
       typeof parsed?.phone === "string" &&
       typeof parsed?.role === "string"
     ) {
-      return parsed;
+      return {
+        name: parsed.name,
+        email: parsed.email,
+        phone: toE164Phone(parsed.phone),
+        role: normalizeRoleId(parsed.role),
+      };
     }
     return null;
   } catch {

@@ -249,6 +249,7 @@ const SelectStep = ({
     if (selectedUnit) {
       submitChoice({
         unitId: selectedUnit.number,
+        apartmentId: selectedUnit.id,
         levelName: "",
         layoutCode: selectedUnit.layoutCode,
       });
@@ -262,6 +263,7 @@ const SelectStep = ({
       if (exact) {
         submitChoice({
           unitId: exact.apartment_number,
+          apartmentId: String(exact.id),
           levelName: "",
           layoutCode: exact.layout.code,
         });

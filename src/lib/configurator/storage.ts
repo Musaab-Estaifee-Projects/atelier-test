@@ -1,10 +1,26 @@
+import { customMapToStored, normalizeStoredSelections, storedToSelectionMap } from "@/lib/configurator/api-selections";
 import type {
   LocalDraft,
   SelectionEntry,
   SelectionMap,
 } from "@/types/configurator";
+import type { StoredSelection } from "@/types/stored-selection";
+
+function apartmentKey(apartmentId?: string | null): string {
+  const id = apartmentId?.trim();
+  return id || "none";
+}
 
 export function draftStorageKey(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+  apartmentId?: string | null,
+): string {
+  return `atelier:config:${streamProjectId}:${projectId}:${layoutCode}:${apartmentKey(apartmentId)}`;
+}
+
+function legacyDraftStorageKey(
   streamProjectId: string,
   projectId: string,
   layoutCode: string,
@@ -26,27 +42,106 @@ export function isUsingMemoryOnlyStorage(): boolean {
 function isDraft(value: unknown): value is LocalDraft {
   if (!value || typeof value !== "object") return false;
   const d = value as LocalDraft;
-  return d.version === 2 && typeof d.designCode === "string" && Array.isArray(d.selections);
+  return (
+    d.version === 3 &&
+    typeof d.designCode === "string" &&
+    Array.isArray(d.selections)
+  );
+}
+
+function migrateDraft(
+  value: unknown,
+  fallback: {
+    streamProjectId: string;
+    projectId: string;
+    layoutCode: string;
+    apartmentId?: string | null;
+  },
+): LocalDraft | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (isDraft(value)) {
+    return {
+      ...value,
+      apartmentId: value.apartmentId ?? fallback.apartmentId ?? null,
+      selectionRevision: 0,
+      selections: normalizeStoredSelections(value.selections),
+    };
+  }
+  if (raw.version === 2 && typeof raw.designCode === "string") {
+    return {
+      version: 3,
+      streamProjectId: String(raw.streamProjectId ?? fallback.streamProjectId),
+      projectId: String(raw.projectId ?? fallback.projectId),
+      layoutCode: String(raw.layoutCode ?? fallback.layoutCode),
+      apartmentId: fallback.apartmentId ?? null,
+      designCode: raw.designCode,
+      selections: normalizeStoredSelections(raw.selections),
+      selectionRevision: 0,
+      summaryToken: null,
+      summaryExpiresAt: null,
+      prepareIdempotencyKey: null,
+      highResCaptureSent: false,
+      updatedAt:
+        typeof raw.updatedAt === "string"
+          ? raw.updatedAt
+          : new Date().toISOString(),
+    };
+  }
+  return null;
+}
+
+function readRaw(key: string): unknown | null {
+  if (memoryFallback[key]) return memoryFallback[key];
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export function loadDraft(
   streamProjectId: string,
   projectId: string,
   layoutCode: string,
+  apartmentId?: string | null,
 ): LocalDraft | null {
-  const key = draftStorageKey(streamProjectId, projectId, layoutCode);
-  if (memoryFallback[key]) return memoryFallback[key];
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isDraft(parsed)) return null;
-    memoryFallback[key] = parsed;
-    return parsed;
-  } catch {
-    return null;
+  const key = draftStorageKey(
+    streamProjectId,
+    projectId,
+    layoutCode,
+    apartmentId,
+  );
+  const migrated = migrateDraft(readRaw(key), {
+    streamProjectId,
+    projectId,
+    layoutCode,
+    apartmentId,
+  });
+  if (migrated) {
+    memoryFallback[key] = migrated;
+    return migrated;
   }
+
+  const legacyKey = legacyDraftStorageKey(
+    streamProjectId,
+    projectId,
+    layoutCode,
+  );
+  const legacy = migrateDraft(readRaw(legacyKey), {
+    streamProjectId,
+    projectId,
+    layoutCode,
+    apartmentId,
+  });
+  if (legacy) {
+    memoryFallback[key] = legacy;
+    return legacy;
+  }
+  return null;
 }
 
 export function saveDraft(draft: LocalDraft): StorageWriteResult {
@@ -54,13 +149,17 @@ export function saveDraft(draft: LocalDraft): StorageWriteResult {
     draft.streamProjectId,
     draft.projectId,
     draft.layoutCode,
+    draft.apartmentId,
   );
   const prev = memoryFallback[key] ?? null;
   const merged: LocalDraft = {
     ...prev,
     ...draft,
+    version: 3,
     designCode: draft.designCode || prev?.designCode || "",
-    version: 2,
+    selections: normalizeStoredSelections(draft.selections),
+    selectionRevision: 0,
+    apartmentId: draft.apartmentId ?? prev?.apartmentId ?? null,
   };
   memoryFallback[key] = merged;
   if (typeof window === "undefined") {
@@ -80,76 +179,86 @@ export function saveDraft(draft: LocalDraft): StorageWriteResult {
   }
 }
 
+export function patchDraft(
+  args: {
+    streamProjectId: string;
+    projectId: string;
+    layoutCode: string;
+    apartmentId?: string | null;
+  },
+  patch: Partial<LocalDraft>,
+): StorageWriteResult {
+  const prev = loadDraft(
+    args.streamProjectId,
+    args.projectId,
+    args.layoutCode,
+    args.apartmentId,
+  );
+  if (!prev && !patch.designCode) {
+    return { ok: false, reason: "unavailable" };
+  }
+  return saveDraft({
+    version: 3,
+    streamProjectId: args.streamProjectId,
+    projectId: args.projectId,
+    layoutCode: args.layoutCode,
+    apartmentId: args.apartmentId ?? prev?.apartmentId ?? null,
+    designCode: patch.designCode || prev?.designCode || "",
+    selections: patch.selections ?? prev?.selections ?? [],
+    selectionRevision: 0,
+    summaryToken:
+      patch.summaryToken !== undefined
+        ? patch.summaryToken
+        : (prev?.summaryToken ?? null),
+    summaryExpiresAt:
+      patch.summaryExpiresAt !== undefined
+        ? patch.summaryExpiresAt
+        : (prev?.summaryExpiresAt ?? null),
+    prepareIdempotencyKey:
+      patch.prepareIdempotencyKey !== undefined
+        ? patch.prepareIdempotencyKey
+        : (prev?.prepareIdempotencyKey ?? null),
+    retryIdempotencyKey:
+      patch.retryIdempotencyKey !== undefined
+        ? patch.retryIdempotencyKey
+        : (prev?.retryIdempotencyKey ?? null),
+    highResCaptureSent:
+      patch.highResCaptureSent !== undefined
+        ? patch.highResCaptureSent
+        : (prev?.highResCaptureSent ?? false),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export function clearDraft(
   streamProjectId: string,
   projectId: string,
   layoutCode: string,
+  apartmentId?: string | null,
 ): void {
-  const key = draftStorageKey(streamProjectId, projectId, layoutCode);
+  const key = draftStorageKey(
+    streamProjectId,
+    projectId,
+    layoutCode,
+    apartmentId,
+  );
   delete memoryFallback[key];
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(key);
+    window.localStorage.removeItem(
+      legacyDraftStorageKey(streamProjectId, projectId, layoutCode),
+    );
   } catch {
     /* ignore */
   }
 }
 
-export function generateDesignCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let suffix = "";
-  for (let i = 0; i < 6; i++) {
-    suffix += chars[Math.floor(Math.random() * chars.length)];
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
   }
-  return `AT-${suffix}`;
-}
-
-/** Codes created in this JS runtime so Strict Mode remounts are not "returning". */
-const generatedThisRuntime = new Set<string>();
-
-/** Reuse existing design_code or create one for this stream/project/layout. */
-export function ensureDesignCode(args: {
-  streamProjectId: string;
-  projectId: string;
-  layoutCode: string;
-  urlDesignCode?: string | null;
-}): { designCode: string; returning: boolean } {
-  const fromUrl = args.urlDesignCode?.trim() || "";
-  const draft = loadDraft(
-    args.streamProjectId,
-    args.projectId,
-    args.layoutCode,
-  );
-  const fromDraft = draft?.designCode?.trim() || "";
-
-  const isReturning = (code: string) =>
-    Boolean(code) && !generatedThisRuntime.has(code);
-
-  if (fromUrl) {
-    if (draft && fromDraft && fromDraft !== fromUrl) {
-      saveDraft({
-        ...draft,
-        designCode: fromUrl,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-    return { designCode: fromUrl, returning: isReturning(fromUrl) };
-  }
-  if (fromDraft) {
-    return { designCode: fromDraft, returning: isReturning(fromDraft) };
-  }
-  const designCode = generateDesignCode();
-  generatedThisRuntime.add(designCode);
-  saveDraft({
-    version: 2,
-    streamProjectId: args.streamProjectId,
-    projectId: args.projectId,
-    layoutCode: args.layoutCode,
-    designCode,
-    selections: draft?.selections ?? [],
-    updatedAt: new Date().toISOString(),
-  });
-  return { designCode, returning: false };
+  return `idemp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export function selectionsToMap(list: SelectionEntry[]): SelectionMap {
@@ -206,4 +315,15 @@ export function appliedSelectionMap(
   custom: SelectionMap,
 ): SelectionMap {
   return { ...selectionsToMap(defaults ?? []), ...custom };
+}
+
+export function storedSelectionsFromCustom(
+  session: Parameters<typeof customMapToStored>[0],
+  custom: SelectionMap,
+): StoredSelection[] {
+  return customMapToStored(session, custom);
+}
+
+export function customMapFromStored(list: StoredSelection[]): SelectionMap {
+  return storedToSelectionMap(list);
 }

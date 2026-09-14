@@ -38,6 +38,7 @@ type Props = {
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
   projectId?: string | null;
+  apartmentId?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -49,6 +50,7 @@ const SelectStyle = ({
   onSelectStyle,
   projectSlug,
   projectId,
+  apartmentId,
   unitId: _unitId,
   levelName,
 }: Props) => {
@@ -57,12 +59,18 @@ const SelectStyle = ({
     CATALOG_PROJECTS[1] ??
     CATALOG_PROJECTS[0];
 
-  const customizeHref = configuratorHref({
-    streamProjectId: project.streamProjectId,
-    projectId: projectId || project.projectId,
-    levelName: levelName || project.levelName,
-    layoutCode: levelName || project.layoutCode || project.levelName,
-  });
+  const customizeHref = configuratorHref(
+    {
+      streamProjectId: project.streamProjectId,
+      projectId: projectId || project.projectId,
+      levelName: levelName || project.levelName,
+      layoutCode: levelName || project.layoutCode || project.levelName,
+    },
+    {
+      apartmentId,
+      unit: _unitId,
+    },
+  );
 
   const Wrapper = overlay ? "div" : "main";
 

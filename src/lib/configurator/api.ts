@@ -9,7 +9,7 @@ import {
   mockSaveDesign,
 } from "@/mocks/configurator/designs-store";
 import { getLayoutCatalog } from "@/services/get-layout-catalog.service";
-import { DEMO_BACKEND_PROJECT_ID } from "@/lib/projects/catalog";
+import { isBackendProjectId } from "@/lib/projects/project-id";
 import type {
   ConfiguratorSession,
   DesignConfiguration,
@@ -32,8 +32,13 @@ export async function getConfiguratorSession(args: {
   layoutCode?: string | null;
   unitId?: string | null;
 }): Promise<ConfiguratorSession> {
-  const backendProjectId =
-    args.backendProjectId?.trim() || DEMO_BACKEND_PROJECT_ID;
+  const backendProjectId = args.backendProjectId?.trim() || "";
+  if (!isBackendProjectId(backendProjectId)) {
+    throw new ApiError(
+      "A valid project id is required to load the layout catalog.",
+      400,
+    );
+  }
   const layoutCode = args.layoutCode?.trim() || "1bhk_type_3";
   try {
     const catalog = await getLayoutCatalog(layoutCode, backendProjectId);
@@ -90,11 +95,7 @@ export async function submitDesign(args: {
       throw new ApiError(`Unknown material: ${s.materialId}`, 400);
     }
     const allowed = session.materialsByMesh[s.meshId] ?? [];
-    if (
-      s.materialId &&
-      allowed.length &&
-      !allowed.includes(s.materialId)
-    ) {
+    if (s.materialId && allowed.length && !allowed.includes(s.materialId)) {
       throw new ApiError(
         `Material ${s.materialId} not allowed on ${s.meshId}`,
         400,

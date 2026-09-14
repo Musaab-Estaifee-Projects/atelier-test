@@ -24,19 +24,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { countriesData } from "@/constants/countries-data";
 
+type PhoneInputVariant = "default" | "atelier";
+
+const PhoneInputVariantContext =
+  React.createContext<PhoneInputVariant>("default");
+
 type PhoneInputProps = Omit<
   React.ComponentProps<"input">,
   "onChange" | "value" | "ref"
 > &
   Omit<RPNInput.Props<typeof RPNInput.default>, "onChange"> & {
     onChange?: (value: RPNInput.Value) => void;
+    variant?: PhoneInputVariant;
   };
 
 const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
   React.forwardRef<
     React.ComponentRef<typeof RPNInput.default>,
     PhoneInputProps
-  >(({ className, onChange, placeholder, ...props }, ref) => {
+  >(({ className, onChange, placeholder, variant = "default", ...props }, ref) => {
     const [defaultCountry, setDefaultCountry] =
       useState<RPNInput.Country>("AE");
     const [currentCountry, setCurrentCountry] =
@@ -76,32 +82,30 @@ const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
     const dynamicPlaceholder = getDialFormat(currentCountry);
 
     return (
-      <RPNInput.default
-        ref={ref}
-        className={cn("flex gap-4", className)}
-        flagComponent={FlagComponent}
-        countrySelectComponent={(countrySelectProps) => (
-          <CountrySelect
-            {...countrySelectProps}
-            onCountryChange={handleCountryChange}
-          />
-        )}
-        inputComponent={InputComponent}
-        smartCaret={false}
-        defaultCountry={defaultCountry}
-        /**
-         * Handles the onChange event.
-         *
-         * react-phone-number-input might trigger the onChange event as undefined
-         * when a valid phone number is not entered. To prevent this,
-         * the value is coerced to an empty string.
-         *
-         * @param {E164Number | undefined} value - The entered value
-         */
-        placeholder={dynamicPlaceholder}
-        onChange={(value) => onChange?.(value || ("" as RPNInput.Value))}
-        {...props}
-      />
+      <PhoneInputVariantContext.Provider value={variant}>
+        <RPNInput.default
+          ref={ref}
+          className={cn(
+            "flex",
+            variant === "atelier" ? "w-full items-center gap-2" : "gap-4",
+            className,
+          )}
+          flagComponent={FlagComponent}
+          countrySelectComponent={(countrySelectProps) => (
+            <CountrySelect
+              {...countrySelectProps}
+              onCountryChange={handleCountryChange}
+            />
+          )}
+          inputComponent={InputComponent}
+          smartCaret={false}
+          international
+          defaultCountry={defaultCountry}
+          placeholder={dynamicPlaceholder}
+          onChange={(value) => onChange?.(value || ("" as RPNInput.Value))}
+          {...props}
+        />
+      </PhoneInputVariantContext.Provider>
     );
   });
 PhoneInput.displayName = "PhoneInput";
@@ -109,16 +113,21 @@ PhoneInput.displayName = "PhoneInput";
 const InputComponent = React.forwardRef<
   HTMLInputElement,
   React.ComponentProps<"input">
->(({ className, ...props }, ref) => (
-  <Input
-    className={cn(
-      "border-black border-b border-t-0 border-x-0 shadow-none rounded-none h-9 text-black text-base! focus-visible:outline-none! focus-visible:ring-0! duration-300 transition-colors placeholder:text-base placeholder:font-medium placeholder:leading-[110%] placeholder:text-black/50",
-      className,
-    )}
-    {...props}
-    ref={ref}
-  />
-));
+>(({ className, ...props }, ref) => {
+  const variant = React.useContext(PhoneInputVariantContext);
+  return (
+    <Input
+      className={cn(
+        variant === "atelier"
+          ? "h-auto rounded-none border-0 bg-transparent p-0 text-[12px] leading-[1.2] text-white shadow-none placeholder:text-[12px] placeholder:font-normal placeholder:text-white/28 focus-visible:outline-none! focus-visible:ring-0!"
+          : "h-9 rounded-none border-x-0 border-t-0 border-b border-black text-base! text-black shadow-none duration-300 transition-colors placeholder:text-base placeholder:font-medium placeholder:leading-[110%] placeholder:text-black/50 focus-visible:outline-none! focus-visible:ring-0!",
+        className,
+      )}
+      {...props}
+      ref={ref}
+    />
+  );
+});
 InputComponent.displayName = "InputComponent";
 
 const ServiceInputComponent = React.forwardRef<
@@ -153,8 +162,10 @@ const CountrySelect = ({
   onChange,
   onCountryChange,
 }: CountrySelectProps) => {
+  const variant = React.useContext(PhoneInputVariantContext);
   const [searchValue, setSearchValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const atelier = variant === "atelier";
 
   const handleCountrySelect = (country: RPNInput.Country) => {
     onChange(country);
@@ -170,11 +181,12 @@ const CountrySelect = ({
           type="button"
           variant="outline"
           className={cn(
-            "bg-transparent flex gap-2 border-b border-t-0 border-x-0 shadow-none rounded-none h-9 text-black text-sm pr-1! pl-0! pb-3 hover:bg-transparent! duration-300 transition-colors ease-out",
-            "focus-visible:outline-none! focus-visible:ring-0! cursor-pointer",
-            "border-black focus-visible:border-black!",
-            isOpen && "border-black",
-            disabled && "opacity-50 cursor-not-allowed",
+            "flex cursor-pointer gap-2 bg-transparent pr-1! pl-0! shadow-none hover:bg-transparent! focus-visible:outline-none! focus-visible:ring-0!",
+            atelier
+              ? "h-auto rounded-none border-0 pb-0 text-white"
+              : "h-9 rounded-none border-x-0 border-t-0 border-b border-black pb-3 text-sm text-black duration-300 transition-colors ease-out focus-visible:border-black!",
+            !atelier && isOpen && "border-black",
+            disabled && "cursor-not-allowed opacity-50",
           )}
           disabled={disabled}
         >
@@ -192,7 +204,7 @@ const CountrySelect = ({
           />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="md:w-75 w-70 rounded-none p-0 z-50">
+      <PopoverContent className="z-80 w-70 rounded-none p-0 md:w-75">
         <Command>
           <CommandInput
             placeholder="Search country..."

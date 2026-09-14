@@ -2,7 +2,6 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import CustomChevron from "@/components/icons/custom-chevron";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,7 +9,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormMessage,
 } from "@/components/ui/form";
 
 import { cn } from "@/lib/utils";
@@ -20,6 +18,8 @@ import {
   contactSchema,
 } from "@/schemas/forms/contact-schema";
 import { ROLES } from "@/constants/const";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { toE164Phone } from "@/utils/utils";
 
 type Props = {
   pending?: boolean;
@@ -64,7 +64,7 @@ const ContactForm = ({
     onSubmit({
       name: values.name,
       email: values.email,
-      phone: `+971 ${values.phone}`,
+      phone: toE164Phone(values.phone),
       role: values.role,
     });
   };
@@ -136,18 +136,15 @@ const ContactForm = ({
             render={({ field }) => (
               <FormItem className="space-y-0">
                 <FormControl>
-                  <div className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5">
-                    <span className="shrink-0 text-[12px] leading-[1.2] text-white/70">
-                      +971
-                    </span>
-                    <CustomChevron className="h-1.5 w-2.5" />
-                    <input
-                      className="min-w-0 flex-1 bg-transparent text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
-                      placeholder="50 XXX XXXX"
-                      autoComplete="tel"
-                      inputMode="tel"
+                  <div className="w-full border-b border-dashed border-white/35 py-3.5">
+                    <span className="sr-only">Phone</span>
+                    <PhoneInput
+                      variant="atelier"
+                      international
+                      value={field.value || undefined}
+                      onChange={(value) => field.onChange(value ?? "")}
+                      onBlur={field.onBlur}
                       disabled={pending}
-                      {...field}
                     />
                   </div>
                 </FormControl>

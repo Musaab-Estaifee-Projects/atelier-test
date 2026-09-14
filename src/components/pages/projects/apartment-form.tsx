@@ -4,13 +4,17 @@
 import { useEffect, useState } from "react";
 import ContactConfirmDialog from "./apartment-form/contact-confirm-dialog";
 import { CONTACT_STORAGE_KEY } from "@/constants/const";
+import { isJourneyValid, readJourney, writeJourney } from "@/lib/journey";
+import { createCustomer } from "@/services/create-customer.service";
 import { ContactInfo, TProject } from "@/types/types";
 import ContactStep from "./apartment-form/contact-step";
 import SelectStep from "./apartment-form/select-step";
 import { readContact } from "@/utils/utils";
+import { isAxiosError } from "axios";
 
 export type ApartmentChoice = {
   unitId: string;
+  apartmentId?: string;
   levelName: string;
   designCode?: string;
   layoutCode?: string;
@@ -52,13 +56,17 @@ const ApartmentForm = ({
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    setContact(readContact());
+    const stored = readContact();
+    const journey = readJourney();
+    setContact(stored && isJourneyValid(journey) ? stored : null);
   }, []);
 
   const handleRequestConfirm = (info: ContactInfo) => {
     setPendingContact(info);
+    setSaveError(null);
     setDialogOpen(true);
   };
 
@@ -66,12 +74,41 @@ const ApartmentForm = ({
     if (!pendingContact) return;
 
     setSaving(true);
+    setSaveError(null);
     try {
-      // TODO: API CALL
-      writeContact(pendingContact);
-      setContact(pendingContact);
+      const data = await createCustomer({
+        full_name: pendingContact.name,
+        email: pendingContact.email,
+        phone: pendingContact.phone.replace(/\s+/g, ""),
+        customer_type: pendingContact.role,
+      });
+      writeJourney({
+        token: data.journey_token,
+        expiresAt: data.expires_at,
+        customer: data.customer,
+      });
+      writeContact({
+        name: data.customer.full_name,
+        email: data.customer.email,
+        phone: data.customer.phone,
+        role: pendingContact.role,
+      });
+      setContact({
+        name: data.customer.full_name,
+        email: data.customer.email,
+        phone: data.customer.phone,
+        role: pendingContact.role,
+      });
       setDialogOpen(false);
       setPendingContact(null);
+    } catch (err) {
+      const message = isAxiosError(err)
+        ? String(
+            (err.response?.data as { message?: string } | undefined)?.message ??
+              err.message,
+          )
+        : "Could not save your details. Please try again.";
+      setSaveError(message);
     } finally {
       setSaving(false);
     }
@@ -107,7 +144,7 @@ const ApartmentForm = ({
     <>
       <ContactStep
         pending={pending || saving}
-        error={error}
+        error={error || saveError}
         onRequestConfirm={handleRequestConfirm}
       />
 
@@ -115,6 +152,7 @@ const ApartmentForm = ({
         open={dialogOpen}
         contact={pendingContact}
         pending={saving}
+        error={saveError}
         onConfirm={() => {
           void handleDialogConfirm();
         }}

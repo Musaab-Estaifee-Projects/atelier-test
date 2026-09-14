@@ -9,19 +9,24 @@
  * @see https://docs.streampixel.io/resources/web-sdk/features/afk-idle-timeout
  */
 
-function readIdleSeconds(): number {
-  const raw = Number(process.env.NEXT_PUBLIC_STREAM_AFK_TIMEOUT);
-  if (Number.isFinite(raw) && raw >= 1) {
-    return Math.min(7200, Math.floor(raw));
+function readEnvSeconds(
+  key: string,
+  fallback: number,
+  min = 1,
+  max = 7200,
+): number {
+  const raw = Number(process.env[key]);
+  if (Number.isFinite(raw) && raw >= min) {
+    return Math.min(max, Math.floor(raw));
   }
-  return 120;
+  return fallback;
 }
 
 export const AFK_CONFIG = {
   /** Seconds with no pointer/keyboard/touch before the warning. */
-  idleSeconds: readIdleSeconds(),
+  idleSeconds: readEnvSeconds("NEXT_PUBLIC_STREAM_AFK_TIMEOUT", 600),
   /** Warning countdown before we disconnect. */
-  countdownSeconds: 60,
+  countdownSeconds: readEnvSeconds("NEXT_PUBLIC_STREAM_AFK_WARNING", 60, 5, 600),
 } as const;
 
 /** Seconds passed to StreamPixel so its AFK controller actually arms. */

@@ -348,3 +348,36 @@ export async function resetCustomizationOnUe(
 ): Promise<boolean> {
   return resetToDefaultOnUe(send, opts);
 }
+
+export function captureCamerasHighResOnUe(
+  send: SendFn,
+  design_code: string,
+  opts?: { mockLog?: boolean },
+): boolean {
+  const code = design_code.trim();
+  if (!code) return false;
+  if (opts?.mockLog) {
+    console.info("[mock UE] CaptureCamerasHighRes", code);
+    return true;
+  }
+  return send({ Function: "CaptureCamerasHighRes", design_code: code });
+}
+
+export function captureCamerasOnUe(
+  send: SendFn,
+  design_code: string,
+  cameraNames: string[],
+  opts?: { mockLog?: boolean },
+): boolean {
+  const code = design_code.trim();
+  if (!code || !cameraNames.length) return false;
+  if (opts?.mockLog) {
+    console.info("[mock UE] CaptureCameras", code, cameraNames);
+    return true;
+  }
+  return send({
+    Function: "CaptureCameras",
+    design_code: code,
+    CameraNames: cameraNames,
+  });
+}

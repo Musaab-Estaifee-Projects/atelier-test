@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { estimatePriceFromSession } from "@/lib/configurator/pricing";
+import { customMapToStored, storedToSelectionMap } from "@/lib/configurator/api-selections";
 import {
   clearDraft,
   isDefaultEntry,
@@ -29,6 +30,7 @@ export function useSelectionMap(args: {
   streamProjectId: string;
   backendProjectId: string;
   layoutCode: string;
+  apartmentId?: string | null;
   designCode: string | null;
   session: ConfiguratorSession | null;
   viewOnly: boolean;
@@ -37,6 +39,7 @@ export function useSelectionMap(args: {
     streamProjectId,
     backendProjectId,
     layoutCode,
+    apartmentId,
     designCode,
     session,
     viewOnly,
@@ -53,12 +56,14 @@ export function useSelectionMap(args: {
       if (viewOnly || !designCode) return;
       const custom = omitDefaults(session?.defaults, next);
       const draft = {
-        version: 2 as const,
+        version: 3 as const,
         streamProjectId,
         projectId: backendProjectId,
         layoutCode: session?.layoutCode || layoutCode,
+        apartmentId,
         designCode,
-        selections: mapToSelections(custom),
+        selections: customMapToStored(session, custom),
+        selectionRevision: 0 as const,
         updatedAt: new Date().toISOString(),
       };
       const result = saveDraft(draft);
@@ -74,9 +79,9 @@ export function useSelectionMap(args: {
     [
       viewOnly,
       designCode,
-      session?.defaults,
-      session?.layoutCode,
+      session,
       layoutCode,
+      apartmentId,
       streamProjectId,
       backendProjectId,
     ],
@@ -84,7 +89,7 @@ export function useSelectionMap(args: {
 
   const hydrateFromStorage = useCallback(() => {
     if (viewOnly || !session || !designCode) return;
-    const key = `${streamProjectId}:${backendProjectId}:${session.layoutCode}:${designCode}`;
+    const key = `${streamProjectId}:${backendProjectId}:${session.layoutCode}:${apartmentId ?? "none"}:${designCode}`;
     if (hydratedKeyRef.current === key) {
       setHydrated(true);
       return;
@@ -93,17 +98,22 @@ export function useSelectionMap(args: {
 
     const meshOk = new Set(session.meshes.map((m) => m.id));
     const matOk = new Set(session.materials.map((m) => m.id));
-    const valid = (s: SelectionEntry) =>
-      meshOk.has(s.meshId) && (!s.materialId || matOk.has(s.materialId));
-
     const draft = loadDraft(
       streamProjectId,
       backendProjectId,
       session.layoutCode,
+      apartmentId,
     );
+    const storedMap = storedToSelectionMap(draft?.selections ?? []);
     const stored = omitDefaults(
       session.defaults,
-      selectionsToMap((draft?.selections ?? []).filter(valid)),
+      Object.fromEntries(
+        Object.entries(storedMap).filter(([, s]) => {
+          const meshValid = meshOk.has(s.meshId);
+          const matValid = !s.materialId || matOk.has(s.materialId);
+          return meshValid && matValid;
+        }),
+      ),
     );
     setMap(stored);
     committedRef.current = stored;
@@ -115,13 +125,7 @@ export function useSelectionMap(args: {
         "Browser storage unavailable — edits stay in this tab only.",
       );
     }
-  }, [
-    streamProjectId,
-    backendProjectId,
-    session,
-    viewOnly,
-    designCode,
-  ]);
+  }, [streamProjectId, backendProjectId, session, viewOnly, designCode, apartmentId]);
 
   const hydrateFromDesign = useCallback(
     (selections: SelectionEntry[]) => {
@@ -230,11 +234,16 @@ export function useSelectionMap(args: {
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const clearAfterSubmit = useCallback(() => {
     if (session?.layoutCode) {
-      clearDraft(streamProjectId, backendProjectId, session.layoutCode);
+      clearDraft(
+        streamProjectId,
+        backendProjectId,
+        session.layoutCode,
+        apartmentId,
+      );
     }
     committedRef.current = {};
     setSaveStatus("saved");
-  }, [streamProjectId, backendProjectId, session?.layoutCode]);
+  }, [streamProjectId, backendProjectId, session?.layoutCode, apartmentId]);
 
   const selections = useMemo(() => mapToSelections(map), [map]);
   const optimisticPrice = useMemo(() => {

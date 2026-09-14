@@ -250,6 +250,7 @@ type Props = {
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
   projectId?: string | null;
+  apartmentId?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -259,6 +260,7 @@ const BrowseStyles = ({
   onSelectStyle,
   projectSlug,
   projectId,
+  apartmentId,
   unitId,
   levelName,
 }: Props) => {
@@ -371,7 +373,11 @@ const BrowseStyles = ({
                                   project.layoutCode ||
                                   project.levelName,
                               },
-                              { style: style.slug },
+                              {
+                                style: style.slug,
+                                apartmentId,
+                                unit: unitId,
+                              },
                             )
                       }
                       onSelect={

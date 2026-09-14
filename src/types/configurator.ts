@@ -56,18 +56,19 @@ export type MeshRulesConfig = {
 
 /**
  * Shareable URL contract.
- * /configurator/{stream_id}?project_id=&layout_code=&design_code=&zone=&camera=
- * Mesh/material are NEVER in the URL.
+ * /configurator/{stream_id}?project_id=&layout_code=&apartment_id=&zone=&camera=&renders=
+ * Mesh/material and design_code are NEVER in the URL.
  */
 export type ShareableConfiguratorParams = {
   streamId: string;
   backendProjectId: string | null;
   unit?: string | null;
-  designCode?: string | null;
+  apartmentId?: string | null;
   layoutCode?: string | null;
   camera?: string | null;
   zone?: string | null;
   view?: boolean;
+  renders?: boolean;
   streamerId?: string | null;
   sfuHost?: string | null;
   sfuPlayer?: string | null;
@@ -172,11 +173,18 @@ export type RoomRenderCard = {
 export type FinalDesignPhase = "idle" | "confirm" | "capturing" | "review";
 
 export type LocalDraft = {
-  version: 2;
+  version: 3;
   streamProjectId: string;
   projectId: string;
   layoutCode: string;
+  apartmentId?: string | null;
   designCode: string;
-  selections: SelectionEntry[];
+  selections: import("@/types/stored-selection").StoredSelection[];
+  selectionRevision: 0;
+  summaryToken?: string | null;
+  summaryExpiresAt?: string | null;
+  prepareIdempotencyKey?: string | null;
+  retryIdempotencyKey?: string | null;
+  highResCaptureSent?: boolean;
   updatedAt: string;
 };

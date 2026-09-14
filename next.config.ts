@@ -15,7 +15,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "atelier-be.lucidly.dev",
-        pathname: "/storage/**", // optional but recommended
+        pathname: "/storage/**",
+      },
+      {
+        protocol: "https",
+        hostname: "reef-atelier.s3.amazonaws.com",
       },
     ],
   },

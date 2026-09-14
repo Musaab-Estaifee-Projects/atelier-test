@@ -70,19 +70,28 @@ export function configuratorHref(
     projectId?: string;
     backendProjectId?: string;
   },
-  extra?: { designCode?: string; style?: string; view?: boolean },
+  extra?: {
+    style?: string;
+    view?: boolean;
+    apartmentId?: string | null;
+    unit?: string | null;
+    renders?: boolean;
+  },
 ): string {
   const layoutCode =
     project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE;
-  const selectedProjectId =
-    project.projectId || project.backendProjectId || "";
+  const selectedProjectId = project.projectId || project.backendProjectId || "";
   const q = new URLSearchParams({
     layout_code: layoutCode,
   });
-  if (selectedProjectId) q.set("project_id", selectedProjectId);
-  if (extra?.designCode) q.set("design_code", extra.designCode);
+  if (selectedProjectId && /^\d+$/.test(selectedProjectId)) {
+    q.set("project_id", selectedProjectId);
+  }
+  if (extra?.apartmentId) q.set("apartment_id", extra.apartmentId);
+  if (extra?.unit) q.set("unit", extra.unit);
   if (extra?.style) q.set("style", extra.style);
   if (extra?.view) q.set("view", "1");
+  if (extra?.renders) q.set("renders", "1");
   return `/configurator/${project.streamProjectId}?${q.toString()}`;
 }
 
@@ -90,13 +99,17 @@ export function stylesHref(
   project: Pick<CatalogProject, "slug" | "unitId" | "levelName"> & {
     layoutCode?: string;
     projectId?: string;
+    apartmentId?: string;
   },
 ): string {
   const q = new URLSearchParams({
     project: project.slug,
     layout_code: project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE,
   });
-  if (project.projectId) q.set("project_id", project.projectId);
+  if (project.projectId && /^\d+$/.test(project.projectId)) {
+    q.set("project_id", project.projectId);
+  }
   if (project.unitId) q.set("unit", project.unitId);
+  if (project.apartmentId) q.set("apartment_id", project.apartmentId);
   return `/styles?${q.toString()}`;
 }

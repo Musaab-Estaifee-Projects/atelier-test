@@ -35,7 +35,7 @@ const SelectApartment = ({ project }: Props) => {
               levelName: design.configuration.levelName,
               layoutCode: design.configuration.levelName,
             },
-            { designCode: design.designCode, view: true },
+            { view: true, apartmentId: choice.apartmentId },
           ),
         );
       } catch {
@@ -51,6 +51,7 @@ const SelectApartment = ({ project }: Props) => {
         slug: project.code,
         projectId: String(project.id),
         unitId: choice.unitId,
+        apartmentId: choice.apartmentId,
         levelName: choice.layoutCode || choice.levelName,
         layoutCode: choice.layoutCode || choice.levelName,
       }),

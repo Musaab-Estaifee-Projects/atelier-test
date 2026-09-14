@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   contact: ContactInfo | null;
   pending: boolean;
+  error?: string | null;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -20,6 +21,7 @@ const ContactConfirmDialog = ({
   open,
   contact,
   pending,
+  error,
   onConfirm,
   onClose,
 }: Props) => {
@@ -117,6 +119,12 @@ const ContactConfirmDialog = ({
                 </dd>
               </div>
             </dl>
+
+            {error ? (
+              <p role="alert" className="w-full text-center text-sm text-[#e29584]">
+                {error}
+              </p>
+            ) : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full sm:w-auto">
               <Button
