@@ -235,6 +235,7 @@ import {
   configuratorHref,
   getProject,
 } from "@/lib/projects/catalog";
+import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
 import Bg from "@/components/shared/bg";
@@ -251,6 +252,7 @@ type Props = {
   projectSlug?: string | null;
   projectId?: string | null;
   apartmentId?: string | null;
+  apartmentNumber?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -261,11 +263,14 @@ const BrowseStyles = ({
   projectSlug,
   projectId,
   apartmentId,
+  apartmentNumber,
   unitId,
   levelName,
 }: Props) => {
+  const stored = readResidenceLabel();
+  const slug = projectSlug || stored?.projectSlug;
   const project =
-    (projectSlug ? getProject(projectSlug) : undefined) ??
+    (slug ? getProject(slug) : undefined) ??
     CATALOG_PROJECTS[1] ??
     CATALOG_PROJECTS[0];
 
@@ -367,16 +372,23 @@ const BrowseStyles = ({
                               {
                                 streamProjectId: project.streamProjectId,
                                 projectId: projectId || project.projectId,
-                                levelName: levelName || project.levelName,
+                                levelName:
+                                  levelName ||
+                                  stored?.layoutCode ||
+                                  project.levelName,
                                 layoutCode:
                                   levelName ||
+                                  stored?.layoutCode ||
                                   project.layoutCode ||
                                   project.levelName,
                               },
                               {
                                 style: style.slug,
                                 apartmentId,
-                                unit: unitId,
+                                apartmentNumber:
+                                  apartmentNumber ||
+                                  unitId ||
+                                  stored?.apartmentNumber,
                               },
                             )
                       }

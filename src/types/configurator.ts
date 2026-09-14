@@ -25,6 +25,7 @@ export type MaterialOption = {
   /** Fixed item price when not area-based */
   fixedPrice?: number;
   thumbnailUrl?: string;
+  isDefault?: boolean;
 };
 
 export type CameraRule = {
@@ -56,7 +57,7 @@ export type MeshRulesConfig = {
 
 /**
  * Shareable URL contract.
- * /configurator/{stream_id}?project_id=&layout_code=&apartment_id=&zone=&camera=&renders=
+ * /configurator/{stream_id}?project_id=&layout_code=&apartment_id=&apartment_number=&zone=&camera=&renders=
  * Mesh/material and design_code are NEVER in the URL.
  */
 export type ShareableConfiguratorParams = {
@@ -64,6 +65,7 @@ export type ShareableConfiguratorParams = {
   backendProjectId: string | null;
   unit?: string | null;
   apartmentId?: string | null;
+  apartmentNumber?: string | null;
   layoutCode?: string | null;
   camera?: string | null;
   zone?: string | null;

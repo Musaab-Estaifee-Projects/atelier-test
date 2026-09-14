@@ -140,9 +140,8 @@ const ContactForm = ({
                     <span className="sr-only">Phone</span>
                     <PhoneInput
                       variant="atelier"
-                      international
-                      value={field.value || undefined}
-                      onChange={(value) => field.onChange(value ?? "")}
+                      value={field.value}
+                      onChange={field.onChange}
                       onBlur={field.onBlur}
                       disabled={pending}
                     />

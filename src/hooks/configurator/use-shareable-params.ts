@@ -18,11 +18,30 @@ function firstParam(
   return null;
 }
 
+const STRIP_KEYS = [
+  "mesh",
+  "material",
+  "design_code",
+  "designCode",
+  "loadId",
+  "level",
+  "projectId",
+  "apartmentId",
+  "unit",
+  "project",
+  "project_name",
+  "projectName",
+  "layout_category",
+  "layoutCategory",
+  "layout_type",
+  "layoutType",
+] as const;
+
 /**
  * Reads / writes shareable configurator state from the URL.
- * Mesh/material and design_code are NEVER in the URL.
+ * Mesh/material, design_code, and residence display labels are NEVER in the URL.
  *
- * /configurator/{stream_id}?project_id=&layout_code=&apartment_id=&zone=&camera=&renders=
+ * /configurator/{stream_id}?project_id=&layout_code=&apartment_id=&apartment_number=&zone=&camera=&renders=
  */
 export function useShareableParams(streamIdFromRoute: string) {
   const router = useRouter();
@@ -36,8 +55,9 @@ export function useShareableParams(streamIdFromRoute: string) {
     return {
       streamId: streamIdFromRoute,
       backendProjectId: firstParam(searchParams, "project_id", "projectId"),
-      unit: firstParam(searchParams, "unit"),
+      unit: firstParam(searchParams, "apartment_number", "unit"),
       apartmentId: firstParam(searchParams, "apartment_id", "apartmentId"),
+      apartmentNumber: firstParam(searchParams, "apartment_number", "unit"),
       layoutCode:
         firstParam(searchParams, "layout_code", "layoutCode", "level") ??
         DEFAULT_LAYOUT_CODE,
@@ -54,15 +74,7 @@ export function useShareableParams(streamIdFromRoute: string) {
   }, [streamIdFromRoute, searchParams]);
 
   useEffect(() => {
-    const hasLegacy =
-      searchParams.has("mesh") ||
-      searchParams.has("material") ||
-      searchParams.has("design_code") ||
-      searchParams.has("designCode") ||
-      searchParams.has("loadId") ||
-      searchParams.has("level") ||
-      searchParams.has("projectId") ||
-      searchParams.has("apartmentId");
+    const hasLegacy = STRIP_KEYS.some((key) => searchParams.has(key));
     const rawZone = searchParams.get("zone");
     const emptyZone =
       searchParams.has("zone") && normalizeZone(rawZone) == null;
@@ -71,28 +83,32 @@ export function useShareableParams(streamIdFromRoute: string) {
       searchParams.get("project_id") === streamIdFromRoute ||
       isStreamProjectId(searchParams.get("project_id"), streamIdFromRoute);
 
-    if (
-      !hasLegacy &&
-      !emptyZone &&
-      !missingCanonical &&
-      !streamAsProject
-    ) {
+    if (!hasLegacy && !emptyZone && !missingCanonical && !streamAsProject) {
       return;
     }
 
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete("mesh");
-    next.delete("material");
-    next.delete("design_code");
-    next.delete("designCode");
-    next.delete("loadId");
-    if (emptyZone) next.delete("zone");
-
-    const projectId = firstParam(next, "project_id", "projectId");
+    const projectId = firstParam(
+      searchParams,
+      "project_id",
+      "projectId",
+    );
     const layout =
-      firstParam(next, "layout_code", "layoutCode", "level") ??
+      firstParam(searchParams, "layout_code", "layoutCode", "level") ??
       DEFAULT_LAYOUT_CODE;
-    const apartmentId = firstParam(next, "apartment_id", "apartmentId");
+    const apartmentId = firstParam(
+      searchParams,
+      "apartment_id",
+      "apartmentId",
+    );
+    const apartmentNumber = firstParam(
+      searchParams,
+      "apartment_number",
+      "unit",
+    );
+
+    const next = new URLSearchParams(searchParams.toString());
+    for (const key of STRIP_KEYS) next.delete(key);
+    if (emptyZone) next.delete("zone");
 
     if (projectId && !isStreamProjectId(projectId, streamIdFromRoute)) {
       next.set("project_id", projectId);
@@ -101,11 +117,9 @@ export function useShareableParams(streamIdFromRoute: string) {
     }
     next.set("layout_code", layout);
     if (apartmentId) next.set("apartment_id", apartmentId);
-
-    next.delete("projectId");
-    next.delete("layoutCode");
-    next.delete("level");
-    next.delete("apartmentId");
+    else next.delete("apartment_id");
+    if (apartmentNumber) next.set("apartment_number", apartmentNumber);
+    else next.delete("apartment_number");
 
     const qs = next.toString();
     const href = qs ? `${pathname}?${qs}` : pathname;
@@ -119,14 +133,7 @@ export function useShareableParams(streamIdFromRoute: string) {
       options?: { replace?: boolean },
     ) => {
       const next = new URLSearchParams(searchParams.toString());
-      next.delete("mesh");
-      next.delete("material");
-      next.delete("designCode");
-      next.delete("loadId");
-      next.delete("level");
-      next.delete("projectId");
-      next.delete("design_code");
-      next.delete("apartmentId");
+      for (const key of STRIP_KEYS) next.delete(key);
 
       if (patch.backendProjectId !== undefined) {
         if (
@@ -146,9 +153,10 @@ export function useShareableParams(streamIdFromRoute: string) {
         if (patch.apartmentId) next.set("apartment_id", patch.apartmentId);
         else next.delete("apartment_id");
       }
-      if (patch.unit !== undefined) {
-        if (patch.unit) next.set("unit", patch.unit);
-        else next.delete("unit");
+      if (patch.apartmentNumber !== undefined || patch.unit !== undefined) {
+        const number = patch.apartmentNumber ?? patch.unit;
+        if (number) next.set("apartment_number", number);
+        else next.delete("apartment_number");
       }
       if (patch.renders !== undefined) {
         if (patch.renders) next.set("renders", "1");

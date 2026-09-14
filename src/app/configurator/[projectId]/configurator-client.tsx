@@ -4,13 +4,7 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { suppressStreamPixelConsoleNoise } from "@/lib/stream-pixel/suppress-sdk-noise";
 import { ConfiguratorBootOverlay } from "@/components/configurator/loading-overlay";
-import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
-
-function bootSubtitle(): string {
-  if (typeof window === "undefined") return "Your residence";
-  const query = new URLSearchParams(window.location.search);
-  return reviewUnitSubtitle(query.get("unit"), query.get("level"));
-}
+import { currentResidenceSubtitle } from "@/lib/configurator/residence-label";
 
 /**
  * StreamPixel is browser-only (WebRTC + DOM).
@@ -20,7 +14,9 @@ const ConfiguratorShell = dynamic(
   () => import("@/components/configurator/configurator-shell"),
   {
     ssr: false,
-    loading: () => <ConfiguratorBootOverlay unitSubtitle={bootSubtitle()} />,
+    loading: () => (
+      <ConfiguratorBootOverlay unitSubtitle={currentResidenceSubtitle()} />
+    ),
   },
 );
 

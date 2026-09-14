@@ -80,6 +80,8 @@ export function mapLayoutCatalogToSession(args: {
               id: mat.ue_id,
               displayName: mat.name,
               pricePerSqm: mat.price ?? 0,
+              thumbnailUrl: mat.image ?? undefined,
+              isDefault: mat.is_default,
             });
           }
         }

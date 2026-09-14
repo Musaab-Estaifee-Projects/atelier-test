@@ -39,7 +39,6 @@ import {
   zoneIdForCamera,
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
-import { materialThumb } from "@/lib/configurator/chrome";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
 import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
 import { backendProjectIdFromUrl } from "@/lib/projects/project-id";
@@ -73,7 +72,7 @@ import {
   noteUeLoadId,
   noteCustomizationResult,
 } from "@/lib/configurator/ue-load-id";
-import { reviewUnitSubtitle } from "@/lib/configurator/review-selections";
+import { currentResidenceSubtitle } from "@/lib/configurator/residence-label";
 import { useFinalDesign } from "@/hooks/configurator/use-final-design";
 import { useDesignSummary } from "@/hooks/configurator/use-design-summary";
 import { useRenderJob } from "@/hooks/configurator/use-render-job";
@@ -109,7 +108,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const router = useRouter();
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
-  const unitId = params.unit?.trim() || null;
+  const unitId =
+    params.apartmentNumber?.trim() || params.unit?.trim() || null;
   const apartmentId = params.apartmentId?.trim() || null;
   const catalogApiProjectId = backendProjectIdFromUrl(
     params.backendProjectId,
@@ -515,7 +515,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             backendProjectId: catalogApiProjectId,
             layoutCode: sess.layoutCode,
             apartmentId,
-            unit: unitId,
+            apartmentNumber: unitId,
           },
           { replace: true },
         );
@@ -666,13 +666,15 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const dockSelections = useMemo(() => {
     if (!session) return [];
-    const byId = new Map(session.materials.map((m) => [m.id, m]));
+    const matById = new Map(session.materials.map((m) => [m.id, m]));
+    const meshById = new Map(session.meshes.map((m) => [m.id, m]));
     return selections.selections.slice(-3).map((entry) => {
-      const mat = byId.get(entry.materialId);
+      const mat = matById.get(entry.materialId);
+      const mesh = meshById.get(entry.meshId);
       return {
         slot: entry.slot,
         label: shortSurfaceLabel(session.slotLabels[entry.slot] ?? entry.slot),
-        thumbnailUrl: materialThumb(entry.materialId, mat?.thumbnailUrl),
+        thumbnailUrl: mat?.thumbnailUrl ?? mesh?.thumbnailUrl ?? null,
       };
     });
   }, [session, selections.selections]);
@@ -866,13 +868,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       const current = appliedPanelMap[slot];
       if (current?.meshId === mesh.id) return;
 
-      const prevMat = current?.materialId;
-      const materialId =
-        mats.length === 0
-          ? ""
-          : ((prevMat && mats.some((m) => m.id === prevMat)
-              ? prevMat
-              : mats[0]?.id) ?? "");
+      const defaultForSlot = session?.defaults?.find((d) => d.slot === slot);
+      const isDefaultMesh =
+        mesh.isDefault === true || defaultForSlot?.meshId === mesh.id;
+      const defaultMatId =
+        mats.find((item) => item.isDefault)?.id ??
+        defaultForSlot?.materialId ??
+        "";
+      const materialId = isDefaultMesh
+        ? (defaultForSlot?.materialId || defaultMatId || mats[0]?.id || "")
+        : (defaultMatId || mats[0]?.id || "");
 
       const entry: SelectionEntry = {
         slot,
@@ -881,7 +886,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         cameraId: activeRule?.name,
       };
 
-      if (!selections.select(entry)) return;
+      const token = selections.select(entry);
+      if (!token) return;
 
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
@@ -889,17 +895,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         onSaveStatus: selections.markSaveStatus,
         applyMaterial: mats.length > 1,
       }).then((ok) => {
-        if (ok) selections.commitSlot(slot, entry);
+        if (!selections.isCurrent(slot, token)) return;
+        if (ok) selections.commitSlot(slot, entry, token);
         else selections.revertSlot(slot);
       });
     },
-    [viewOnly, getMaterials, selections, activeRule, send, appliedPanelMap],
+    [viewOnly, getMaterials, selections, activeRule, send, appliedPanelMap, session],
   );
 
   const handleRemoveSelection = useCallback(
     (slot: string) => {
       if (viewOnly) return;
-      selections.removeSlot(slot);
+      const token = selections.removeSlot(slot);
+      if (!token) return;
       const fallback = session?.defaults?.find((d) => d.slot === slot);
       if (fallback) {
         void applyOneSelectionToUe(send, fallback, {
@@ -911,7 +919,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             session?.materialsByMesh,
           ),
         }).then((ok) => {
-          if (ok) selections.commitSlot(slot, null);
+          if (!selections.isCurrent(slot, token)) return;
+          if (ok) selections.commitSlot(slot, null, token);
           else selections.revertSlot(slot);
         });
         return;
@@ -921,8 +930,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         void saveCustomizationToUe(send, designCodeRef.current, {
           mockLog: MOCK_UE,
         }).then((ok) => {
+          if (!selections.isCurrent(slot, token)) return;
           selections.markSaveStatus(ok ? "saved" : "failed");
-          if (ok) selections.commitSlot(slot, null);
+          if (ok) selections.commitSlot(slot, null, token);
           else selections.revertSlot(slot);
         });
       }
@@ -955,7 +965,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         materialId: material.id,
         cameraId: activeRule?.name,
       };
-      if (!selections.select(entry)) return;
+      const token = selections.select(entry);
+      if (!token) return;
       void applyOneSelectionToUe(send, entry, {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
@@ -965,7 +976,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           session?.materialsByMesh,
         ),
       }).then((ok) => {
-        if (ok) selections.commitSlot(slot, entry);
+        if (!selections.isCurrent(slot, token)) return;
+        if (ok) selections.commitSlot(slot, entry, token);
         else selections.revertSlot(slot);
       });
     },
@@ -1101,20 +1113,28 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     selections.commitReset();
   }, [setParams, selections]);
 
-  const overlayKind = streamOverlayKind({
-    streamPhase: stream.streamPhase,
-    queuePosition: stream.queuePosition,
-    loadingTitle: stream.loadingTitle,
-  });
+  const overlayKind = (() => {
+    if (sessionError && !session) return "error" as const;
+    if (stream.streamPhase === "disconnected" && !stream.hasEverBeenReady) {
+      return "error" as const;
+    }
+    return streamOverlayKind({
+      streamPhase: stream.streamPhase,
+      queuePosition: stream.queuePosition,
+      loadingTitle: stream.loadingTitle,
+    });
+  })();
   const streamBlocking =
     stream.isLoading ||
     overlayKind === "queue" ||
     overlayKind === "disconnected" ||
     overlayKind === "idle" ||
-    overlayKind === "reconnecting";
+    overlayKind === "reconnecting" ||
+    overlayKind === "error";
   const showStreamOverlay =
-    (streamBlocking || sessionLoading || !sceneReady) &&
-    !streamOverlayDismissed;
+    overlayKind === "error" ||
+    ((streamBlocking || sessionLoading || !sceneReady) &&
+      !streamOverlayDismissed);
   const overlayProgress =
     overlayKind === "loading" || overlayKind === "reconnecting"
       ? Math.min(
@@ -1176,6 +1196,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     params.view,
     params.renders,
     params.apartmentId,
+    params.apartmentNumber,
   ]);
 
   useEffect(() => {
@@ -1233,20 +1254,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     );
   }
 
-  if (sessionError && !session) {
-    return (
-      <div className="configurator-shell flex flex-col items-center justify-center gap-3 p-6 text-white">
-        <p className="text-sm opacity-80">{sessionError}</p>
-        <button
-          type="button"
-          className="rounded-lg bg-white/10 px-4 py-2 text-sm"
-          onClick={reloadSession}
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const unitSubtitle = currentResidenceSubtitle();
 
   return (
     <div className="configurator-shell" ref={shellRef}>
@@ -1257,23 +1265,42 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         <LoadingOverlay
           kind={overlayKind}
           progress={overlayProgress}
-          unitSubtitle={reviewUnitSubtitle(
-            unitId,
-            params.layoutCode || session?.layoutCode,
-          )}
+          unitSubtitle={unitSubtitle}
           queuePosition={stream.queuePosition}
           selectionCount={selections.selections.length}
           reconnectTitle={stream.loadingTitle}
           reconnectSubtitle={stream.loadingSubtitle}
-          endedEyebrow={stream.endedCopy.eyebrow}
-          endedTitle={stream.endedCopy.title}
+          endedEyebrow={
+            overlayKind === "error"
+              ? sessionError
+                ? "Unable to load"
+                : "Unable to open"
+              : stream.endedCopy.eyebrow
+          }
+          endedTitle={
+            overlayKind === "error"
+              ? sessionError
+                ? "This apartment could not be loaded"
+                : "The 3D session could not open"
+              : stream.endedCopy.title
+          }
+          endedMessage={
+            overlayKind === "error"
+              ? sessionError ||
+                "We couldn’t open the 3D session. Try reconnecting."
+              : null
+          }
           onReconnect={reloadSession}
           onContinueToSummary={() => {
             setStreamOverlayDismissed(true);
             setQuoteDialogOpen(false);
             setReviewOpen(true);
           }}
-          onBackHome={() => requestLeave("/")}
+          onBackHome={() => {
+            allowUnloadRef.current = true;
+            skipPopGuardRef.current = true;
+            router.push("/projects");
+          }}
           onBrowseStyles={() => setBrowseStylesOpen(true)}
           progressLabel={
             overlayKind === "loading"
@@ -1301,6 +1328,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           onSelectStyle={() => setBrowseStylesOpen(false)}
           projectId={catalogApiProjectId}
           apartmentId={apartmentId}
+          apartmentNumber={unitId}
           unitId={unitId}
           levelName={layoutCode}
         />
@@ -1436,11 +1464,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
                     : {}),
                   layout_code: layoutCode,
                   ...(apartmentId ? { apartment_id: apartmentId } : {}),
+                  ...(unitId ? { apartment_number: unitId } : {}),
                 },
               ).toString()}`
             : "")
         }
-        unitSubtitle={reviewUnitSubtitle(unitId, session?.layoutCode ?? layoutCode)}
+        unitSubtitle={unitSubtitle}
         email={readJourney()?.customer.email}
       />
 
@@ -1470,6 +1499,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             session={session}
             selections={selections.selections}
             unitId={unitId}
+            unitSubtitle={unitSubtitle}
             summary={designSummary.data}
             summaryLoading={designSummary.loading}
             summaryError={designSummary.error}
@@ -1508,7 +1538,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               (renderJob.active || Boolean(params.renders))
             }
             rooms={renderJob.rooms}
-            unitSubtitle={reviewUnitSubtitle(unitId, session.layoutCode)}
+            unitSubtitle={unitSubtitle}
             error={renderJob.error}
             total={Number(designSummary.data?.total_amount ?? 0)}
             onConfirm={() => {

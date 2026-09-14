@@ -1,278 +1,330 @@
 "use client";
 
-import * as React from "react";
-import { useState, useEffect } from "react";
-import { CheckIcon, ChevronDown } from "lucide-react";
-import * as RPNInput from "react-phone-number-input";
-import flags from "react-phone-number-input/flags";
-import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import CustomChevron from "@/components/icons/custom-chevron";
 import { countriesData } from "@/constants/countries-data";
+import {
+  countryMask,
+  defaultPhoneCountry,
+  detectPhoneCountryCode,
+  getPhoneCountry,
+  matchPhoneCountry,
+  maxNationalDigits,
+  nationalDigitsFromE164,
+  nationalDigitsFromInput,
+  parseIncomingPhone,
+  splitMasked,
+  toE164FromParts,
+  type PhoneCountry,
+} from "@/lib/phone";
+import { cn } from "@/lib/utils";
 
 type PhoneInputVariant = "default" | "atelier";
 
-const PhoneInputVariantContext =
-  React.createContext<PhoneInputVariant>("default");
-
-type PhoneInputProps = Omit<
-  React.ComponentProps<"input">,
-  "onChange" | "value" | "ref"
-> &
-  Omit<RPNInput.Props<typeof RPNInput.default>, "onChange"> & {
-    onChange?: (value: RPNInput.Value) => void;
-    variant?: PhoneInputVariant;
-  };
-
-const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
-  React.forwardRef<
-    React.ComponentRef<typeof RPNInput.default>,
-    PhoneInputProps
-  >(({ className, onChange, placeholder, variant = "default", ...props }, ref) => {
-    const [defaultCountry, setDefaultCountry] =
-      useState<RPNInput.Country>("AE");
-    const [currentCountry, setCurrentCountry] =
-      useState<RPNInput.Country>("AE");
-
-    useEffect(() => {
-      const fetchCountry = async () => {
-        try {
-          const response = await fetch("https://ipapi.co/json/");
-          if (!response.ok) throw new Error("Failed to fetch location");
-          const data = await response.json();
-          const countryCode = data.country_code as RPNInput.Country;
-          if (countryCode && RPNInput.isSupportedCountry(countryCode)) {
-            setDefaultCountry(countryCode);
-            setCurrentCountry(countryCode);
-          } else {
-            console.warn("Unsupported country code, falling back to AE");
-            setDefaultCountry("AE");
-          }
-        } catch (error) {
-          console.error("Error fetching country:", error);
-          setDefaultCountry("AE");
-        }
-      };
-      fetchCountry();
-    }, []);
-
-    const handleCountryChange = (country: RPNInput.Country) => {
-      setCurrentCountry(country);
-    };
-
-    const getDialFormat = (countryCode: RPNInput.Country): string => {
-      const country = countriesData.find((c) => c.code === countryCode);
-      return country?.dial_format || placeholder || "Phone number";
-    };
-
-    const dynamicPlaceholder = getDialFormat(currentCountry);
-
-    return (
-      <PhoneInputVariantContext.Provider value={variant}>
-        <RPNInput.default
-          ref={ref}
-          className={cn(
-            "flex",
-            variant === "atelier" ? "w-full items-center gap-2" : "gap-4",
-            className,
-          )}
-          flagComponent={FlagComponent}
-          countrySelectComponent={(countrySelectProps) => (
-            <CountrySelect
-              {...countrySelectProps}
-              onCountryChange={handleCountryChange}
-            />
-          )}
-          inputComponent={InputComponent}
-          smartCaret={false}
-          international
-          defaultCountry={defaultCountry}
-          placeholder={dynamicPlaceholder}
-          onChange={(value) => onChange?.(value || ("" as RPNInput.Value))}
-          {...props}
-        />
-      </PhoneInputVariantContext.Provider>
-    );
-  });
-PhoneInput.displayName = "PhoneInput";
-
-const InputComponent = React.forwardRef<
-  HTMLInputElement,
-  React.ComponentProps<"input">
->(({ className, ...props }, ref) => {
-  const variant = React.useContext(PhoneInputVariantContext);
+function CountryFlag({ code }: { code: string }) {
   return (
-    <Input
-      className={cn(
-        variant === "atelier"
-          ? "h-auto rounded-none border-0 bg-transparent p-0 text-[12px] leading-[1.2] text-white shadow-none placeholder:text-[12px] placeholder:font-normal placeholder:text-white/28 focus-visible:outline-none! focus-visible:ring-0!"
-          : "h-9 rounded-none border-x-0 border-t-0 border-b border-black text-base! text-black shadow-none duration-300 transition-colors placeholder:text-base placeholder:font-medium placeholder:leading-[110%] placeholder:text-black/50 focus-visible:outline-none! focus-visible:ring-0!",
-        className,
-      )}
-      {...props}
-      ref={ref}
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      alt=""
+      width={18}
+      height={12}
+      draggable={false}
+      className="h-3 w-4.5 shrink-0 object-cover"
     />
   );
-});
-InputComponent.displayName = "InputComponent";
-
-const ServiceInputComponent = React.forwardRef<
-  HTMLInputElement,
-  React.ComponentProps<"input">
->(({ className, ...props }, ref) => (
-  <Input
-    className={cn(
-      "border-white focus:border-white border-b border-t-0 border-x-0 shadow-none rounded-none h-7 text-white text-base focus-visible:outline-none! focus-visible:ring-0! duration-300 transition-colors placeholder:text-white/65! selection:bg-white selection:text-black",
-      className,
-    )}
-    {...props}
-    ref={ref}
-  />
-));
-ServiceInputComponent.displayName = "ServiceInputComponent";
-
-type CountryEntry = { label: string; value: RPNInput.Country | undefined };
-
-type CountrySelectProps = {
-  disabled?: boolean;
-  value: RPNInput.Country;
-  options: CountryEntry[];
-  onChange: (country: RPNInput.Country) => void;
-  onCountryChange?: (country: RPNInput.Country) => void;
-};
-
-const CountrySelect = ({
-  disabled,
-  value: selectedCountry,
-  options: countryList,
-  onChange,
-  onCountryChange,
-}: CountrySelectProps) => {
-  const variant = React.useContext(PhoneInputVariantContext);
-  const [searchValue, setSearchValue] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const atelier = variant === "atelier";
-
-  const handleCountrySelect = (country: RPNInput.Country) => {
-    onChange(country);
-    if (onCountryChange) {
-      onCountryChange(country);
-    }
-  };
-
-  return (
-    <Popover onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className={cn(
-            "flex cursor-pointer gap-2 bg-transparent pr-1! pl-0! shadow-none hover:bg-transparent! focus-visible:outline-none! focus-visible:ring-0!",
-            atelier
-              ? "h-auto rounded-none border-0 pb-0 text-white"
-              : "h-9 rounded-none border-x-0 border-t-0 border-b border-black pb-3 text-sm text-black duration-300 transition-colors ease-out focus-visible:border-black!",
-            !atelier && isOpen && "border-black",
-            disabled && "cursor-not-allowed opacity-50",
-          )}
-          disabled={disabled}
-        >
-          <FlagComponent
-            country={selectedCountry}
-            countryName={selectedCountry}
-          />
-
-          <ChevronDown
-            className={cn(
-              "-mr-2 size-4.5 opacity-50 transition-transform duration-300 ease-in-out",
-              isOpen && "rotate-180",
-              disabled ? "hidden" : "opacity-100",
-            )}
-          />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="z-80 w-70 rounded-none p-0 md:w-75">
-        <Command>
-          <CommandInput
-            placeholder="Search country..."
-            value={searchValue}
-            onValueChange={setSearchValue}
-            className="selection:bg-primary selection:text-primary-foreground"
-          />
-          <CommandList className="">
-            <ScrollArea className="h-72" data-lenis-prevent>
-              <CommandEmpty>No country found.</CommandEmpty>
-              <CommandGroup>
-                {countryList.map(({ value, label }) =>
-                  value ? (
-                    <CountrySelectOption
-                      key={value}
-                      country={value}
-                      countryName={label}
-                      selectedCountry={selectedCountry}
-                      onChange={handleCountrySelect}
-                    />
-                  ) : null,
-                )}
-              </CommandGroup>
-            </ScrollArea>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-interface CountrySelectOptionProps extends RPNInput.FlagProps {
-  selectedCountry: RPNInput.Country;
-  onChange: (country: RPNInput.Country) => void;
 }
 
-const CountrySelectOption = ({
-  country,
-  countryName,
-  selectedCountry,
-  onChange,
-}: CountrySelectOptionProps) => {
-  return (
-    <CommandItem
-      className="gap-2 rounded-none"
-      onSelect={() => onChange(country)}
-    >
-      <FlagComponent country={country} countryName={countryName} />
-      <span className="flex-1 text-sm">{countryName}</span>
-      <span className="text-sm text-foreground/50">{`+${RPNInput.getCountryCallingCode(
-        country,
-      )}`}</span>
-      <CheckIcon
-        className={`ml-auto size-4 ${
-          country === selectedCountry ? "opacity-100" : "opacity-0"
-        }`}
-      />
-    </CommandItem>
-  );
+type Props = {
+  value?: string;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  variant?: PhoneInputVariant;
+  className?: string;
+  name?: string;
+  id?: string;
 };
 
-const FlagComponent = ({ country, countryName }: RPNInput.FlagProps) => {
-  const Flag = flags[country];
+const PhoneInput = ({
+  value = "",
+  onChange,
+  onBlur,
+  disabled = false,
+  variant = "default",
+  className,
+  name,
+  id,
+}: Props) => {
+  const atelier = variant === "atelier";
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const touchedRef = useRef(false);
+  const valueRef = useRef(value);
+  // eslint-disable-next-line react-hooks/refs
+  valueRef.current = value;
+  const [country, setCountry] = useState<PhoneCountry>(defaultPhoneCountry);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [menuBox, setMenuBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const mask = countryMask(country);
+  const maxDigits = maxNationalDigits(country);
+  const digits = nationalDigitsFromE164(value, country);
+  const { filled, ghost } = splitMasked(digits, mask);
+  const placeholder = ghost || (!filled ? mask || "Phone number" : "");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return countriesData;
+    return countriesData.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        item.dial_code.includes(q.replace(/\s/g, "")),
+    );
+  }, [query]);
+
+  const emit = useCallback(
+    (nextCountry: PhoneCountry, nextDigits: string) => {
+      onChange?.(
+        nextDigits ? toE164FromParts(nextCountry.dial_code, nextDigits) : "",
+      );
+    },
+    [onChange],
+  );
+
+  useEffect(() => {
+    if (touchedRef.current) return;
+    const matched = matchPhoneCountry(value);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (matched) setCountry(matched);
+  }, [value]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const detect = async () => {
+      const code = await detectPhoneCountryCode();
+      if (cancelled || touchedRef.current || valueRef.current.trim()) return;
+      const next = getPhoneCountry(code);
+      if (next) setCountry(next);
+    };
+    void detect();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectCountry = (next: PhoneCountry) => {
+    touchedRef.current = true;
+    setCountry(next);
+    setOpen(false);
+    setQuery("");
+    emit(next, digits.slice(0, maxNationalDigits(next)));
+  };
+
+  const handleDigits = (raw: string) => {
+    touchedRef.current = true;
+    const looksInternational =
+      raw.trim().startsWith("+") ||
+      raw.trim().startsWith("00") ||
+      raw.replace(/\D/g, "").length > maxDigits;
+    if (looksInternational) {
+      const parsed = parseIncomingPhone(raw, country);
+      setCountry(parsed.country);
+      emit(parsed.country, parsed.digits);
+      return;
+    }
+    emit(country, nationalDigitsFromInput(raw, maxDigits));
+  };
+
+  const updateMenuBox = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMenuBox({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: 248,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updateMenuBox();
+    const onWin = () => updateMenuBox();
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      const menu = document.getElementById(listId);
+      if (menu?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("resize", onWin);
+    window.addEventListener("scroll", onWin, true);
+    window.addEventListener("keydown", onKey);
+    const listenTimer = window.setTimeout(() => {
+      window.addEventListener("pointerdown", onPointer);
+    }, 0);
+    return () => {
+      window.clearTimeout(listenTimer);
+      window.removeEventListener("resize", onWin);
+      window.removeEventListener("scroll", onWin, true);
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, listId, updateMenuBox]);
+
+  const menu =
+    open && menuBox && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            id={listId}
+            role="listbox"
+            style={{
+              top: menuBox.top,
+              left: menuBox.left,
+              width: menuBox.width,
+            }}
+            className="fixed z-120 flex max-h-52! flex-col gap-1.25 bg-[#00272d] p-1.25 shadow-[0_16px_40px_rgba(0,0,0,0.35)] max-w-70"
+          >
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search country"
+              autoComplete="off"
+              className="w-full border-b border-dashed border-white/20 bg-transparent px-2.5 py-2 text-[12px] leading-[1.2] text-white outline-none placeholder:text-white/28"
+            />
+            <ul
+              data-lenis-prevent
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto hidden-scrollbar"
+            >
+              {filtered.length === 0 ? (
+                <li className="px-2.5 py-2.5 text-[12px] leading-[1.2] text-white/50">
+                  No country found
+                </li>
+              ) : (
+                filtered.map((item) => (
+                  <li key={item.code}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={item.code === country.code}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-2.5 py-2.5 text-left text-[12px] leading-[1.2] text-white/70 transition-colors hover:bg-white/5",
+                        item.code === country.code && "bg-white/5 text-white",
+                      )}
+                      onClick={() => selectCountry(item)}
+                    >
+                      <CountryFlag code={item.code} />
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.name}
+                      </span>
+                      <span className="shrink-0 text-white/40">
+                        {item.dial_code}
+                      </span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
-    <span className="flex w-[29.7px] h-5 overflow-hidden rounded-none  bg-foreground/20 [&_svg]:size-full!">
-      {Flag && <Flag title={countryName} />}
-    </span>
+    <div
+      ref={rootRef}
+      className={cn(
+        "flex w-full items-center gap-2",
+        atelier ? "" : "border-b border-black pb-2",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Select country"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (disabled) return;
+          setOpen((v) => !v);
+        }}
+        className={cn(
+          "flex shrink-0 items-center gap-1.5",
+          disabled && "cursor-not-allowed opacity-40",
+        )}
+      >
+        <CountryFlag code={country.code} />
+        <span className="relative block h-[6.25px] w-2.5 overflow-clip">
+          <CustomChevron
+            className={cn(
+              "h-full w-full transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </span>
+      </button>
+
+      <span
+        className={cn(
+          "shrink-0 text-[12px] leading-[1.2]",
+          atelier ? "text-white/50" : "text-black/50",
+        )}
+      >
+        {country.dial_code}
+      </span>
+
+      <label className="relative min-w-0 flex-1">
+        <span className="sr-only">Phone number</span>
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-0 flex items-center overflow-hidden text-[12px] leading-[1.2]",
+            atelier ? "text-white/28" : "text-black/30",
+          )}
+        >
+          <span className="invisible whitespace-pre">{filled}</span>
+          <span className="whitespace-pre">{placeholder}</span>
+        </span>
+        <input
+          id={id}
+          name={name}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          spellCheck={false}
+          disabled={disabled}
+          value={filled}
+          placeholder=""
+          onBlur={onBlur}
+          onChange={(event) => handleDigits(event.target.value)}
+          className={cn(
+            "relative w-full bg-transparent text-[12px] leading-[1.2] outline-none",
+            atelier ? "text-white caret-white" : "text-black",
+          )}
+        />
+      </label>
+      {menu}
+    </div>
   );
 };
 

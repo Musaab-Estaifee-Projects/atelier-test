@@ -61,7 +61,7 @@ const ContactConfirmDialog = ({
     >
       <div className="relative w-auto overflow-hidden">
         <CustomShape
-          className="h-auto w-auto max-w-[40.375rem]"
+          className="h-auto w-auto max-w-161.5"
           radius={{
             base: 18,
             sm: 20,
@@ -121,7 +121,10 @@ const ContactConfirmDialog = ({
             </dl>
 
             {error ? (
-              <p role="alert" className="w-full text-center text-sm text-[#e29584]">
+              <p
+                role="alert"
+                className="w-full text-center text-sm text-[#e29584]"
+              >
                 {error}
               </p>
             ) : null}

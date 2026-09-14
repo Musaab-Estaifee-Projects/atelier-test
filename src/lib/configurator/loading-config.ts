@@ -40,7 +40,8 @@ export type StreamOverlayKind =
   | "queue"
   | "disconnected"
   | "idle"
-  | "reconnecting";
+  | "reconnecting"
+  | "error";
 
 /**
  * StreamPixel WebRTC lifecycle → loading bar.

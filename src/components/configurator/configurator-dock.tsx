@@ -12,13 +12,14 @@ import Settings from "../icons/configurator/settings";
 import Reset from "../icons/configurator/reset";
 import Pen from "../icons/configurator/pen";
 import EmptySelectionIcon from "../icons/configurator/empty-selection-icon";
+import CatalogThumb from "./catalog-thumb";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
 export type DockSelectionPreview = {
   slot: string;
   label: string;
-  thumbnailUrl: string;
+  thumbnailUrl?: string | null;
 };
 
 type Props = {
@@ -140,41 +141,16 @@ const ConfiguratorDock = ({
             {selectedItems.length > 0 ? (
               <span className="relative flex items-center">
                 <span className="flex items-center">
-                  {(selectedItems.length
-                    ? selectedItems
-                    : [
-                        {
-                          slot: "empty-1",
-                          label: "",
-                          thumbnailUrl: "/images/configurator/swatch-1.png",
-                        },
-                        {
-                          slot: "empty-2",
-                          label: "",
-                          thumbnailUrl: "/images/configurator/swatch-2.png",
-                        },
-                        {
-                          slot: "empty-3",
-                          label: "",
-                          thumbnailUrl: "/images/configurator/swatch-3.png",
-                        },
-                      ]
-                  )
-                    .slice(0, 3)
-                    .map((item, index, list) => (
-                      <span
+                  {selectedItems.slice(0, 3).map((item, index, list) => (
+                      <CatalogThumb
                         key={item.slot}
-                        className={`relative size-8 overflow-clip rounded-full border-[1.2px] border-white ${
+                        src={item.thumbnailUrl}
+                        alt=""
+                        className={`size-8 rounded-full border-[1.2px] border-white ${
                           index < list.length - 1 ? "-mr-2.5" : ""
                         }`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.thumbnailUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </span>
+                        sizes="32px"
+                      />
                     ))}
                 </span>
                 <button

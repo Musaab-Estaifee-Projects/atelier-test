@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidPhoneNumber } from "react-phone-number-input";
+import { isPhoneMatchingFormat } from "@/lib/phone";
 import { ROLES } from "@/constants/const";
 
 export type RoleId = (typeof ROLES)[number]["id"];
@@ -11,7 +11,7 @@ export const contactSchema = z.object({
     .string()
     .trim()
     .min(1, "Please fill in name, email, and phone.")
-    .refine((value) => isValidPhoneNumber(value), {
+    .refine((value) => isPhoneMatchingFormat(value), {
       message: "Enter a valid phone number.",
     }),
   role: z.enum(["considering_purchase", "owner", "agent"]),

@@ -112,7 +112,7 @@ const RoomBlock = ({
                   alt={`${room.label} view ${index + 1}`}
                   fill
                   unoptimized
-                  className="object-cover"
+                  className="object-cover pointer-events-none"
                   sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 560px"
                 />
               ) : (

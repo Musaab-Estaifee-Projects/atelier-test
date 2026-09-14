@@ -1,6 +1,5 @@
 import type {
   ConfiguratorSession,
-  MaterialOption,
   SelectionEntry,
 } from "@/types/configurator";
 import { linePrice } from "@/lib/configurator/final-design";
@@ -12,8 +11,8 @@ export type ReviewSurfaceLine = {
   meshOnly?: boolean;
   materialName?: string;
   materialDetail?: string;
-  thumbnailUrl?: string;
-  fallbackSwatch?: "wood" | "marble";
+  thumbnailUrl?: string | null;
+  meshImage?: string | null;
   areaSqm?: number;
   price: number;
 };
@@ -25,21 +24,13 @@ export type ReviewSection = {
   subtotal: number;
 };
 
-function swatchForMaterial(
-  mat?: MaterialOption,
-): "wood" | "marble" | undefined {
-  const cat = (mat?.category ?? "").toLowerCase();
-  if (cat === "floor") return "marble";
-  if (mat) return "wood";
-  return undefined;
-}
-
 export function buildReviewSections(
   session: ConfiguratorSession,
   selections: SelectionEntry[],
 ): { sections: ReviewSection[]; total: number } {
   const bySlot = new Map(selections.map((s) => [s.slot, s]));
   const matById = new Map(session.materials.map((m) => [m.id, m]));
+  const meshById = new Map(session.meshes.map((m) => [m.id, m]));
 
   const sections: ReviewSection[] = session.zones.map((zone) => {
     const lines: ReviewSurfaceLine[] = zone.cameras.map((cam) => {
@@ -55,6 +46,7 @@ export function buildReviewSections(
         };
       }
       const mat = matById.get(sel.materialId);
+      const mesh = meshById.get(sel.meshId);
       const meshOnly = Boolean(sel.meshId) && !sel.materialId;
       const areaSqm = session.meshAreas.find(
         (a) => a.meshId === sel.meshId,
@@ -67,8 +59,8 @@ export function buildReviewSections(
         materialName: meshOnly
           ? "Added"
           : (mat?.displayName ?? sel.materialId ?? "Mesh only"),
-        thumbnailUrl: mat?.thumbnailUrl,
-        fallbackSwatch: meshOnly ? undefined : swatchForMaterial(mat),
+        thumbnailUrl: mat?.thumbnailUrl ?? null,
+        meshImage: mesh?.thumbnailUrl ?? null,
         areaSqm,
         price: linePrice(session, sel),
       };
@@ -133,13 +125,14 @@ export function buildSelectedItemSections(
     subtotal: 0,
     lines: extras.map((sel) => {
       const mat = matById.get(sel.materialId);
+      const mesh = session.meshes.find((m) => m.id === sel.meshId);
       return {
         slot: sel.slot,
         surfaceLabel: slotLabels[sel.slot] ?? sel.slot,
         selected: true,
         materialName: mat?.displayName ?? sel.materialId ?? "Mesh only",
-        thumbnailUrl: mat?.thumbnailUrl,
-        fallbackSwatch: swatchForMaterial(mat),
+        thumbnailUrl: mat?.thumbnailUrl ?? mesh?.thumbnailUrl ?? null,
+        meshImage: mesh?.thumbnailUrl ?? null,
         price: 0,
       };
     }),
@@ -148,10 +141,4 @@ export function buildSelectedItemSections(
   return selected;
 }
 
-export function reviewUnitSubtitle(
-  unitId?: string | null,
-  levelName?: string | null,
-) {
-  if (unitId?.includes("2BHK")) return "REEF 997 - 2 Bedrooms - Type A";
-  return [unitId, levelName].filter(Boolean).join(" - ") || "Your residence";
-}
+export { residenceSubtitle as reviewUnitSubtitle } from "@/lib/configurator/residence-label";

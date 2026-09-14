@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { Plug, Undo2 } from "lucide-react";
+import CatalogThumb from "./catalog-thumb";
 import SelectionRowMenu from "./selection-row-menu";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
 import {
   buildReviewSections,
-  reviewUnitSubtitle,
   type ReviewSurfaceLine,
 } from "@/lib/configurator/review-selections";
 import { mapSummaryToDisplay } from "@/lib/configurator/map-summary-display";
@@ -26,6 +26,7 @@ type Props = {
   session: ConfiguratorSession;
   selections: SelectionEntry[];
   unitId?: string | null;
+  unitSubtitle: string;
   summary?: DesignSummaryData | null;
   summaryLoading?: boolean;
   summaryError?: string | null;
@@ -82,19 +83,14 @@ const NotSelectedCell = ({ detail }: { detail?: string }) => (
   </div>
 );
 
-const Swatch = ({ src }: { src?: string | null }) => {
-  if (src) {
-    return (
-      <div className="relative size-14 shrink-0 overflow-clip border-[1.3px] border-white/20 md:size-18.75">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="h-full w-full object-cover" />
-      </div>
-    );
-  }
-  return (
-    <div className="size-14 shrink-0 border border-dashed border-white bg-white/10 md:size-18.75" />
-  );
-};
+const Swatch = ({ src }: { src?: string | null }) => (
+  <CatalogThumb
+    src={src}
+    alt=""
+    className="size-14 shrink-0 border-[1.3px] border-white/20 md:size-18.75"
+    sizes="(min-width: 768px) 75px, 56px"
+  />
+);
 
 const MeshCell = ({
   selected,
@@ -123,14 +119,12 @@ const MaterialCell = ({
   dash,
   name,
   thumbnailUrl,
-  fallbackSwatch,
   materialDetail,
 }: {
   selected: boolean;
   dash?: boolean;
   name?: string;
   thumbnailUrl?: string | null;
-  fallbackSwatch?: "wood" | "marble";
   materialDetail?: string;
 }) => {
   if (dash) {
@@ -142,11 +136,9 @@ const MaterialCell = ({
     return <NotSelectedCell detail="Standard finish" />;
   }
 
-  const swatch = thumbnailUrl || undefined;
-
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2.5">
-      <Swatch src={swatch} />
+      <Swatch src={thumbnailUrl} />
       <div className="flex min-w-0 flex-col gap-2.5">
         <p className="font-medium text-[14px] leading-[1.16] text-white">
           {name}
@@ -247,7 +239,8 @@ const ReviewSelections = ({
   open,
   session,
   selections,
-  unitId,
+  unitId: _unitId,
+  unitSubtitle,
   summary,
   summaryLoading,
   summaryError,
@@ -274,7 +267,7 @@ const ReviewSelections = ({
     label: string;
   } | null>(null);
 
-  const subtitle = reviewUnitSubtitle(unitId, session.levelName);
+  const subtitle = unitSubtitle;
   const rowMenuDisabled = Boolean(actionsDisabled || streamOffline);
 
   if (!open) return null;
@@ -371,6 +364,7 @@ const ReviewSelections = ({
                                 ? "Added"
                                 : (raw.materialName ?? ""),
                               meshSelected: raw.selected,
+                              meshImage: raw.meshImage,
                               materialLabel: raw.materialName ?? "",
                               materialSelected: raw.selected && !raw.meshOnly,
                               materialDash: Boolean(raw.meshOnly),

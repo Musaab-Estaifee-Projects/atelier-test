@@ -173,16 +173,19 @@ export function reviewGroups(
     session.materials.map((m) => [m.id, m]),
   );
 
+  const meshById = new Map(session.meshes.map((m) => [m.id, m]));
+
   for (const sel of selections) {
     const zoneId = zoneIdFromSlot(sel.slot) ?? sel.slot;
     const mat = matById.get(sel.materialId);
+    const mesh = meshById.get(sel.meshId);
     const line: ReviewMaterialLine = {
       slot: sel.slot,
       slotLabel: session.slotLabels[sel.slot] ?? sel.slot,
       meshId: sel.meshId,
       materialId: sel.materialId,
       materialName: mat?.displayName ?? sel.materialId ?? "Mesh only",
-      thumbnailUrl: mat?.thumbnailUrl,
+      thumbnailUrl: mat?.thumbnailUrl ?? mesh?.thumbnailUrl,
       price: linePrice(session, sel),
     };
     const list = byZone.get(zoneId) ?? [];

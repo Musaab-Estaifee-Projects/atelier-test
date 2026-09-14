@@ -6,7 +6,7 @@ import type {
   MeshOption,
   SelectionMap,
 } from "@/types/configurator";
-import { finishThumb, materialThumb } from "@/lib/configurator/chrome";
+import CatalogThumb from "./catalog-thumb";
 import {
   cameraKey,
   finishTypeDisplayName,
@@ -90,17 +90,12 @@ const ZoneSidePanel = ({
           </h3>
           {selectedMaterial ? (
             <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
-              <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={materialThumb(
-                    selectedMaterial.id,
-                    selectedMaterial.thumbnailUrl,
-                  )}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </span>
+              <CatalogThumb
+                src={selectedMaterial.thumbnailUrl}
+                alt=""
+                className="size-13 shrink-0 rounded-full border border-white/20"
+                sizes="52px"
+              />
               <p className="min-w-0 flex-1 truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
                 {selectedMaterial.displayName || selectedMaterial.id}
               </p>
@@ -117,14 +112,12 @@ const ZoneSidePanel = ({
             </div>
           ) : activeMesh ? (
             <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
-              <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={finishThumb(activeMesh.id, activeMesh.thumbnailUrl)}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </span>
+              <CatalogThumb
+                src={activeMesh.thumbnailUrl}
+                alt=""
+                className="size-13 shrink-0 rounded-full border border-white/20"
+                sizes="52px"
+              />
               <p className="min-w-0 flex-1 truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
                 {finishTypeDisplayName(activeMesh)}
               </p>
@@ -191,14 +184,12 @@ const ZoneSidePanel = ({
                       }`}
                       onClick={() => onSelectMesh(mesh)}
                     >
-                      <span className="relative size-13 shrink-0 overflow-clip rounded-full border border-white/20">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={finishThumb(mesh.id, mesh.thumbnailUrl)}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </span>
+                      <CatalogThumb
+                        src={mesh.thumbnailUrl}
+                        alt=""
+                        className="size-13 shrink-0 rounded-full border border-white/20"
+                        sizes="52px"
+                      />
                       <span
                         className={`font-sans font-medium text-[12px] leading-[1.16] text-white ${
                           selected ? "" : "opacity-80"
@@ -243,14 +234,12 @@ const ZoneSidePanel = ({
                       }`}
                       onClick={() => onSelectMaterial(activeMesh.id, mat)}
                     >
-                      <span className="relative block size-12.25 overflow-clip rounded-full border border-white/20">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={materialThumb(mat.id, mat.thumbnailUrl)}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </span>
+                      <CatalogThumb
+                        src={mat.thumbnailUrl}
+                        alt=""
+                        className="block size-12.25 rounded-full border border-white/20"
+                        sizes="49px"
+                      />
                     </button>
                   );
                 })}

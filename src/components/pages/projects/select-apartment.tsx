@@ -6,6 +6,7 @@ import ApartmentForm, {
   type ApartmentChoice,
 } from "@/components/pages/projects/apartment-form";
 import { getDesign } from "@/lib/configurator/api";
+import { writeResidenceLabel } from "@/lib/configurator/residence-label";
 import { configuratorHref, stylesHref } from "@/lib/projects/catalog";
 import { TProject } from "@/types/types";
 import ProjectInfoBar from "./project-info-bar";
@@ -46,12 +47,22 @@ const SelectApartment = ({ project }: Props) => {
       return;
     }
 
+    writeResidenceLabel({
+      projectSlug: project.code,
+      projectName: project.name,
+      categoryName: choice.categoryName,
+      typeName: choice.typeName,
+      layoutCode: choice.layoutCode || choice.levelName,
+      apartmentNumber: choice.apartmentNumber || choice.unitId || null,
+    });
+
     router.push(
       stylesHref({
         slug: project.code,
         projectId: String(project.id),
-        unitId: choice.unitId,
+        unitId: "",
         apartmentId: choice.apartmentId,
+        apartmentNumber: choice.apartmentNumber || choice.unitId,
         levelName: choice.layoutCode || choice.levelName,
         layoutCode: choice.layoutCode || choice.levelName,
       }),

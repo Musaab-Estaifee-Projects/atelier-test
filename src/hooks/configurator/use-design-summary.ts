@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildApiSelections } from "@/lib/configurator/api-selections";
-import { loadDraft, saveDraft } from "@/lib/configurator/storage";
+import { patchDraft } from "@/lib/configurator/storage";
 import { postDesignSummary } from "@/services/post-design-summary.service";
 import type { DesignSummaryData } from "@/services/post-design-summary.service";
 import type {
@@ -50,30 +50,23 @@ export function useDesignSummary({
     setLoading(true);
     setError(null);
     try {
-      const draft = loadDraft(
-        streamProjectId,
-        backendProjectId,
-        session.layoutCode || layoutCode,
-        apartmentId,
-      );
       const result = await postDesignSummary(designCode, {
         selection_revision: 0,
         selections: payloadRef.current,
       });
       if (seq !== seqRef.current) return result;
-      saveDraft({
-        version: 3,
-        streamProjectId,
-        projectId: backendProjectId,
-        layoutCode: session.layoutCode || layoutCode,
-        apartmentId,
-        designCode,
-        selections: draft?.selections ?? [],
-        selectionRevision: 0,
-        summaryToken: result.summary_token,
-        summaryExpiresAt: result.summary_expires_at,
-        updatedAt: new Date().toISOString(),
-      });
+      patchDraft(
+        {
+          streamProjectId,
+          projectId: backendProjectId,
+          layoutCode: session.layoutCode || layoutCode,
+          apartmentId,
+        },
+        {
+          summaryToken: result.summary_token,
+          summaryExpiresAt: result.summary_expires_at,
+        },
+      );
       setData(result);
       return result;
     } catch (err) {

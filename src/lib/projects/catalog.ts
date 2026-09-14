@@ -74,6 +74,7 @@ export function configuratorHref(
     style?: string;
     view?: boolean;
     apartmentId?: string | null;
+    apartmentNumber?: string | null;
     unit?: string | null;
     renders?: boolean;
   },
@@ -88,7 +89,8 @@ export function configuratorHref(
     q.set("project_id", selectedProjectId);
   }
   if (extra?.apartmentId) q.set("apartment_id", extra.apartmentId);
-  if (extra?.unit) q.set("unit", extra.unit);
+  const apartmentNumber = extra?.apartmentNumber || extra?.unit;
+  if (apartmentNumber) q.set("apartment_number", apartmentNumber);
   if (extra?.style) q.set("style", extra.style);
   if (extra?.view) q.set("view", "1");
   if (extra?.renders) q.set("renders", "1");
@@ -100,16 +102,17 @@ export function stylesHref(
     layoutCode?: string;
     projectId?: string;
     apartmentId?: string;
+    apartmentNumber?: string;
   },
 ): string {
   const q = new URLSearchParams({
-    project: project.slug,
     layout_code: project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE,
   });
   if (project.projectId && /^\d+$/.test(project.projectId)) {
     q.set("project_id", project.projectId);
   }
-  if (project.unitId) q.set("unit", project.unitId);
+  const apartmentNumber = project.apartmentNumber || project.unitId;
+  if (apartmentNumber) q.set("apartment_number", apartmentNumber);
   if (project.apartmentId) q.set("apartment_id", project.apartmentId);
   return `/styles?${q.toString()}`;
 }

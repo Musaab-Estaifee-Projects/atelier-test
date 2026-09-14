@@ -17,6 +17,7 @@ import DiamondRule from "@/components/icons/configurator/diamond-rule";
 import SelectedColorPalette from "@/components/icons/selected-color-palette";
 import SecondColorPalette from "@/components/icons/second-color-palette";
 import ThirdColorPalette from "@/components/icons/third-color-palette";
+import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import CircleWithShadows from "@/components/icons/circle-with-shadows";
 
 export function demoCustomizeHref(style?: string) {
@@ -39,6 +40,7 @@ type Props = {
   projectSlug?: string | null;
   projectId?: string | null;
   apartmentId?: string | null;
+  apartmentNumber?: string | null;
   unitId?: string | null;
   levelName?: string | null;
 };
@@ -51,11 +53,14 @@ const SelectStyle = ({
   projectSlug,
   projectId,
   apartmentId,
-  unitId: _unitId,
+  apartmentNumber,
+  unitId,
   levelName,
 }: Props) => {
+  const stored = readResidenceLabel();
+  const slug = projectSlug || stored?.projectSlug;
   const project =
-    (projectSlug ? getProject(projectSlug) : undefined) ??
+    (slug ? getProject(slug) : undefined) ??
     CATALOG_PROJECTS[1] ??
     CATALOG_PROJECTS[0];
 
@@ -63,12 +68,12 @@ const SelectStyle = ({
     {
       streamProjectId: project.streamProjectId,
       projectId: projectId || project.projectId,
-      levelName: levelName || project.levelName,
-      layoutCode: levelName || project.layoutCode || project.levelName,
+      levelName: levelName || stored?.layoutCode || project.levelName,
+      layoutCode: levelName || stored?.layoutCode || project.layoutCode || project.levelName,
     },
     {
       apartmentId,
-      unit: _unitId,
+      apartmentNumber: apartmentNumber || unitId || stored?.apartmentNumber,
     },
   );
 

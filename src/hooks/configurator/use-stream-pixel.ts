@@ -181,6 +181,7 @@ export function useStreamPixel({
   const idleTimedOutRef = useRef(false);
   const afkWarningRef = useRef(false);
   const hasEverBeenReadyRef = useRef(false);
+  const [hasEverBeenReady, setHasEverBeenReady] = useState(false);
   const disconnectGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [endedCopy, setEndedCopy] = useState<DisconnectOverlayCopy>(
     DISCONNECT_COPY.dropped,
@@ -435,6 +436,7 @@ export function useStreamPixel({
           window.setTimeout(() => {
             if (cancelled || !mountedRef.current || failedRef.current) return;
             hasEverBeenReadyRef.current = true;
+            setHasEverBeenReady(true);
             setStreamPhase("loading");
             setIsLoading(false);
             setQueuePosition(null);
@@ -1037,6 +1039,7 @@ export function useStreamPixel({
     afkCountdown,
     dismissAfk,
     endedCopy,
+    hasEverBeenReady,
     resolutionEnabled,
   };
 }

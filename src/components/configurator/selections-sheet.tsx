@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import OverlayDialog from "@/components/ui/overlay-dialog";
 import { CustomShape } from "@/components/shared/custom-shape";
-import { materialThumb } from "@/lib/configurator/chrome";
 import { buildSelectedItemSections } from "@/lib/configurator/review-selections";
+import CatalogThumb from "./catalog-thumb";
 import type { ConfiguratorSession, SelectionEntry } from "@/types/configurator";
 import RemoveSelectionDialog from "./remove-selection-dialog";
 import SelectionRowMenu from "./selection-row-menu";
@@ -20,13 +20,6 @@ type Props = {
   onEdit?: (slot: string) => void;
   viewOnly?: boolean;
 };
-
-const fallbackSwatchSrc = (fallback?: "wood" | "marble") =>
-  fallback === "marble"
-    ? "/images/review/swatch-marble.png"
-    : fallback
-      ? "/images/review/swatch-wood.png"
-      : undefined;
 
 const isSelectionRowMenuEvent = (event: Event) => {
   const target = event.target as HTMLElement | null;
@@ -113,24 +106,17 @@ const SelectionsSheet = ({
                         {section.label}
                       </h3>
                       {section.lines.map((line) => {
-                        const thumb = materialThumb(
-                          line.slot,
-                          line.thumbnailUrl ??
-                            fallbackSwatchSrc(line.fallbackSwatch),
-                        );
                         return (
                           <div
                             key={line.slot}
                             className="flex w-full items-center gap-1.75 rounded-full bg-white/5 py-1 pr-3 pl-1 sm:pr-4"
                           >
-                            <span className="relative size-11 shrink-0 overflow-clip rounded-full sm:size-13">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={thumb}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            </span>
+                            <CatalogThumb
+                              src={line.thumbnailUrl ?? line.meshImage}
+                              alt=""
+                              className="size-11 shrink-0 rounded-full sm:size-13"
+                              sizes="(min-width: 640px) 52px, 44px"
+                            />
                             <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1.75">
                               <p className="w-full truncate font-sans text-[10px] font-medium uppercase leading-[1.2] tracking-[0.3px] text-white/50">
                                 {line.surfaceLabel}

@@ -8,6 +8,7 @@ import type {
   SelectionEntry,
 } from "@/types/configurator";
 import { reviewGroups } from "@/lib/configurator/final-design";
+import CatalogThumb from "@/components/configurator/catalog-thumb";
 
 type Props = {
   open: boolean;
@@ -95,12 +96,12 @@ export default function FinalDesignReview({
                 {activeGroup.lines.map((line) => (
                   <li key={line.slot}>
                     <div className="fd-mat-main">
-                      {line.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={line.thumbnailUrl} alt="" className="fd-mat-swatch" />
-                      ) : (
-                        <span className="fd-mat-swatch fd-mat-swatch-empty" />
-                      )}
+                      <CatalogThumb
+                        src={line.thumbnailUrl}
+                        alt=""
+                        className="fd-mat-swatch"
+                        sizes="28px"
+                      />
                       <div>
                         <p className="fd-mat-slot">{line.slotLabel}</p>
                         <p className="fd-mat-name">{line.materialName}</p>

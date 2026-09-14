@@ -15,9 +15,12 @@ import { isAxiosError } from "axios";
 export type ApartmentChoice = {
   unitId: string;
   apartmentId?: string;
+  apartmentNumber?: string;
   levelName: string;
   designCode?: string;
   layoutCode?: string;
+  categoryName?: string;
+  typeName?: string;
 };
 
 type Props = {

@@ -31,6 +31,7 @@ type Props = {
   bootError?: string | null;
   onRetryBoot?: () => void;
   progressLabel?: string | null;
+  endedMessage?: string | null;
 };
 
 const SessionBackdrop = ({ src }: { src: string }) => {
@@ -207,6 +208,7 @@ const SessionEnded = ({
   title,
   selectionCount,
   secondaryLabel,
+  message,
   onReconnect,
   onSecondary,
 }: {
@@ -215,13 +217,15 @@ const SessionEnded = ({
   title: string;
   selectionCount: number;
   secondaryLabel: string;
+  message?: string;
   onReconnect?: () => void;
   onSecondary?: () => void;
 }) => {
   const saved =
-    selectionCount > 0
+    message ??
+    (selectionCount > 0
       ? `Your selections are saved — ${selectionCount} items. Nothing was lost.`
-      : "In case you have selections. Nothing will be lost. All of your selections will be saved.";
+      : "In case you have selections. Nothing will be lost. All of your selections will be saved.");
 
   return (
     <div className="flex w-full max-w-180 flex-col items-center px-2">
@@ -270,6 +274,7 @@ export function streamOverlayKind(args: {
   loadingTitle: string;
 }): StreamOverlayKind {
   if (args.streamPhase === "idle") return "idle";
+  if (args.streamPhase === "error") return "error";
   if (args.streamPhase === "disconnected") return "disconnected";
   if (args.streamPhase === "reconnecting") return "reconnecting";
   if (args.streamPhase === "queue") return "queue";
@@ -316,7 +321,6 @@ const LoadingOverlay = ({
   selectionCount = 0,
   onReconnect,
   onContinueToSummary,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onBackHome,
   onBrowseStyles,
   reconnectTitle,
@@ -327,8 +331,10 @@ const LoadingOverlay = ({
   bootError,
   onRetryBoot,
   progressLabel,
+  endedMessage,
 }: Props) => {
-  const ended = kind === "disconnected" || kind === "idle";
+  const ended =
+    kind === "disconnected" || kind === "idle" || kind === "error";
   const bg = ended
     ? "/images/session/bg-disconnected.png"
     : "/images/session/bg-loading.png";
@@ -389,6 +395,22 @@ const LoadingOverlay = ({
             />
           ) : null}
 
+          {kind === "error" ? (
+            <SessionEnded
+              eyebrow={endedEyebrow ?? "Unable to load"}
+              icon={<CloudSlash className="mb-6 h-12.75 w-15" />}
+              title={endedTitle ?? "The 3D session could not open"}
+              selectionCount={0}
+              message={
+                endedMessage ??
+                "Please try again, or go back and choose another apartment."
+              }
+              secondaryLabel="Back to projects"
+              onReconnect={onReconnect}
+              onSecondary={onBackHome}
+            />
+          ) : null}
+
           {kind === "idle" ? (
             <SessionEnded
               eyebrow="Session ended"
@@ -397,7 +419,6 @@ const LoadingOverlay = ({
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
-              // onSecondary={onBackHome}
               onSecondary={onContinueToSummary}
             />
           ) : null}

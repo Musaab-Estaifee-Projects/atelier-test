@@ -64,6 +64,8 @@ const SelectStep = ({
     id: string;
     number: string;
     layoutCode: string;
+    categoryName: string;
+    typeName: string;
   } | null>(null);
 
   // Search + pagination state
@@ -107,8 +109,24 @@ const SelectStep = ({
       id: String(t.id),
       label: `${t.name} - ${t.layout_area} sq ft`,
       layoutCode: t.layout_code,
+      name: t.name,
     }));
   }, [categoryId, project.categories]);
+
+  const applyApartmentToSelects = useCallback(
+    (item: TApartmentSearchItem) => {
+      form.setValue("categoryId", String(item.layout.category.id));
+      form.setValue("typeId", String(item.layout.type.id));
+      setSelectedUnit({
+        id: String(item.id),
+        number: item.apartment_number,
+        layoutCode: item.layout.code,
+        categoryName: item.layout.category.name,
+        typeName: item.layout.type.name,
+      });
+    },
+    [form],
+  );
 
   // Debounced first-page search
   useEffect(() => {
@@ -157,6 +175,36 @@ const SelectStep = ({
 
     return () => clearTimeout(timer);
   }, [query, project.id]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed || isDesignCode(trimmed) || isSearching) return;
+    const match =
+      selectedUnit &&
+      suggestions.some((item) => String(item.id) === selectedUnit.id)
+        ? suggestions.find((item) => String(item.id) === selectedUnit.id)
+        : suggestions.find(
+            (item) =>
+              item.apartment_number.toLowerCase() === trimmed.toLowerCase(),
+          );
+    if (!match) return;
+    if (
+      categoryId === String(match.layout.category.id) &&
+      typeId === String(match.layout.type.id) &&
+      selectedUnit?.id === String(match.id)
+    ) {
+      return;
+    }
+    applyApartmentToSelects(match);
+  }, [
+    suggestions,
+    query,
+    isSearching,
+    applyApartmentToSelects,
+    categoryId,
+    typeId,
+    selectedUnit,
+  ]);
 
   const loadMore = useCallback(async () => {
     if (!activeQuery || isLoadingMore || isSearching || !hasMore) return;
@@ -225,11 +273,7 @@ const SelectStep = ({
     if (!item) return;
 
     form.setValue("query", item.apartment_number);
-    setSelectedUnit({
-      id: String(item.id),
-      number: item.apartment_number,
-      layoutCode: item.layout.code,
-    });
+    applyApartmentToSelects(item);
     setLocalError(null);
     setOpenMenu(null);
   };
@@ -250,8 +294,11 @@ const SelectStep = ({
       submitChoice({
         unitId: selectedUnit.number,
         apartmentId: selectedUnit.id,
+        apartmentNumber: selectedUnit.number,
         levelName: "",
         layoutCode: selectedUnit.layoutCode,
+        categoryName: selectedUnit.categoryName,
+        typeName: selectedUnit.typeName,
       });
       return;
     }
@@ -264,20 +311,32 @@ const SelectStep = ({
         submitChoice({
           unitId: exact.apartment_number,
           apartmentId: String(exact.id),
+          apartmentNumber: exact.apartment_number,
           levelName: "",
           layoutCode: exact.layout.code,
+          categoryName: exact.layout.category.name,
+          typeName: exact.layout.type.name,
         });
         return;
       }
+      setLocalError(
+        "We couldn’t find that unit. Try a unit number or choose type and layout.",
+      );
+      return;
     }
 
     if (values.categoryId && values.typeId) {
+      const category = project.categories?.find(
+        (c) => String(c.id) === values.categoryId,
+      );
       const type = typeOptions.find((t) => t.id === values.typeId);
       if (type) {
         submitChoice({
           unitId: "",
           levelName: "",
           layoutCode: type.layoutCode,
+          categoryName: category?.name,
+          typeName: type.name,
         });
         return;
       }
@@ -380,6 +439,7 @@ const SelectStep = ({
               placeholder="Select Residence Type"
               options={categories}
               open={openMenu === "type"}
+              disabled={pending}
               onToggle={() =>
                 setOpenMenu((v) => (v === "type" ? null : "type"))
               }
@@ -392,7 +452,7 @@ const SelectStep = ({
               placeholder="Select Layout"
               options={typeOptions}
               open={openMenu === "layout"}
-              disabled={!categoryId}
+              disabled={!categoryId || pending}
               onToggle={() =>
                 setOpenMenu((v) => (v === "layout" ? null : "layout"))
               }

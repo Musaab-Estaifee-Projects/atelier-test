@@ -4,6 +4,7 @@ export type LayoutCatalogMaterial = {
   price: number | null;
   is_default: boolean;
   unit: string;
+  image?: string | null;
 };
 
 export type LayoutCatalogMesh = {

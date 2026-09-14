@@ -11,6 +11,7 @@ type PageProps = {
     project?: string;
     project_id?: string;
     apartment_id?: string;
+    apartment_number?: string;
     unit?: string;
     level?: string;
     layout_code?: string;
@@ -23,8 +24,9 @@ const page = async ({ searchParams }: PageProps) => {
     <BrowseStyles
       projectSlug={query.project}
       projectId={query.project_id}
-      unitId={query.unit}
+      unitId={query.apartment_number || query.unit}
       apartmentId={query.apartment_id}
+      apartmentNumber={query.apartment_number || query.unit}
       levelName={query.layout_code || query.level}
     />
   );
