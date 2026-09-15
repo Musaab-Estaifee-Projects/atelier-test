@@ -62,7 +62,7 @@ const QuotationReady = ({
         >
           Your Quotation is Ready
         </h1>
-        <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px]">
+        <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px] capitalize">
           {unitSubtitle}
         </p>
         <TitleRule className="mt-4 h-px w-32.25" />

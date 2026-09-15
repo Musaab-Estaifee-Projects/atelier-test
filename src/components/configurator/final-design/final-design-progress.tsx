@@ -216,7 +216,7 @@ const FinalDesignProgress = ({
           >
             Creating Final Renders
           </h1>
-          <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70">
+          <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
             {unitSubtitle}
           </p>
 
