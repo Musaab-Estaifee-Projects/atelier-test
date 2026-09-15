@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildApiSelections } from "@/lib/configurator/api-selections";
+import { isDesignFrozenError } from "@/lib/configurator/is-design-frozen";
 import { patchDraft } from "@/lib/configurator/storage";
 import { postDesignSummary } from "@/services/post-design-summary.service";
 import type { DesignSummaryData } from "@/services/post-design-summary.service";
@@ -20,6 +21,7 @@ type Args = {
   designCode: string | null;
   session: ConfiguratorSession | null;
   customMap: SelectionMap;
+  onFrozen?: () => void;
 };
 
 export function useDesignSummary({
@@ -31,11 +33,15 @@ export function useDesignSummary({
   designCode,
   session,
   customMap,
+  onFrozen,
 }: Args) {
   const [data, setData] = useState<DesignSummaryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const seqRef = useRef(0);
+  const frozenRef = useRef(false);
+  const onFrozenRef = useRef(onFrozen);
+  onFrozenRef.current = onFrozen;
   const payloadRef = useRef<StoredSelection[]>([]);
 
   const payload = useMemo(() => {
@@ -44,8 +50,13 @@ export function useDesignSummary({
   }, [session, customMap]);
   payloadRef.current = payload;
 
+  useEffect(() => {
+    frozenRef.current = false;
+  }, [designCode]);
+
   const refresh = useCallback(async () => {
     if (!designCode || !session || !backendProjectId) return null;
+    if (frozenRef.current) return null;
     const seq = ++seqRef.current;
     setLoading(true);
     setError(null);
@@ -71,6 +82,12 @@ export function useDesignSummary({
       return result;
     } catch (err) {
       if (seq !== seqRef.current) return null;
+      if (isDesignFrozenError(err)) {
+        frozenRef.current = true;
+        onFrozenRef.current?.();
+        setError(null);
+        return null;
+      }
       const message =
         err instanceof Error ? err.message : "Failed to load quotation summary";
       setError(message);
@@ -88,7 +105,7 @@ export function useDesignSummary({
   ]);
 
   useEffect(() => {
-    if (!enabled || !designCode || !session) return;
+    if (!enabled || !designCode || !session || frozenRef.current) return;
     const timer = window.setTimeout(() => {
       void refresh();
     }, 400);

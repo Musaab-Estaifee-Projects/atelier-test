@@ -69,7 +69,7 @@ const LoadingUnit = ({
       <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         Loading Your Unit
       </h1>
-      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
+      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
         {unitSubtitle}
       </p>
       <div className="mt-6 h-0.5 w-full max-w-116.75 overflow-hidden bg-white/10">
@@ -101,7 +101,12 @@ const LoadingUnit = ({
         <div className="mt-6 flex flex-col items-center gap-3">
           <p className="text-center text-sm text-white/70">{bootError}</p>
           {onRetryBoot ? (
-            <Button type="button" variant="pill-soft" size="pill" onClick={onRetryBoot}>
+            <Button
+              type="button"
+              variant="pill-soft"
+              size="pill"
+              onClick={onRetryBoot}
+            >
               Retry
             </Button>
           ) : null}
@@ -333,8 +338,7 @@ const LoadingOverlay = ({
   progressLabel,
   endedMessage,
 }: Props) => {
-  const ended =
-    kind === "disconnected" || kind === "idle" || kind === "error";
+  const ended = kind === "disconnected" || kind === "idle" || kind === "error";
   const bg = ended
     ? "/images/session/bg-disconnected.png"
     : "/images/session/bg-loading.png";

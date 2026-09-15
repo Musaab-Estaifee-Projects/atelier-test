@@ -23,6 +23,8 @@ type OverlayDialogProps = {
   onPointerDownOutside?: (event: Event) => void;
   onInteractOutside?: (event: Event) => void;
   container?: HTMLElement | null;
+  /** When false, overlay click and Escape cannot dismiss. Default true. */
+  closeOnOutsideClick?: boolean;
 };
 
 function getFullscreenRoot(): HTMLElement | null {
@@ -47,6 +49,7 @@ const OverlayDialog = ({
   onPointerDownOutside,
   onInteractOutside,
   container,
+  closeOnOutsideClick = true,
 }: OverlayDialogProps) => {
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
 
@@ -62,7 +65,13 @@ const OverlayDialog = ({
   }, [container]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !closeOnOutsideClick) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogPortal
         container={portalEl ?? undefined}
         key={portalEl && portalEl !== document.body ? "fs" : "body"}
@@ -89,8 +98,17 @@ const OverlayDialog = ({
             "duration-200",
             contentClassName,
           )}
-          onPointerDownOutside={onPointerDownOutside}
-          onInteractOutside={onInteractOutside}
+          onPointerDownOutside={(event) => {
+            if (!closeOnOutsideClick) event.preventDefault();
+            onPointerDownOutside?.(event);
+          }}
+          onInteractOutside={(event) => {
+            if (!closeOnOutsideClick) event.preventDefault();
+            onInteractOutside?.(event);
+          }}
+          onEscapeKeyDown={(event) => {
+            if (!closeOnOutsideClick) event.preventDefault();
+          }}
         >
           <DialogTitle className={titleHidden ? "sr-only" : undefined}>
             {title}

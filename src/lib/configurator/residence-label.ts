@@ -34,21 +34,19 @@ export function writeResidenceLabel(label: ResidenceLabel): void {
     layoutCode: label.layoutCode?.trim() || undefined,
     apartmentNumber: label.apartmentNumber?.trim() || null,
   };
-  try {
-    const json = JSON.stringify(payload);
-    window.sessionStorage.setItem(STORAGE_KEY, json);
-    window.localStorage.setItem(STORAGE_KEY, json);
-  } catch {
-    /* private mode / quota */
-  }
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+      const json = JSON.stringify(payload);
+      window.sessionStorage.setItem(STORAGE_KEY, json);
+    } catch {
+      /* private mode / quota */
+    }
 }
 
 export function readResidenceLabel(): ResidenceLabel | null {
   if (!canUseStorage()) return null;
   try {
-    const raw =
-      window.sessionStorage.getItem(STORAGE_KEY) ||
-      window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ResidenceLabel;
     if (!parsed || typeof parsed !== "object") return null;

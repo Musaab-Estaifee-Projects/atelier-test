@@ -20,3 +20,11 @@ export function zoneUrlPatch(
   if (opts?.clearIfMissing) return { zone: null };
   return {};
 }
+
+/** Configurator path + query with `renders` removed (hard reload onto a fresh sheet). */
+export function locationWithoutRenders(): string {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.searchParams.delete("renders");
+  return `${url.pathname}${url.search}${url.hash}`;
+}

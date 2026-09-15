@@ -5,27 +5,32 @@ import OverlayDialog from "@/components/ui/overlay-dialog";
 import { CustomShape } from "@/components/shared/custom-shape";
 import { TriangleAlert } from "lucide-react";
 
+type FrozenAction = "new" | "keep";
+
 type Props = {
   open: boolean;
-  surfaceLabel?: string;
-  onCancel: () => void;
-  onConfirm: () => void;
+  pending?: FrozenAction | null;
+  onKeep: () => void;
+  onStartNew: () => void;
+  onGoToProjects: () => void;
 };
 
-const RemoveSelectionDialog = ({
+const FrozenDesignDialog = ({
   open,
-  surfaceLabel,
-  onCancel,
-  onConfirm,
+  pending = null,
+  onKeep,
+  onStartNew,
+  onGoToProjects,
 }: Props) => {
+  const busy = Boolean(pending);
+
   return (
     <OverlayDialog
       open={open}
       titleHidden
-      onOpenChange={(next) => {
-        if (!next) onCancel();
-      }}
-      title="Are you sure you want to remove this?"
+      closeOnOutsideClick={false}
+      onOpenChange={() => undefined}
+      title="This design is locked"
       blur={false}
       overlayClassName="z-[90]"
       contentClassName="z-[90] w-[min(100%-2rem,674px)] flex items-center justify-center"
@@ -44,39 +49,50 @@ const RemoveSelectionDialog = ({
           <div className="relative z-10 flex flex-col items-center gap-8 px-6 py-8 sm:px-11.5 sm:py-11.5">
             <div className="flex w-full flex-col items-center gap-3.5 text-center">
               <TriangleAlert
-                className="w-14 h-12 text-[#F2E9D8]"
+                className="h-12 w-14 text-[#F2E9D8]"
                 strokeWidth={1}
               />
               <h2 className="font-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem]">
-                Are you sure you want to remove this?
+                This design is locked
               </h2>
-
               <p className="text-sm leading-[1.6] text-white/70">
-                {surfaceLabel
-                  ? `“${surfaceLabel}” will be removed from your selections and will use the standard finish.`
-                  : "This selection will be removed and will use the standard finish."}
+                Final renders were prepared for this design, so its selections
+                can no longer change. Keep your current finishes on a new
+                design, start from scratch, or go back to projects.
               </p>
             </div>
-
-            <div className="flex w-full max-w-104.75 flex-col gap-2.5 sm:flex-row">
+            <div className="flex w-full max-w-104.75 flex-col gap-2.5">
               <Button
                 type="button"
-                variant="pill-outline"
+                variant="pill-solid"
                 size="pill"
-                className="sm:flex-1"
-                onClick={onCancel}
+                className="w-full"
+                disabled={busy}
+                onClick={onKeep}
               >
-                Cancel
+                {pending === "keep"
+                  ? "Continuing…"
+                  : "Keep customization and continue"}
               </Button>
-
               <Button
                 type="button"
                 variant="pill-soft"
                 size="pill"
-                className="sm:flex-1"
-                onClick={onConfirm}
+                className="w-full"
+                disabled={busy}
+                onClick={onStartNew}
               >
-                Remove
+                {pending === "new" ? "Starting…" : "Start new customization"}
+              </Button>
+              <Button
+                type="button"
+                variant="pill-outline"
+                size="pill"
+                className="w-full"
+                disabled={busy}
+                onClick={onGoToProjects}
+              >
+                Go to Projects
               </Button>
             </div>
           </div>
@@ -86,4 +102,4 @@ const RemoveSelectionDialog = ({
   );
 };
 
-export default RemoveSelectionDialog;
+export default FrozenDesignDialog;

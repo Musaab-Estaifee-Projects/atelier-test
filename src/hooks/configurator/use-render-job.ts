@@ -177,6 +177,8 @@ export function useRenderJob({
   const lastRetryAtRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
   const activeRef = useRef(false);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   activeRef.current = active;
 
   const storageArgs = useMemo(
@@ -197,9 +199,13 @@ export function useRenderJob({
   }, []);
 
   const pollOnce = useCallback(async () => {
-    if (!designCode || !activeRef.current) return;
+    if (!designCode || !activeRef.current || !enabledRef.current) return;
     try {
       const next = await getRenders(designCode);
+      if (!activeRef.current || !enabledRef.current) {
+        stopPolling();
+        return;
+      }
       setData((prev) => stabilizeCompletedUrls(prev, next));
       setError(null);
 
@@ -213,7 +219,9 @@ export function useRenderJob({
         failed.length &&
         retryRoundsRef.current < MAX_AUTO_RETRIES &&
         !retryInFlightRef.current &&
-        Date.now() - lastRetryAtRef.current > 8000;
+        Date.now() - lastRetryAtRef.current > 8000 &&
+        enabledRef.current &&
+        activeRef.current;
       if (canAutoRetry) {
         retryInFlightRef.current = true;
         retryRoundsRef.current += 1;
@@ -221,8 +229,20 @@ export function useRenderJob({
         try {
           const names = failed.map((c) => c.camera_id);
           captureCamerasOnUe(send, designCode, names, { mockLog: mockUe });
-          const retryKey = newIdempotencyKey();
-          patchDraft(storageArgs, { retryIdempotencyKey: retryKey });
+          const draft = loadDraft(
+            streamProjectId,
+            backendProjectId,
+            layoutCode,
+            apartmentId,
+          );
+          const retryKey =
+            draft?.prepareIdempotencyKey ||
+            draft?.retryIdempotencyKey ||
+            newIdempotencyKey();
+          patchDraft(storageArgs, {
+            prepareIdempotencyKey: retryKey,
+            retryIdempotencyKey: retryKey,
+          });
           await retryRenders(
             designCode,
             failed.map((c) => ({
@@ -240,12 +260,20 @@ export function useRenderJob({
         }
       }
 
+      if (!activeRef.current || !enabledRef.current) {
+        stopPolling();
+        return;
+      }
       const delay = next.poll_after_ms || DEFAULT_POLL_MS;
       stopPolling();
       pollTimerRef.current = window.setTimeout(() => {
         void pollOnce();
       }, delay);
     } catch (err) {
+      if (!activeRef.current || !enabledRef.current) {
+        stopPolling();
+        return;
+      }
       const message =
         err instanceof Error ? err.message : "Failed to load render progress";
       setError(message);
@@ -254,7 +282,17 @@ export function useRenderJob({
         void pollOnce();
       }, DEFAULT_POLL_MS);
     }
-  }, [designCode, mockUe, send, stopPolling, storageArgs]);
+  }, [
+    apartmentId,
+    backendProjectId,
+    designCode,
+    layoutCode,
+    mockUe,
+    send,
+    stopPolling,
+    storageArgs,
+    streamProjectId,
+  ]);
 
   const startPolling = useCallback(() => {
     stopPolling();
@@ -262,6 +300,7 @@ export function useRenderJob({
   }, [pollOnce, stopPolling]);
 
   const start = useCallback(async () => {
+    if (!enabledRef.current) return false;
     if (!designCode || !session) {
       setError("Design is not ready yet.");
       return false;
@@ -285,7 +324,10 @@ export function useRenderJob({
     lastRetryAtRef.current = 0;
 
     const idempotencyKey = draft?.prepareIdempotencyKey || newIdempotencyKey();
-    patchDraft(storageArgs, { prepareIdempotencyKey: idempotencyKey });
+    patchDraft(storageArgs, {
+      prepareIdempotencyKey: idempotencyKey,
+      retryIdempotencyKey: idempotencyKey,
+    });
 
     try {
       await prepareRenders(
@@ -327,7 +369,7 @@ export function useRenderJob({
   ]);
 
   const resume = useCallback(() => {
-    if (!designCode) return;
+    if (!enabledRef.current || !designCode) return;
     setActive(true);
     activeRef.current = true;
     startPolling();
@@ -335,7 +377,7 @@ export function useRenderJob({
 
   const retryFailed = useCallback(
     async (cameras?: { camera_zone_id: string; camera_id: string }[]) => {
-      if (!designCode) return;
+      if (!enabledRef.current || !designCode) return;
       const targets =
         cameras ??
         failedCameras(data).map((c) => ({
@@ -349,8 +391,20 @@ export function useRenderJob({
         targets.map((c) => c.camera_id),
         { mockLog: mockUe },
       );
-      const retryKey = newIdempotencyKey();
-      patchDraft(storageArgs, { retryIdempotencyKey: retryKey });
+      const draft = loadDraft(
+        streamProjectId,
+        backendProjectId,
+        layoutCode,
+        apartmentId,
+      );
+      const retryKey =
+        draft?.prepareIdempotencyKey ||
+        draft?.retryIdempotencyKey ||
+        newIdempotencyKey();
+      patchDraft(storageArgs, {
+        prepareIdempotencyKey: retryKey,
+        retryIdempotencyKey: retryKey,
+      });
       try {
         await retryRenders(designCode, targets, retryKey);
         startPolling();
@@ -358,7 +412,18 @@ export function useRenderJob({
         setError(err instanceof Error ? err.message : "Retry failed");
       }
     },
-    [data, designCode, mockUe, send, startPolling, storageArgs],
+    [
+      apartmentId,
+      backendProjectId,
+      data,
+      designCode,
+      layoutCode,
+      mockUe,
+      send,
+      startPolling,
+      storageArgs,
+      streamProjectId,
+    ],
   );
 
   const retryRoom = useCallback(
@@ -378,6 +443,16 @@ export function useRenderJob({
   const stop = useCallback(() => {
     setActive(false);
     activeRef.current = false;
+    stopPolling();
+  }, [stopPolling]);
+
+  const reset = useCallback(() => {
+    setActive(false);
+    activeRef.current = false;
+    setPreparing(false);
+    setData(null);
+    setError(null);
+    setLightboxIndex(null);
     stopPolling();
   }, [stopPolling]);
 
@@ -442,6 +517,7 @@ export function useRenderJob({
     start,
     resume,
     stop,
+    reset,
     retryRoom,
     retryFailed,
     openViewer,

@@ -58,11 +58,12 @@ const SelectionsSheet = ({
         blur={false}
         overlayClassName="z-52"
         contentClassName="z-52 w-full flex items-center justify-center"
+        closeOnOutsideClick={!pendingRemove}
         onPointerDownOutside={(e) => {
-          if (isSelectionRowMenuEvent(e)) e.preventDefault();
+          if (pendingRemove || isSelectionRowMenuEvent(e)) e.preventDefault();
         }}
         onInteractOutside={(e) => {
-          if (isSelectionRowMenuEvent(e)) e.preventDefault();
+          if (pendingRemove || isSelectionRowMenuEvent(e)) e.preventDefault();
         }}
       >
         <div className="relative w-full max-w-[90%] sm:max-w-153.5 flex items-center justify-center overflow-hidden">
@@ -130,11 +131,15 @@ const SelectionsSheet = ({
                                 selected={line.selected}
                                 onRemove={
                                   onRemove
-                                    ? () =>
-                                        setPendingRemove({
+                                    ? () => {
+                                        const next = {
                                           slot: line.slot,
                                           label: line.surfaceLabel,
-                                        })
+                                        };
+                                        window.requestAnimationFrame(() => {
+                                          setPendingRemove(next);
+                                        });
+                                      }
                                     : undefined
                                 }
                                 onEdit={

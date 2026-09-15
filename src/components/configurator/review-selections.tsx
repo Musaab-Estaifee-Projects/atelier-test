@@ -267,6 +267,12 @@ const ReviewSelections = ({
     label: string;
   } | null>(null);
 
+  const requestRemove = (slot: string, label: string) => {
+    window.requestAnimationFrame(() => {
+      setPendingRemove({ slot, label });
+    });
+  };
+
   const subtitle = unitSubtitle;
   const rowMenuDisabled = Boolean(actionsDisabled || streamOffline);
 
@@ -397,10 +403,10 @@ const ReviewSelections = ({
                                 onRemove={
                                   onRemove
                                     ? () =>
-                                        setPendingRemove({
-                                          slot: line.slot,
-                                          label: line.surfaceLabel,
-                                        })
+                                        requestRemove(
+                                          line.slot,
+                                          line.surfaceLabel,
+                                        )
                                     : undefined
                                 }
                                 onEdit={
@@ -467,10 +473,10 @@ const ReviewSelections = ({
                               onRemove={
                                 onRemove
                                   ? () =>
-                                      setPendingRemove({
-                                        slot: line.slot,
-                                        label: line.surfaceLabel,
-                                      })
+                                      requestRemove(
+                                        line.slot,
+                                        line.surfaceLabel,
+                                      )
                                   : undefined
                               }
                               onEdit={

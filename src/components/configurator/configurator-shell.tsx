@@ -26,9 +26,17 @@ import {
   syncDraftToUe,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { appliedSelectionMap, clearDraft } from "@/lib/configurator/storage";
-import { ensureBackendDesign } from "@/lib/configurator/ensure-design";
-import { normalizeZone, zoneUrlPatch } from "@/lib/configurator/url-params";
+import { appliedSelectionMap, clearDraft, loadDraft } from "@/lib/configurator/storage";
+import { customMapToStored } from "@/lib/configurator/api-selections";
+import {
+  createReplacementDesign,
+  ensureBackendDesign,
+} from "@/lib/configurator/ensure-design";
+import {
+  locationWithoutRenders,
+  normalizeZone,
+  zoneUrlPatch,
+} from "@/lib/configurator/url-params";
 import {
   camerasForZone,
   cameraKey,
@@ -95,6 +103,7 @@ import FinalDesignProgress from "./final-design/final-design-progress";
 import FinalDesignViewer from "./final-design/final-design-viewer";
 import ReviewSelections from "./review-selections";
 import LeaveConfiguratorDialog from "./leave-configurator-dialog";
+import FrozenDesignDialog from "./frozen-design-dialog";
 import JourneyGate from "./journey-gate";
 import SelectStyle from "@/components/pages/styles/select-style";
 
@@ -144,6 +153,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [ueSyncStatus, setUeSyncStatus] = useState<string | null>(null);
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [frozenDesignOpen, setFrozenDesignOpen] = useState(false);
+  const [frozenDesignPending, setFrozenDesignPending] = useState<
+    "new" | "keep" | null
+  >(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
@@ -178,6 +191,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const skipPopGuardRef = useRef(false);
   const pendingLeaveRef = useRef<"back" | string | null>(null);
   const stayHrefRef = useRef("");
+  const stopRendersRef = useRef<() => void>(() => {});
 
   const sceneConfig: MeshRulesConfig = useMemo(
     () =>
@@ -331,7 +345,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     enabled:
       journeyReady === true &&
       !viewOnly &&
-      Boolean(session && designCode && selections.hydrated),
+      Boolean(session && designCode && selections.hydrated) &&
+      !frozenDesignOpen,
     streamProjectId: projectId,
     backendProjectId: storageProjectId,
     layoutCode,
@@ -339,10 +354,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     designCode,
     session,
     customMap: selections.map,
+    onFrozen: () => {
+      stopRendersRef.current();
+      setFrozenDesignOpen(true);
+    },
   });
 
   const renderJob = useRenderJob({
-    enabled: journeyReady === true && !viewOnly,
+    enabled: journeyReady === true && !viewOnly && !frozenDesignOpen,
     send,
     mockUe: MOCK_UE,
     streamProjectId: projectId,
@@ -353,6 +372,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     session,
     customMap: selections.map,
   });
+  stopRendersRef.current = renderJob.reset;
   const resumedRendersRef = useRef(false);
 
   useEffect(() => {
@@ -554,6 +574,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   useEffect(() => {
     if (
+      frozenDesignOpen ||
       !params.renders ||
       viewOnly ||
       !designCode ||
@@ -566,7 +587,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     setReviewOpen(false);
     renderJob.resume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.renders, viewOnly, designCode, session]);
+  }, [params.renders, viewOnly, designCode, session, frozenDesignOpen]);
 
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
@@ -1113,6 +1134,111 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     selections.commitReset();
   }, [setParams, selections]);
 
+  const handleGoToProjects = useCallback(() => {
+    allowUnloadRef.current = true;
+    skipPopGuardRef.current = true;
+    router.push("/projects");
+  }, [router]);
+
+  const reloadWithoutRenders = useCallback(() => {
+    allowUnloadRef.current = true;
+    skipPopGuardRef.current = true;
+    window.location.replace(locationWithoutRenders());
+  }, []);
+
+  const handleStartNewCustomization = useCallback(async () => {
+    if (!session || !catalogApiProjectId) return;
+    setFrozenDesignPending("new");
+    try {
+      resumedRendersRef.current = true;
+      renderJob.reset();
+
+      selections.resetAll();
+      selections.commitReset();
+
+      const nextCode = await createReplacementDesign({
+        streamProjectId: projectId,
+        backendProjectId: catalogApiProjectId,
+        layoutCode: session.layoutCode || layoutCode,
+        apartmentId,
+        sourceDesignCode: null,
+        selections: [],
+      });
+      returningVisitRef.current = false;
+      designCodeRef.current = nextCode;
+      invalidateUeSyncCache();
+
+      const resetOk = await resetToDefaultOnUe(send, { mockLog: MOCK_UE });
+      if (resetOk && nextCode) {
+        await saveCustomizationToUe(send, nextCode, { mockLog: MOCK_UE });
+      }
+      reloadWithoutRenders();
+    } catch (err) {
+      console.warn("[design] replacement failed", err);
+      setFrozenDesignPending(null);
+    }
+  }, [
+    apartmentId,
+    catalogApiProjectId,
+    layoutCode,
+    projectId,
+    reloadWithoutRenders,
+    renderJob,
+    selections,
+    send,
+    session,
+  ]);
+
+  const handleKeepCustomization = useCallback(async () => {
+    if (!session || !catalogApiProjectId) return;
+    const source = designCodeRef.current?.trim();
+    if (!source) return;
+    setFrozenDesignPending("keep");
+    try {
+      resumedRendersRef.current = true;
+      renderJob.reset();
+
+      const fromMap = customMapToStored(session, selections.map);
+      const fromDraft =
+        loadDraft(
+          projectId,
+          catalogApiProjectId,
+          session.layoutCode || layoutCode,
+          apartmentId,
+        )?.selections ?? [];
+
+      const nextCode = await createReplacementDesign({
+        streamProjectId: projectId,
+        backendProjectId: catalogApiProjectId,
+        layoutCode: session.layoutCode || layoutCode,
+        apartmentId,
+        sourceDesignCode: source,
+        selections: fromMap.length ? fromMap : fromDraft,
+      });
+      returningVisitRef.current = true;
+      designCodeRef.current = nextCode;
+      invalidateUeSyncCache();
+
+      if (nextCode) {
+        await saveCustomizationToUe(send, nextCode, { mockLog: MOCK_UE });
+      }
+      reloadWithoutRenders();
+    } catch (err) {
+      console.warn("[design] keep customization failed", err);
+      setFrozenDesignPending(null);
+    }
+  }, [
+    apartmentId,
+    catalogApiProjectId,
+    layoutCode,
+    projectId,
+    reloadWithoutRenders,
+    renderJob,
+    selections.map,
+    send,
+    session,
+  ]);
+
   const overlayKind = (() => {
     if (sessionError && !session) return "error" as const;
     if (stream.streamPhase === "disconnected" && !stream.hasEverBeenReady) {
@@ -1535,6 +1661,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             open={
               !viewOnly &&
               !quotationReady &&
+              !frozenDesignOpen &&
               (renderJob.active || Boolean(params.renders))
             }
             rooms={renderJob.rooms}
@@ -1580,6 +1707,18 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         open={resetDialogOpen}
         onCancel={() => setResetDialogOpen(false)}
         onConfirm={confirmReset}
+      />
+
+      <FrozenDesignDialog
+        open={frozenDesignOpen && !viewOnly}
+        pending={frozenDesignPending}
+        onKeep={() => {
+          void handleKeepCustomization();
+        }}
+        onStartNew={() => {
+          void handleStartNewCustomization();
+        }}
+        onGoToProjects={handleGoToProjects}
       />
 
       <LeaveConfiguratorDialog

@@ -153,7 +153,7 @@ const SelectionRowMenu = ({
                 type="button"
                 disabled={!selected}
                 className="w-full bg-white/5 p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/10 disabled:opacity-40"
-                onPointerDown={runRemove}
+                onClick={runRemove}
               >
                 Remove
               </button>
@@ -163,7 +163,7 @@ const SelectionRowMenu = ({
               <button
                 type="button"
                 className="w-full p-2.5 text-left leading-[1.2] text-white/70 transition hover:bg-white/5"
-                onPointerDown={runEdit}
+                onClick={runEdit}
               >
                 Edit
               </button>
