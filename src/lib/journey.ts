@@ -1,4 +1,6 @@
-import { JOURNEY_STORAGE_KEY } from "@/constants/const";
+import { CONTACT_STORAGE_KEY, JOURNEY_STORAGE_KEY } from "@/constants/const";
+import { normalizeRoleId, toE164Phone } from "@/utils/utils";
+import type { ContactInfo } from "@/types/types";
 
 export type StoredCustomer = {
   full_name: string;
@@ -55,4 +57,50 @@ export function getValidJourneyToken(): string | null {
   const journey = readJourney();
   if (!isJourneyValid(journey) || !journey) return null;
   return journey.token;
+}
+
+function writeContactFromCustomer(customer: StoredCustomer): ContactInfo {
+  const info: ContactInfo = {
+    name: customer.full_name,
+    email: customer.email,
+    phone: toE164Phone(customer.phone),
+    role: normalizeRoleId(customer.customer_type),
+  };
+  if (typeof window === "undefined") return info;
+  try {
+    window.localStorage.setItem(
+      CONTACT_STORAGE_KEY,
+      JSON.stringify({
+        name: info.name,
+        email: info.email,
+        phone: info.phone,
+        role: info.role,
+        full_name: customer.full_name,
+        customer_type: customer.customer_type,
+      }),
+    );
+  } catch {
+    /* quota / private mode */
+  }
+  return info;
+}
+
+/** Persist add-customer API payload into atelier:contact and atelier:journey. */
+export function persistCustomerSession(data: {
+  journey_token: string;
+  expires_at: string;
+  customer: StoredCustomer;
+}): ContactInfo {
+  const customer: StoredCustomer = {
+    full_name: data.customer.full_name,
+    email: data.customer.email,
+    phone: data.customer.phone,
+    customer_type: data.customer.customer_type,
+  };
+  writeJourney({
+    token: data.journey_token,
+    expiresAt: data.expires_at,
+    customer,
+  });
+  return writeContactFromCustomer(customer);
 }

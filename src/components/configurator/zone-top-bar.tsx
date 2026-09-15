@@ -43,7 +43,7 @@ export default function ZoneTopBar({
   const showSurfaces = zoneSelected && cameras.length > 0;
 
   return (
-    <div className="cfg-zone-bar pointer-events-none absolute inset-x-0 top-0 z-[28] flex flex-col items-center gap-1.5 px-3 pt-[max(10px,env(safe-area-inset-top))] sm:gap-2 sm:pt-[max(14px,env(safe-area-inset-top))]">
+    <div className="cfg-zone-bar pointer-events-none absolute inset-x-0 top-0 z-[28] flex flex-col items-center gap-1.5 px-3 pt-[max(10px,env(safe-area-inset-top))] sm:gap-2 sm:pt-[max(14px,env(safe-area-inset-top))]" data-cfg-chrome>
       <div className="flex flex-col items-center">
         <AtelierLogo className="h-[1.6rem] w-auto" />
         <ByWord className="mt-0.5 h-[5px] w-auto" />

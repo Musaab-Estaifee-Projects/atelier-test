@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import SelectStyle from "@/components/pages/styles/select-style";
+import { streamAppIdForProjectCode } from "@/lib/projects/stream-app-id";
 
 export const metadata: Metadata = {
   title: "ATELIER · Select a style",
@@ -21,10 +22,12 @@ type PageProps = {
 
 const StylesPage = async ({ searchParams }: PageProps) => {
   const query = await searchParams;
+  const streamProjectId = await streamAppIdForProjectCode(query.project);
   return (
     <SelectStyle
       projectSlug={query.project}
       projectId={query.project_id}
+      streamProjectId={streamProjectId}
       apartmentId={query.apartment_id}
       apartmentNumber={query.apartment_number || query.unit}
       unitId={query.apartment_number || query.unit}

@@ -3,8 +3,7 @@
 
 import { useEffect, useState } from "react";
 import ContactConfirmDialog from "./apartment-form/contact-confirm-dialog";
-import { CONTACT_STORAGE_KEY } from "@/constants/const";
-import { isJourneyValid, readJourney, writeJourney } from "@/lib/journey";
+import { persistCustomerSession, isJourneyValid, readJourney } from "@/lib/journey";
 import { createCustomer } from "@/services/create-customer.service";
 import { ContactInfo, TProject } from "@/types/types";
 import ContactStep from "./apartment-form/contact-step";
@@ -32,15 +31,6 @@ type Props = {
   autoFocus?: boolean;
   onSubmit: (choice: ApartmentChoice) => void;
 };
-
-function writeContact(info: ContactInfo): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(info));
-  } catch {
-    // QuotaExceeded / private mode
-  }
-}
 
 const ApartmentForm = ({
   project,
@@ -85,23 +75,7 @@ const ApartmentForm = ({
         phone: pendingContact.phone.replace(/\s+/g, ""),
         customer_type: pendingContact.role,
       });
-      writeJourney({
-        token: data.journey_token,
-        expiresAt: data.expires_at,
-        customer: data.customer,
-      });
-      writeContact({
-        name: data.customer.full_name,
-        email: data.customer.email,
-        phone: data.customer.phone,
-        role: pendingContact.role,
-      });
-      setContact({
-        name: data.customer.full_name,
-        email: data.customer.email,
-        phone: data.customer.phone,
-        role: pendingContact.role,
-      });
+      setContact(persistCustomerSession(data));
       setDialogOpen(false);
       setPendingContact(null);
     } catch (err) {

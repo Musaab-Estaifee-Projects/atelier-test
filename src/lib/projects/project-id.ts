@@ -1,5 +1,3 @@
-import { DEMO_STREAM_PROJECT_ID } from "@/lib/projects/catalog";
-
 /** Backend catalog / designs APIs expect a numeric project id, never the stream app id. */
 export function isBackendProjectId(id: string | null | undefined): boolean {
   return Boolean(id && /^\d+$/.test(id.trim()));
@@ -12,9 +10,7 @@ export function isStreamProjectId(
   if (!id) return false;
   const value = id.trim();
   return (
-    value === DEMO_STREAM_PROJECT_ID ||
-    Boolean(streamId && value === streamId) ||
-    /^[a-f0-9]{24}$/i.test(value)
+    Boolean(streamId && value === streamId) || /^[a-f0-9]{24}$/i.test(value)
   );
 }
 

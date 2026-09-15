@@ -1,6 +1,21 @@
 import type { ConfiguratorSession, SelectionMap } from "@/types/configurator";
 import type { StoredSelection } from "@/types/stored-selection";
 
+export function materialIdForMesh(
+  session: ConfiguratorSession | null | undefined,
+  meshId: string,
+  requested?: string | null,
+): string | null {
+  const allowed = session?.materialsByMesh[meshId] ?? [];
+  if (!meshId || allowed.length === 0) return null;
+  const value = requested?.trim() || "";
+  if (value && allowed.includes(value)) return value;
+  const fallbackMat = session?.materials.find(
+    (mat) => allowed.includes(mat.id) && mat.isDefault,
+  );
+  return fallbackMat?.id ?? allowed[0] ?? null;
+}
+
 export function buildApiSelections(
   session: ConfiguratorSession,
   custom: SelectionMap,
@@ -11,14 +26,14 @@ export function buildApiSelections(
       const fallback = session.defaults?.find((d) => d.slot === slot);
       const applied = custom[slot];
       const meshId = applied?.meshId || fallback?.meshId || "";
-      const materialId = applied
-        ? applied.materialId || null
-        : fallback?.materialId || null;
+      const requested = applied
+        ? applied.materialId
+        : fallback?.materialId;
       return {
         camera_zone_id: cam.zoneId || "",
         camera_id: applied?.cameraId || cam.name,
         mesh_id: meshId,
-        material_id: materialId || null,
+        material_id: materialIdForMesh(session, meshId, requested),
       };
     })
     .filter((row) => row.camera_id && row.mesh_id);
@@ -36,7 +51,7 @@ export function customMapToStored(
       camera_zone_id: cam?.zoneId || "",
       camera_id: value.cameraId || cam?.name || slot,
       mesh_id: value.meshId,
-      material_id: value.materialId || null,
+      material_id: materialIdForMesh(session, value.meshId, value.materialId),
     };
   });
 }

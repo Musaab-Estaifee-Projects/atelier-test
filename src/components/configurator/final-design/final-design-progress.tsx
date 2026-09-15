@@ -231,14 +231,23 @@ const FinalDesignProgress = ({
 
         <div className="mt-8 flex flex-col gap-10 lg:mt-10 lg:flex-row lg:items-start lg:gap-8 w-full">
           <div className="min-w-0 flex-1">
-            {rooms.map((room) => (
-              <RoomBlock
-                key={room.zoneId}
-                room={room}
-                onView={onView}
-                onRetry={onRetry}
-              />
-            ))}
+            {rooms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16">
+                <AtelierSpinner />
+                <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
+                  Loading renders
+                </p>
+              </div>
+            ) : (
+              rooms.map((room) => (
+                <RoomBlock
+                  key={room.zoneId}
+                  room={room}
+                  onView={onView}
+                  onRetry={onRetry}
+                />
+              ))
+            )}
           </div>
           {/* 
           <QuoteForm

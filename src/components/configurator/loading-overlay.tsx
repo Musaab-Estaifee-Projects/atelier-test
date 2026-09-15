@@ -135,7 +135,7 @@ const ReconnectingUnit = ({
       <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         {title}
       </h1>
-      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70">
+      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
         {subtitle}
       </p>
       <div className="mt-6 h-0.5 w-full max-w-116.75 overflow-hidden bg-white/10">
@@ -250,15 +250,17 @@ const SessionEnded = ({
         {saved}
       </p>
 
-      <Button
-        type="button"
-        variant="pill"
-        size="pill"
-        className="mt-6 w-full max-w-71 whitespace-normal"
-        onClick={onReconnect}
-      >
-        Reconnect
-      </Button>
+      {onReconnect ? (
+        <Button
+          type="button"
+          variant="pill"
+          size="pill"
+          className="mt-6 w-full max-w-71 whitespace-normal"
+          onClick={onReconnect}
+        >
+          Reconnect
+        </Button>
+      ) : null}
 
       <Button
         type="button"

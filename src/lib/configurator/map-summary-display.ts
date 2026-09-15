@@ -13,6 +13,7 @@ export type SummaryDisplayLine = {
   materialLabel: string;
   materialSelected: boolean;
   materialDash: boolean;
+  materialDetail?: string;
   thumbnailUrl?: string | null;
   areaLabel: string;
   price: number;
@@ -65,6 +66,8 @@ function mapCamera(camera: SummaryCamera): SummaryDisplayLine {
   const materialDefault = isDefault(camera.material);
   const materialSelected = hasMaterial && !materialDefault;
   const meshSelected = !meshDefault || materialSelected;
+  const showDefaultMaterialName =
+    !meshDefault && hasMaterial && materialDefault;
   const price = amount(camera.line_total);
 
   return {
@@ -74,8 +77,9 @@ function mapCamera(camera: SummaryCamera): SummaryDisplayLine {
     meshSelected,
     meshImage: camera.mesh?.image ?? null,
     materialLabel: camera.material?.name ?? "",
-    materialSelected,
+    materialSelected: materialSelected || showDefaultMaterialName,
     materialDash: !hasMaterial,
+    materialDetail: showDefaultMaterialName ? "Standard finish" : undefined,
     thumbnailUrl: camera.material?.image ?? null,
     areaLabel: camera.dimension
       ? `${Number(camera.dimension).toLocaleString()} ${camera.unit}`

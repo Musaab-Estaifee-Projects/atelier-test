@@ -12,6 +12,18 @@ import { delay } from "@/lib/stream-pixel/share-restore";
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
+export type UeSyncResult = {
+  ok: boolean;
+  loadLevel: boolean;
+  loadCustomization: boolean;
+};
+
+export const UE_SYNC_FAIL: UeSyncResult = {
+  ok: false,
+  loadLevel: false,
+  loadCustomization: false,
+};
+
 export type SyncToUeArgs = {
   send: SendFn;
   isUeReady: () => boolean;
@@ -21,12 +33,15 @@ export type SyncToUeArgs = {
   zone?: string | null;
   camera?: string | null;
   skipLoadLevel?: boolean;
+  skipViewRestore?: boolean;
+  /** Fail the sync if LoadCustomization does not succeed. */
+  requireLoadCustomization?: boolean;
   force?: boolean;
   mockLog?: boolean;
   onProgress?: (msg: string) => void;
 };
 
-let inflight: Promise<boolean> | null = null;
+let inflight: Promise<UeSyncResult> | null = null;
 let inflightKey = "";
 let lastCompletedKey = "";
 
@@ -60,39 +75,44 @@ async function waitUntilEmitAccepted(send: SendFn): Promise<boolean> {
   return false;
 }
 
-export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
+export function syncDraftToUe(args: SyncToUeArgs): Promise<UeSyncResult> {
   const key = syncKey(args);
   if (!args.force && inflight && inflightKey === key) return inflight;
 
   const previous = inflight;
   const runKey = args.force ? `${key}#force-${Date.now()}` : key;
 
-  const run = async (): Promise<boolean> => {
-    if (previous) await previous.catch(() => false);
+  const run = async (): Promise<UeSyncResult> => {
+    if (previous) await previous.catch(() => UE_SYNC_FAIL);
+
+    let loadLevel = Boolean(args.skipLoadLevel) || !args.layoutCode;
+    let loadCustomization = !args.requireLoadCustomization && !args.returningVisit;
 
     if (!(await waitUntilReady(args.isUeReady, args.mockLog))) {
       console.warn("[UE sync] stream never ready");
-      return false;
+      return { ...UE_SYNC_FAIL };
     }
     await delay(400);
     if (!args.mockLog && !(await waitUntilEmitAccepted(args.send))) {
       console.warn("[UE sync] emit never accepted");
-      return false;
+      return { ...UE_SYNC_FAIL };
     }
 
     if (!args.skipLoadLevel && args.layoutCode) {
       args.onProgress?.("Opening your apartment…");
-      const levelOk = await loadLevelOnUe(args.send, args.layoutCode, {
+      loadLevel = await loadLevelOnUe(args.send, args.layoutCode, {
         mockLog: args.mockLog,
       });
-      if (!levelOk) {
+      if (!loadLevel) {
         console.warn("[UE sync] LoadLevel emit was not accepted");
-        return false;
+        return { ok: false, loadLevel: false, loadCustomization: false };
       }
       await waitUntilEmitAccepted(args.send);
     }
 
-    const loadSaved = args.returningVisit && Boolean(args.designCode);
+    const loadSaved =
+      Boolean(args.designCode) &&
+      (args.returningVisit || args.requireLoadCustomization);
     if (loadSaved) {
       const streamOk =
         args.mockLog ||
@@ -100,30 +120,47 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<boolean> {
           (await waitUntilEmitAccepted(args.send)));
       if (!streamOk) {
         console.warn("[UE sync] skip LoadCustomization — stream not ready");
+        loadCustomization = false;
+        if (args.requireLoadCustomization) {
+          return { ok: false, loadLevel, loadCustomization: false };
+        }
       } else {
         args.onProgress?.("Restoring your saved finishes…");
-        const loaded = await loadCustomizationFromUe(
+        loadCustomization = await loadCustomizationFromUe(
           args.send,
           args.designCode!,
           { mockLog: args.mockLog },
         );
-        if (!loaded) {
+        if (!loadCustomization) {
           console.warn(
             "[UE sync] LoadCustomization failed — leaving Unreal as source of truth",
           );
+          if (args.requireLoadCustomization) {
+            return { ok: false, loadLevel, loadCustomization: false };
+          }
         }
       }
+    } else if (args.requireLoadCustomization) {
+      return { ok: false, loadLevel, loadCustomization: false };
+    } else {
+      loadCustomization = true;
     }
 
-    args.onProgress?.("Setting your view…");
-    await restoreCameraZoneToUe(args.send, {
-      zone: args.zone,
-      camera: args.camera,
-      mockLog: args.mockLog,
-    });
+    if (!args.skipViewRestore) {
+      args.onProgress?.("Setting your view…");
+      await restoreCameraZoneToUe(args.send, {
+        zone: args.zone,
+        camera: args.camera,
+        mockLog: args.mockLog,
+      });
+    }
 
     lastCompletedKey = key;
-    return true;
+    return {
+      ok: loadLevel && loadCustomization,
+      loadLevel,
+      loadCustomization,
+    };
   };
 
   inflightKey = runKey;

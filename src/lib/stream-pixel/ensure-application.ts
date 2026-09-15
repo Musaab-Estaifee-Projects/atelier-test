@@ -13,6 +13,14 @@ export type StreamPixelInitConfig = Pick<
   | "sfuPlayer"
   | "forceTurn"
   | "afktimeout"
+  | "mouseInput"
+  | "keyBoardInput"
+  | "touchInput"
+  | "hoverMouse"
+  | "fakeMouseWithTouches"
+  | "preferredCodec"
+  | "startResolutionMobile"
+  | "maxBitrate"
 >;
 
 /** SDK can return null, {}, or a codec array — not only the success shape. */

@@ -4,18 +4,9 @@ import { useState } from "react";
 import { isAxiosError } from "axios";
 import ContactConfirmDialog from "@/components/pages/projects/apartment-form/contact-confirm-dialog";
 import ContactStep from "@/components/pages/projects/apartment-form/contact-step";
-import { CONTACT_STORAGE_KEY } from "@/constants/const";
-import { writeJourney } from "@/lib/journey";
+import { persistCustomerSession } from "@/lib/journey";
 import { createCustomer } from "@/services/create-customer.service";
 import type { ContactInfo } from "@/types/types";
-
-function writeContact(info: ContactInfo): void {
-  try {
-    localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(info));
-  } catch {
-    /* quota / private mode */
-  }
-}
 
 type Props = {
   onReady: () => void;
@@ -40,17 +31,7 @@ export default function JourneyGate({ onReady }: Props) {
         phone: pendingContact.phone.replace(/\s+/g, ""),
         customer_type: pendingContact.role,
       });
-      writeJourney({
-        token: data.journey_token,
-        expiresAt: data.expires_at,
-        customer: data.customer,
-      });
-      writeContact({
-        name: data.customer.full_name,
-        email: data.customer.email,
-        phone: data.customer.phone,
-        role: pendingContact.role,
-      });
+      persistCustomerSession(data);
       setDialogOpen(false);
       setPendingContact(null);
       onReady();

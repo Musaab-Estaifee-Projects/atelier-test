@@ -4,7 +4,6 @@ import Link from "next/link";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
 import {
-  CATALOG_PROJECTS,
   configuratorHref,
   getProject,
 } from "@/lib/projects/catalog";
@@ -20,25 +19,13 @@ import ThirdColorPalette from "@/components/icons/third-color-palette";
 import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import CircleWithShadows from "@/components/icons/circle-with-shadows";
 
-export function demoCustomizeHref(style?: string) {
-  const project = CATALOG_PROJECTS[1] ?? CATALOG_PROJECTS[0];
-  return configuratorHref(
-    {
-      streamProjectId: project.streamProjectId,
-      projectId: project.projectId,
-      levelName: project.levelName,
-      layoutCode: project.layoutCode,
-    },
-    style ? { style } : undefined,
-  );
-}
-
 type Props = {
   overlay?: boolean;
   onStartCustomizing?: () => void;
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
   projectId?: string | null;
+  streamProjectId?: string | null;
   apartmentId?: string | null;
   apartmentNumber?: string | null;
   unitId?: string | null;
@@ -52,6 +39,7 @@ const SelectStyle = ({
   onSelectStyle,
   projectSlug,
   projectId,
+  streamProjectId,
   apartmentId,
   apartmentNumber,
   unitId,
@@ -59,23 +47,29 @@ const SelectStyle = ({
 }: Props) => {
   const stored = readResidenceLabel();
   const slug = projectSlug || stored?.projectSlug;
-  const project =
-    (slug ? getProject(slug) : undefined) ??
-    CATALOG_PROJECTS[1] ??
-    CATALOG_PROJECTS[0];
+  const project = slug ? getProject(slug) : undefined;
+  const streamId = streamProjectId?.trim() || "";
 
-  const customizeHref = configuratorHref(
-    {
-      streamProjectId: project.streamProjectId,
-      projectId: projectId || project.projectId,
-      levelName: levelName || stored?.layoutCode || project.levelName,
-      layoutCode: levelName || stored?.layoutCode || project.layoutCode || project.levelName,
-    },
-    {
-      apartmentId,
-      apartmentNumber: apartmentNumber || unitId || stored?.apartmentNumber,
-    },
-  );
+  const customizeHref = streamId
+    ? configuratorHref(
+        {
+          streamProjectId: streamId,
+          slug: slug || undefined,
+          projectId: projectId || project?.projectId,
+          levelName: levelName || stored?.layoutCode || project?.levelName || "",
+          layoutCode:
+            levelName ||
+            stored?.layoutCode ||
+            project?.layoutCode ||
+            project?.levelName ||
+            "",
+        },
+        {
+          apartmentId,
+          apartmentNumber: apartmentNumber || unitId || stored?.apartmentNumber,
+        },
+      )
+    : "/projects";
 
   const Wrapper = overlay ? "div" : "main";
 

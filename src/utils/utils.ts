@@ -27,18 +27,27 @@ export function readContact(): ContactInfo | null {
   try {
     const raw = localStorage.getItem(CONTACT_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as ContactInfo;
+    const parsed = JSON.parse(raw) as {
+      name?: string;
+      full_name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      customer_type?: string;
+    };
+    const name = parsed.name || parsed.full_name;
+    const role = parsed.role || parsed.customer_type;
     if (
-      typeof parsed?.name === "string" &&
-      typeof parsed?.email === "string" &&
-      typeof parsed?.phone === "string" &&
-      typeof parsed?.role === "string"
+      typeof name === "string" &&
+      typeof parsed.email === "string" &&
+      typeof parsed.phone === "string" &&
+      typeof role === "string"
     ) {
       return {
-        name: parsed.name,
+        name,
         email: parsed.email,
         phone: toE164Phone(parsed.phone),
-        role: normalizeRoleId(parsed.role),
+        role: normalizeRoleId(role),
       };
     }
     return null;

@@ -37,6 +37,14 @@ html.configurator-active body > div {
   z-index: 1;
 }
 
+.cfg-dock,
+.cfg-dock-wrap,
+.cfg-zone-bar,
+.cfg-side-panel,
+[data-cfg-chrome] {
+  touch-action: manipulation;
+}
+
 .stream-viewport {
   position: absolute;
   inset: 0;
@@ -45,6 +53,8 @@ html.configurator-active body > div {
   overflow: hidden;
   background: #000;
   z-index: 0;
+  pointer-events: none;
+  overscroll-behavior: none;
 }
 
 /* StreamPixel / Epic player tree must fill the viewport */
@@ -64,6 +74,11 @@ html.configurator-active body > div {
   margin: 0 !important;
   padding: 0 !important;
   transform: none !important;
+  pointer-events: none;
+}
+
+.stream-viewport #videoElementParent {
+  pointer-events: auto;
 }
 
 .stream-viewport video {
@@ -78,6 +93,8 @@ html.configurator-active body > div {
   object-fit: cover !important;
   object-position: center center !important;
   background: #000;
+  pointer-events: auto !important;
+  touch-action: none;
 }
 
 /* Epic Pixel Streaming connection chrome — we use our own overlay */

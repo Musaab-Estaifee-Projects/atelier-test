@@ -112,7 +112,7 @@ const ConfiguratorDock = ({
       : "No items selected";
 
   return (
-    <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]">
+    <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]" data-cfg-chrome>
       <div
         className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
         role="toolbar"

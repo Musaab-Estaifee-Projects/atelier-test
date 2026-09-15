@@ -144,7 +144,7 @@ const MaterialCell = ({
           {name}
         </p>
         {materialDetail ? (
-          <p className="font-medium text-[12px] leading-[1.16] text-white">
+          <p className="text-[14px] leading-[1.6] text-[#ff8585]/70">
             {materialDetail}
           </p>
         ) : null}
@@ -295,7 +295,7 @@ const ReviewSelections = ({
             >
               Review your selections
             </h1>
-            <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px]">
+            <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px] capitalize">
               {subtitle}
             </p>
             <div className="mt-3 h-px w-32.25 overflow-clip">
@@ -419,13 +419,15 @@ const ReviewSelections = ({
                           <div className="mt-3 px-0 md:mt-0 md:px-2 md:py-3">
                             <CellLabel>Mesh</CellLabel>
                             <div className="mt-1.5 md:mt-0">
-                            <MeshCell
-                              selected={line.meshSelected}
-                              name={line.meshLabel}
-                              imageUrl={
-                                "meshImage" in line ? line.meshImage : undefined
-                              }
-                            />
+                              <MeshCell
+                                selected={line.meshSelected}
+                                name={line.meshLabel}
+                                imageUrl={
+                                  "meshImage" in line
+                                    ? line.meshImage
+                                    : undefined
+                                }
+                              />
                             </div>
                           </div>
 
@@ -437,6 +439,7 @@ const ReviewSelections = ({
                                 dash={line.materialDash}
                                 name={line.materialLabel}
                                 thumbnailUrl={line.thumbnailUrl}
+                                materialDetail={line.materialDetail}
                               />
                             </div>
                           </div>
@@ -535,14 +538,14 @@ const ReviewSelections = ({
               variant="pill"
               size="pill"
               className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
-              onClick={streamOffline ? onReconnect : onBack}
+              onClick={streamOffline && onReconnect ? onReconnect : onBack}
             >
-              {streamOffline ? (
+              {streamOffline && onReconnect ? (
                 <Plug className="size-4.5" strokeWidth={1.75} />
               ) : (
                 <Undo2 className="size-4.5" strokeWidth={1.75} />
               )}
-              {streamOffline ? "Reconnect" : "Back to customize"}
+              {streamOffline && onReconnect ? "Reconnect" : "Back to customize"}
             </Button>
             {!streamOffline ? (
               <Button

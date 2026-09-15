@@ -13,6 +13,7 @@ import {
   submitDesign,
 } from "@/lib/configurator/api";
 import {
+  captureCamerasHighResOnUe,
   applyOneSelectionToUe,
   exitCameraOnUe,
   moveToZoneOnUe,
@@ -24,9 +25,11 @@ import {
 import {
   invalidateUeSyncCache,
   syncDraftToUe,
+  UE_SYNC_FAIL,
+  type UeSyncResult,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { appliedSelectionMap, clearDraft, loadDraft } from "@/lib/configurator/storage";
+import { appliedSelectionMap, clearDraft, isUnstartedRendersDraft, loadDraft, patchDraft } from "@/lib/configurator/storage";
 import { customMapToStored } from "@/lib/configurator/api-selections";
 import {
   createReplacementDesign,
@@ -49,7 +52,7 @@ import {
 } from "@/lib/configurator/zone-catalog";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
 import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
-import { backendProjectIdFromUrl } from "@/lib/projects/project-id";
+import { backendProjectIdFromUrl, isBackendProjectId, isStreamProjectId } from "@/lib/projects/project-id";
 import { getValidJourneyToken, readJourney } from "@/lib/journey";
 import type {
   CameraRule,
@@ -157,6 +160,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [frozenDesignPending, setFrozenDesignPending] = useState<
     "new" | "keep" | null
   >(null);
+  const [frozenFromRenders, setFrozenFromRenders] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
@@ -191,7 +195,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const skipPopGuardRef = useRef(false);
   const pendingLeaveRef = useRef<"back" | string | null>(null);
   const stayHrefRef = useRef("");
-  const stopRendersRef = useRef<() => void>(() => {});
 
   const sceneConfig: MeshRulesConfig = useMemo(
     () =>
@@ -345,8 +348,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     enabled:
       journeyReady === true &&
       !viewOnly &&
-      Boolean(session && designCode && selections.hydrated) &&
-      !frozenDesignOpen,
+      Boolean(session && designCode && selections.hydrated),
     streamProjectId: projectId,
     backendProjectId: storageProjectId,
     layoutCode,
@@ -355,13 +357,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     session,
     customMap: selections.map,
     onFrozen: () => {
-      stopRendersRef.current();
+      setFrozenFromRenders(Boolean(params.renders));
       setFrozenDesignOpen(true);
     },
   });
 
   const renderJob = useRenderJob({
-    enabled: journeyReady === true && !viewOnly && !frozenDesignOpen,
+    enabled: journeyReady === true && !viewOnly,
     send,
     mockUe: MOCK_UE,
     streamProjectId: projectId,
@@ -372,7 +374,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     session,
     customMap: selections.map,
   });
-  stopRendersRef.current = renderJob.reset;
   const resumedRendersRef = useRef(false);
 
   useEffect(() => {
@@ -400,9 +401,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   }, [stream.pixelStreamingRef, stream.streamReadyRef]);
 
   const runUeSync = useCallback(
-    async (opts?: { force?: boolean; skipLoadLevel?: boolean }) => {
-      if (!session) return;
-      if (viewOnly) return;
+    async (opts?: {
+      force?: boolean;
+      skipLoadLevel?: boolean;
+      skipViewRestore?: boolean;
+      requireLoadCustomization?: boolean;
+    }) => {
+      if (!session) return { ...UE_SYNC_FAIL };
+      if (viewOnly) return { ...UE_SYNC_FAIL };
 
       const code = designCodeRef.current;
       setUeSyncError(null);
@@ -440,7 +446,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       }
 
       try {
-        const ok = await syncDraftToUe({
+        const result = await syncDraftToUe({
           send,
           isUeReady,
           layoutCode: levelName,
@@ -449,12 +455,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           zone,
           camera: camera ?? null,
           skipLoadLevel: opts?.skipLoadLevel,
+          skipViewRestore: opts?.skipViewRestore,
+          requireLoadCustomization: opts?.requireLoadCustomization,
           force: opts?.force,
           mockLog: MOCK_UE,
           onProgress: (msg) => setUeSyncStatus(msg),
         });
 
-        if (ok) {
+        if (result.ok) {
           appliedReadyRef.current = true;
           loadedLevelRef.current = levelName;
           setSceneReady(true);
@@ -468,10 +476,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           setUeSyncStatus(null);
           setUeSyncError("Could not restore finishes. Retry when ready.");
         }
+        return result;
       } catch {
         setUeSyncStatus(null);
         if (!appliedReadyRef.current) setSceneReady(false);
         setUeSyncError("Sync failed. Retry when the stream is ready.");
+        return { ...UE_SYNC_FAIL };
       }
     },
     [
@@ -490,6 +500,36 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const runUeSyncRef = useRef(runUeSync);
   runUeSyncRef.current = runUeSync;
+
+  const runLoadThenCaptureHighRes = useCallback(async () => {
+    const code = designCodeRef.current;
+    if (!code) return false;
+    returningVisitRef.current = true;
+    const synced: UeSyncResult = await runUeSyncRef.current({
+      force: true,
+      requireLoadCustomization: true,
+      skipViewRestore: true,
+    });
+    if (!synced.loadLevel || !synced.loadCustomization) {
+      console.warn("[UE] CaptureCamerasHighRes skipped — LoadLevel/LoadCustomization did not succeed", synced);
+      return false;
+    }
+    const sent = await captureCamerasHighResOnUe(send, code, { mockLog: MOCK_UE });
+    if (sent) {
+      patchDraft(
+        {
+          streamProjectId: projectId,
+          projectId: storageProjectId,
+          layoutCode,
+          apartmentId,
+        },
+        { highResCaptureSent: true },
+      );
+    } else {
+      console.warn("[UE] CaptureCamerasHighRes emit was not accepted");
+    }
+    return sent;
+  }, [apartmentId, layoutCode, projectId, send, storageProjectId]);
 
   // Boot session / design
   useEffect(() => {
@@ -574,20 +614,32 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   useEffect(() => {
     if (
-      frozenDesignOpen ||
       !params.renders ||
       viewOnly ||
       !designCode ||
-      !session ||
-      resumedRendersRef.current
+      !session
     ) {
+      return;
+    }
+    const draft = loadDraft(
+      projectId,
+      storageProjectId,
+      session.layoutCode || layoutCode,
+      apartmentId,
+    );
+    if (isUnstartedRendersDraft(draft)) {
+      setParams({ renders: false }, { replace: true });
+      resumedRendersRef.current = false;
+      return;
+    }
+    if (frozenDesignOpen || resumedRendersRef.current) {
       return;
     }
     resumedRendersRef.current = true;
     setReviewOpen(false);
     renderJob.resume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.renders, viewOnly, designCode, session, frozenDesignOpen]);
+  }, [params.renders, viewOnly, designCode, session, frozenDesignOpen, apartmentId, layoutCode, projectId, storageProjectId]);
 
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
@@ -889,16 +941,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       const current = appliedPanelMap[slot];
       if (current?.meshId === mesh.id) return;
 
-      const defaultForSlot = session?.defaults?.find((d) => d.slot === slot);
-      const isDefaultMesh =
-        mesh.isDefault === true || defaultForSlot?.meshId === mesh.id;
-      const defaultMatId =
-        mats.find((item) => item.isDefault)?.id ??
-        defaultForSlot?.materialId ??
-        "";
-      const materialId = isDefaultMesh
-        ? (defaultForSlot?.materialId || defaultMatId || mats[0]?.id || "")
-        : (defaultMatId || mats[0]?.id || "");
+      const materialId =
+        mats.length === 0
+          ? ""
+          : (mats.find((item) => item.isDefault)?.id ?? mats[0]?.id ?? "");
 
       const entry: SelectionEntry = {
         slot,
@@ -914,7 +960,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         mockLog: MOCK_UE,
         design_code: designCodeRef.current,
         onSaveStatus: selections.markSaveStatus,
-        applyMaterial: mats.length > 1,
+        applyMaterial: shouldApplyMaterialToMesh(
+          mesh.id,
+          session?.materialsByMesh,
+        ),
       }).then((ok) => {
         if (!selections.isCurrent(slot, token)) return;
         if (ok) selections.commitSlot(slot, entry, token);
@@ -1140,6 +1189,17 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     router.push("/projects");
   }, [router]);
 
+  const handleContinueRendering = useCallback(() => {
+    setFrozenDesignOpen(false);
+    resumedRendersRef.current = true;
+    returningVisitRef.current = true;
+    if (!params.renders) {
+      setParams({ renders: true }, { replace: true });
+    }
+    renderJob.resume();
+    void runLoadThenCaptureHighRes();
+  }, [params.renders, renderJob, runLoadThenCaptureHighRes, setParams]);
+
   const reloadWithoutRenders = useCallback(() => {
     allowUnloadRef.current = true;
     skipPopGuardRef.current = true;
@@ -1238,6 +1298,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     send,
     session,
   ]);
+
+  const canReconnect =
+    Boolean(projectId) &&
+    isStreamProjectId(projectId, projectId) &&
+    isBackendProjectId(catalogApiProjectId) &&
+    Boolean((params.layoutCode || session?.layoutCode || "").trim()) &&
+    !sessionError;
 
   const overlayKind = (() => {
     if (sessionError && !session) return "error" as const;
@@ -1416,7 +1483,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
                 "We couldn’t open the 3D session. Try reconnecting."
               : null
           }
-          onReconnect={reloadSession}
+          onReconnect={canReconnect ? reloadSession : undefined}
           onContinueToSummary={() => {
             setStreamOverlayDismissed(true);
             setQuoteDialogOpen(false);
@@ -1452,6 +1519,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           overlay
           onStartCustomizing={() => setBrowseStylesOpen(false)}
           onSelectStyle={() => setBrowseStylesOpen(false)}
+          streamProjectId={projectId}
           projectId={catalogApiProjectId}
           apartmentId={apartmentId}
           apartmentNumber={unitId}
@@ -1524,6 +1592,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               getMaterials={getMaterials}
               onSelectMaterial={handleSelectMaterial}
               onRemoveSelection={handleRemoveSelection}
+              defaults={session.defaults}
               viewOnly={viewOnly}
               onClose={() => setSidePanelOpen(false)}
             />
@@ -1639,7 +1708,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             streamOffline={
               overlayKind === "disconnected" || overlayKind === "idle"
             }
-            onReconnect={reloadSession}
+            onReconnect={canReconnect ? reloadSession : undefined}
             onBack={() => {
               setReviewOpen(false);
               setQuoteDialogOpen(false);
@@ -1652,6 +1721,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               setSubmitOpen(false);
               setReviewOpen(false);
               setParams({ renders: true }, { replace: true });
+              void runLoadThenCaptureHighRes();
             }}
             onRemove={handleRemoveSelection}
             onEdit={handleEditReviewSlot}
@@ -1712,6 +1782,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       <FrozenDesignDialog
         open={frozenDesignOpen && !viewOnly}
         pending={frozenDesignPending}
+        showContinueRendering={frozenFromRenders}
+        onContinueRendering={handleContinueRendering}
         onKeep={() => {
           void handleKeepCustomization();
         }}

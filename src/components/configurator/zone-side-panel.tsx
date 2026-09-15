@@ -4,6 +4,7 @@ import type {
   CameraRule,
   MaterialOption,
   MeshOption,
+  SelectionEntry,
   SelectionMap,
 } from "@/types/configurator";
 import CatalogThumb from "./catalog-thumb";
@@ -12,6 +13,7 @@ import {
   finishTypeDisplayName,
   surfaceDisplayLabel,
 } from "@/lib/configurator/zone-catalog";
+import { isDefaultEntry } from "@/lib/configurator/storage";
 import SidePanelClear from "../icons/configurator/side-panel-clear";
 import SidePanelClose from "../icons/configurator/side-panel-close";
 import PanelFrame from "../icons/configurator/panel-frame";
@@ -26,6 +28,7 @@ type Props = {
   getMaterials: (meshId: string) => MaterialOption[];
   onSelectMaterial: (meshId: string, material: MaterialOption) => void;
   onRemoveSelection?: (slot: string) => void;
+  defaults?: SelectionEntry[];
   viewOnly?: boolean;
   onClose: () => void;
 };
@@ -40,6 +43,7 @@ const ZoneSidePanel = ({
   getMaterials,
   onSelectMaterial,
   onRemoveSelection,
+  defaults,
   viewOnly,
   onClose,
 }: Props) => {
@@ -53,10 +57,21 @@ const ZoneSidePanel = ({
   const variations = activeMesh ? getMaterials(activeMesh.id) : [];
   const selectedMaterial =
     variations.find((mat) => mat.id === activeEntry?.materialId) ?? null;
+  const showingDefault = Boolean(
+    activeMesh &&
+      isDefaultEntry(defaults, {
+        slot: activeSlot,
+        meshId: activeMesh.id,
+        materialId: selectedMaterial?.id || activeEntry?.materialId || "",
+      }),
+  );
+  const showClear =
+    Boolean(onRemoveSelection && activeSlot && !viewOnly && !showingDefault);
 
   return (
     <aside
       className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-21 z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-15.5 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none py-8"
+      data-cfg-chrome
       aria-label="Materials"
     >
       <PanelFrame className="pointer-events-none absolute inset-0 h-full w-full flex-1" />
@@ -96,14 +111,21 @@ const ZoneSidePanel = ({
                 className="size-13 shrink-0 rounded-full border border-white/20"
                 sizes="52px"
               />
-              <p className="min-w-0 flex-1 truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
-                {selectedMaterial.displayName || selectedMaterial.id}
-              </p>
-              {onRemoveSelection && activeSlot && !viewOnly ? (
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
+                  {selectedMaterial.displayName || selectedMaterial.id}
+                </p>
+                {showingDefault ? (
+                  <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
+                    Default
+                  </p>
+                ) : null}
+              </div>
+              {showClear ? (
                 <button
                   type="button"
                   className="relative size-5.5 shrink-0 overflow-clip"
-                  onClick={() => onRemoveSelection(activeSlot)}
+                  onClick={() => onRemoveSelection?.(activeSlot)}
                   aria-label="Clear selected material"
                 >
                   <SidePanelClear className="w-full h-full" />
@@ -118,9 +140,26 @@ const ZoneSidePanel = ({
                 className="size-13 shrink-0 rounded-full border border-white/20"
                 sizes="52px"
               />
-              <p className="min-w-0 flex-1 truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
-                {finishTypeDisplayName(activeMesh)}
-              </p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
+                  {finishTypeDisplayName(activeMesh)}
+                </p>
+                {showingDefault ? (
+                  <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
+                    Default
+                  </p>
+                ) : null}
+              </div>
+              {showClear ? (
+                <button
+                  type="button"
+                  className="relative size-5.5 shrink-0 overflow-clip"
+                  onClick={() => onRemoveSelection?.(activeSlot)}
+                  aria-label="Clear selected finish"
+                >
+                  <SidePanelClear className="w-full h-full" />
+                </button>
+              ) : null}
             </div>
           ) : (
             <p className="rounded-full bg-white/5 px-4 py-3 font-sans text-[12px] text-white/60">

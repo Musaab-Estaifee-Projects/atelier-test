@@ -28,10 +28,15 @@ const SelectApartment = ({ project }: Props) => {
       setPending(true);
       try {
         const design = await getDesign(choice.designCode);
+        const streamId = project.streampixel_app_id?.trim();
+        if (!streamId) {
+          setError("This project has no stream session id.");
+          return;
+        }
         router.push(
           configuratorHref(
             {
-              streamProjectId: design.streamProjectId,
+              streamProjectId: streamId,
               projectId: String(project.id),
               levelName: design.configuration.levelName,
               layoutCode: design.configuration.levelName,

@@ -10,6 +10,8 @@ type FrozenAction = "new" | "keep";
 type Props = {
   open: boolean;
   pending?: FrozenAction | null;
+  showContinueRendering?: boolean;
+  onContinueRendering?: () => void;
   onKeep: () => void;
   onStartNew: () => void;
   onGoToProjects: () => void;
@@ -18,6 +20,8 @@ type Props = {
 const FrozenDesignDialog = ({
   open,
   pending = null,
+  showContinueRendering = false,
+  onContinueRendering,
   onKeep,
   onStartNew,
   onGoToProjects,
@@ -57,14 +61,27 @@ const FrozenDesignDialog = ({
               </h2>
               <p className="text-sm leading-[1.6] text-white/70">
                 Final renders were prepared for this design, so its selections
-                can no longer change. Keep your current finishes on a new
-                design, start from scratch, or go back to projects.
+                can no longer change. Continue watching renders, keep your
+                current finishes on a new design, start from scratch, or go
+                back to projects.
               </p>
             </div>
             <div className="flex w-full max-w-104.75 flex-col gap-2.5">
+              {showContinueRendering ? (
+                <Button
+                  type="button"
+                  variant="pill-solid"
+                  size="pill"
+                  className="w-full"
+                  disabled={busy}
+                  onClick={onContinueRendering}
+                >
+                  Continue rendering
+                </Button>
+              ) : null}
               <Button
                 type="button"
-                variant="pill-solid"
+                variant={showContinueRendering ? "pill-soft" : "pill-solid"}
                 size="pill"
                 className="w-full"
                 disabled={busy}

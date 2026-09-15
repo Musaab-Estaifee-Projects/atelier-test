@@ -16,6 +16,7 @@ import {
   streamPixelInitKey,
 } from "@/lib/stream-pixel/ensure-application";
 import { ensureSdkOverlayStubs } from "@/lib/stream-pixel/ensure-sdk-overlays";
+import { wireStreamMouseFromTouches } from "@/lib/stream-pixel/stream-mouse-from-touches";
 import { fitStreamDom, toggleFullscreen, waitForVideoFrame } from "@/lib/stream-pixel/fit-stream";
 import {
   AFK_CONFIG,
@@ -31,6 +32,11 @@ import {
 } from "@/lib/stream-pixel/disconnect-reason";
 
 const SHOW_DEV_TOOLS = process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === "true";
+
+function isMobileClient() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
 
 /** Delayed teardown so React Strict Mode remounts can cancel disconnect. */
 const TEARDOWN_DELAY_MS = 100;
@@ -173,6 +179,7 @@ export function useStreamPixel({
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const failedRef = useRef(false);
   const revealingRef = useRef(false);
+  const unwireTouchesRef = useRef<(() => void) | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [afkWarning, setAfkWarning] = useState(false);
   const [afkCountdown, setAfkCountdown] = useState(0);
@@ -262,6 +269,7 @@ export function useStreamPixel({
   useEffect(() => {
     if (!projectId) return;
 
+    const isMobile = isMobileClient();
     const initConfig = {
       appId: projectId,
       AutoConnect: true as const,
@@ -270,6 +278,14 @@ export function useStreamPixel({
       sfuPlayer: sfuPlayer ?? "false",
       forceTurn: true as const,
       afktimeout: STREAM_PIXEL_AFK_TIMEOUT_SECS,
+      mouseInput: true,
+      keyBoardInput: true,
+      touchInput: false,
+      hoverMouse: true,
+      fakeMouseWithTouches: false,
+      preferredCodec: isMobile ? "H264" : undefined,
+      startResolutionMobile: "480p",
+      maxBitrate: isMobile ? 4_000_000 : 10_000_000,
     };
     const initKey = streamPixelInitKey(initConfig);
     activeInitKey = initKey;
@@ -487,6 +503,9 @@ export function useStreamPixel({
               } catch {
                 /* ignore */
               }
+              unwireTouchesRef.current?.();
+              unwireTouchesRef.current = wireStreamMouseFromTouches(appStream);
+              uiControlRef.current?.toggleHoveringMouse?.(true);
             }
 
             const audioEl =
@@ -726,6 +745,8 @@ export function useStreamPixel({
 
     return () => {
       cancelled = true;
+      unwireTouchesRef.current?.();
+      unwireTouchesRef.current = null;
       mountedRef.current = false;
       streamReadyRef.current = false;
       if (disconnectGraceRef.current) {

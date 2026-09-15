@@ -231,9 +231,7 @@ import { useEffect, useRef, useState } from "react";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { CATALOG_STYLES } from "@/lib/styles/catalog";
 import {
-  CATALOG_PROJECTS,
   configuratorHref,
-  getProject,
 } from "@/lib/projects/catalog";
 import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
@@ -251,6 +249,7 @@ type Props = {
   onSelectStyle?: (slug: string) => void;
   projectSlug?: string | null;
   projectId?: string | null;
+  streamProjectId?: string | null;
   apartmentId?: string | null;
   apartmentNumber?: string | null;
   unitId?: string | null;
@@ -262,6 +261,7 @@ const BrowseStyles = ({
   onSelectStyle,
   projectSlug,
   projectId,
+  streamProjectId,
   apartmentId,
   apartmentNumber,
   unitId,
@@ -269,10 +269,7 @@ const BrowseStyles = ({
 }: Props) => {
   const stored = readResidenceLabel();
   const slug = projectSlug || stored?.projectSlug;
-  const project =
-    (slug ? getProject(slug) : undefined) ??
-    CATALOG_PROJECTS[1] ??
-    CATALOG_PROJECTS[0];
+  const streamId = streamProjectId?.trim() || "";
 
   const [cardHeight, setCardHeight] = useState<number>(480);
 
@@ -366,21 +363,17 @@ const BrowseStyles = ({
                     <StyleCard
                       style={style}
                       href={
-                        onSelectStyle
+                        onSelectStyle || !streamId
                           ? undefined
                           : configuratorHref(
                               {
-                                streamProjectId: project.streamProjectId,
-                                projectId: projectId || project.projectId,
+                                streamProjectId: streamId,
+                                slug: slug || undefined,
+                                projectId: projectId || undefined,
                                 levelName:
-                                  levelName ||
-                                  stored?.layoutCode ||
-                                  project.levelName,
+                                  levelName || stored?.layoutCode || "",
                                 layoutCode:
-                                  levelName ||
-                                  stored?.layoutCode ||
-                                  project.layoutCode ||
-                                  project.levelName,
+                                  levelName || stored?.layoutCode || "",
                               },
                               {
                                 style: style.slug,

@@ -143,7 +143,6 @@
 "use client";
 
 import { CatalogStyle } from "@/lib/styles/catalog";
-import { demoCustomizeHref } from "../select-style";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CustomShape } from "@/components/shared/custom-shape";
@@ -215,11 +214,12 @@ const StyleCard = ({ style, href, onSelect, className }: StyleCardProps) => {
     );
   }
 
+  if (!href) {
+    return content;
+  }
+
   return (
-    <Link
-      href={href ?? demoCustomizeHref(style.slug)}
-      className="block h-full w-full"
-    >
+    <Link href={href} className="block h-full w-full">
       {content}
     </Link>
   );

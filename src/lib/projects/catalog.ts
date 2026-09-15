@@ -69,6 +69,7 @@ export function configuratorHref(
     layoutCode?: string;
     projectId?: string;
     backendProjectId?: string;
+    slug?: string;
   },
   extra?: {
     style?: string;
@@ -79,12 +80,12 @@ export function configuratorHref(
     renders?: boolean;
   },
 ): string {
+  const streamId = project.streamProjectId?.trim();
   const layoutCode =
     project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE;
   const selectedProjectId = project.projectId || project.backendProjectId || "";
-  const q = new URLSearchParams({
-    layout_code: layoutCode,
-  });
+  const q = new URLSearchParams({ layout_code: layoutCode });
+  if (project.slug) q.set("project", project.slug);
   if (selectedProjectId && /^\d+$/.test(selectedProjectId)) {
     q.set("project_id", selectedProjectId);
   }
@@ -94,7 +95,7 @@ export function configuratorHref(
   if (extra?.style) q.set("style", extra.style);
   if (extra?.view) q.set("view", "1");
   if (extra?.renders) q.set("renders", "1");
-  return `/configurator/${project.streamProjectId}?${q.toString()}`;
+  return `/configurator/${streamId}?${q.toString()}`;
 }
 
 export function stylesHref(
@@ -108,6 +109,7 @@ export function stylesHref(
   const q = new URLSearchParams({
     layout_code: project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE,
   });
+  if (project.slug) q.set("project", project.slug);
   if (project.projectId && /^\d+$/.test(project.projectId)) {
     q.set("project_id", project.projectId);
   }

@@ -324,3 +324,9 @@ export function storedSelectionsFromCustom(
 export function customMapFromStored(list: StoredSelection[]): SelectionMap {
   return storedToSelectionMap(list);
 }
+
+/** Leftover `renders=1` with no prepare job and no high-res capture. */
+export function isUnstartedRendersDraft(draft: LocalDraft | null): boolean {
+  if (!draft) return true;
+  return !draft.highResCaptureSent && !draft.prepareIdempotencyKey?.trim();
+}

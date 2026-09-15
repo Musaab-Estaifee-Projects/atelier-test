@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  captureCamerasHighResOnUe,
   captureCamerasOnUe,
 } from "@/lib/configurator/apply-ue";
 import { buildApiSelections } from "@/lib/configurator/api-selections";
@@ -102,7 +101,26 @@ function roomsFromRenders(
   session: ConfiguratorSession | null,
   data: GetRendersData | null,
 ): RoomRenderCard[] {
-  if (!data) return [];
+  if (!data) {
+    return (session?.zones ?? []).map((zone) => ({
+      zoneId: zone.id,
+      label: zone.label,
+      ueZone: zone.ueZone || zone.id,
+      heroCameraName: zone.cameras[0]?.name ?? zone.id,
+      heroCameraIndex: 0,
+      status: "rendering" as const,
+      imageUrl: undefined,
+      attempt: 1,
+      stills: (zone.cameras.length
+        ? zone.cameras
+        : [{ name: zone.id, mode: "" }]
+      ).map((cam) => ({
+        cameraName: cam.name,
+        imageUrl: undefined,
+      })),
+    }));
+  }
+
   const zones = session?.zones?.length
     ? session.zones
     : Array.from(
@@ -111,13 +129,18 @@ function roomsFromRenders(
         id,
         label: id,
         ueZone: id,
-        cameras: [],
+        cameras: [] as { name: string; mode: string }[],
       }));
 
   const rooms: RoomRenderCard[] = [];
-  for (const zone of zones) {
-    const cams = data.cameras.filter((c) => c.camera_zone_id === zone.id);
-    if (!cams.length) continue;
+  const assignedZones = new Set<string>();
+
+  const pushRoom = (
+    zone: { id: string; label: string; ueZone: string },
+    cams: GetRendersData["cameras"],
+  ) => {
+    if (!cams.length) return;
+    assignedZones.add(zone.id);
     const stills = cams.map((cam) => ({
       cameraName: cam.camera_id,
       imageUrl: cam.render_s3_url ?? undefined,
@@ -138,7 +161,29 @@ function roomsFromRenders(
       attempt: Math.max(...cams.map((c) => c.attempt_number || 1), 1),
       stills,
     });
+  };
+
+  for (const zone of zones) {
+    pushRoom(
+      zone,
+      data.cameras.filter((c) => c.camera_zone_id === zone.id),
+    );
   }
+
+  const leftoverIds = [
+    ...new Set(
+      data.cameras
+        .map((c) => c.camera_zone_id)
+        .filter((id) => !assignedZones.has(id)),
+    ),
+  ];
+  for (const id of leftoverIds) {
+    pushRoom(
+      { id, label: id, ueZone: id },
+      data.cameras.filter((c) => c.camera_zone_id === id),
+    );
+  }
+
   return rooms;
 }
 
@@ -342,8 +387,6 @@ export function useRenderJob({
 
       setActive(true);
       activeRef.current = true;
-      captureCamerasHighResOnUe(send, designCode, { mockLog: mockUe });
-      patchDraft(storageArgs, { highResCaptureSent: true });
       startPolling();
       return true;
     } catch (err) {
@@ -369,7 +412,8 @@ export function useRenderJob({
   ]);
 
   const resume = useCallback(() => {
-    if (!enabledRef.current || !designCode) return;
+    if (!designCode) return;
+    enabledRef.current = true;
     setActive(true);
     activeRef.current = true;
     startPolling();

@@ -29,6 +29,7 @@ export type TProject = {
   id: number;
   code: string;
   name: string;
+  streampixel_app_id?: string;
   image: string;
   handover: string;
   apartments_count: number;

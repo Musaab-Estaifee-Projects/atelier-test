@@ -37,6 +37,7 @@ const SOFT_ACK = new Set(["ExitCamera", "MoveToZone", "SwitchCameraByName"]);
 const PROCEED_ON_TIMEOUT = new Set([
   ...SOFT_ACK,
   "LoadLevel",
+  "LoadCustomization",
   "ChangeMeshByName",
   "ApplyMaterialToMesh",
 ]);
@@ -147,15 +148,17 @@ export async function loadLevelOnUe(
     console.info("[mock UE] LoadLevel", levelName);
     return true;
   }
-  return sendAndWaitAck(
-    send,
-    { Function: "LoadLevel", LevelName: levelName },
-    {
-      attempts: 10,
-      gapMs: 400,
-      label: "LoadLevel",
-      timeoutMs: 12000,
-    },
+  return enqueueApply(() =>
+    sendAndWaitAck(
+      send,
+      { Function: "LoadLevel", LevelName: levelName },
+      {
+        attempts: 10,
+        gapMs: 400,
+        label: "LoadLevel",
+        timeoutMs: 16000,
+      },
+    ),
   );
 }
 
@@ -190,15 +193,17 @@ export async function loadCustomizationFromUe(
     console.info("[mock UE] LoadCustomization", code);
     return true;
   }
-  const ok = await sendAndWaitAck(
-    send,
-    { Function: "LoadCustomization", design_code: code },
-    {
-      attempts: 10,
-      gapMs: 300,
-      label: `LoadCustomization ${code}`,
-      timeoutMs: 12000,
-    },
+  const ok = await enqueueApply(() =>
+    sendAndWaitAck(
+      send,
+      { Function: "LoadCustomization", design_code: code },
+      {
+        attempts: 12,
+        gapMs: 300,
+        label: `LoadCustomization ${code}`,
+        timeoutMs: 20000,
+      },
+    ),
   );
   if (ok) await delay(400);
   else console.warn("[UE] LoadCustomization failed or missing");
@@ -349,18 +354,25 @@ export async function resetCustomizationOnUe(
   return resetToDefaultOnUe(send, opts);
 }
 
-export function captureCamerasHighResOnUe(
+export async function captureCamerasHighResOnUe(
   send: SendFn,
   design_code: string,
   opts?: { mockLog?: boolean },
-): boolean {
+): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
   if (opts?.mockLog) {
     console.info("[mock UE] CaptureCamerasHighRes", code);
     return true;
   }
-  return send({ Function: "CaptureCamerasHighRes", design_code: code });
+  return enqueueApply(async () => {
+    await delay(250);
+    return sendUntilAccepted(
+      send,
+      { Function: "CaptureCamerasHighRes", design_code: code },
+      { attempts: 10, gapMs: 350, label: "CaptureCamerasHighRes" },
+    );
+  });
 }
 
 export function captureCamerasOnUe(
