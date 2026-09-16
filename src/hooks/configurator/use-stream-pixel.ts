@@ -17,7 +17,11 @@ import {
 } from "@/lib/stream-pixel/ensure-application";
 import { ensureSdkOverlayStubs } from "@/lib/stream-pixel/ensure-sdk-overlays";
 import { wireStreamMouseFromTouches } from "@/lib/stream-pixel/stream-mouse-from-touches";
-import { fitStreamDom, toggleFullscreen, waitForVideoFrame } from "@/lib/stream-pixel/fit-stream";
+import {
+  fitStreamDom,
+  toggleFullscreen,
+  waitForVideoFrame,
+} from "@/lib/stream-pixel/fit-stream";
 import {
   AFK_CONFIG,
   STREAM_PIXEL_AFK_TIMEOUT_SECS,
@@ -96,10 +100,16 @@ function bindStreamEvents(
     }
   };
 
-  on("webRtcAutoConnect", () => streamEventHandlers.onProgress("webRtcAutoConnect"));
-  on("webRtcConnecting", () => streamEventHandlers.onProgress("webRtcConnecting"));
+  on("webRtcAutoConnect", () =>
+    streamEventHandlers.onProgress("webRtcAutoConnect"),
+  );
+  on("webRtcConnecting", () =>
+    streamEventHandlers.onProgress("webRtcConnecting"),
+  );
   on("webRtcSdp", () => streamEventHandlers.onProgress("webRtcSdp"));
-  on("webRtcConnected", () => streamEventHandlers.onProgress("webRtcConnected"));
+  on("webRtcConnected", () =>
+    streamEventHandlers.onProgress("webRtcConnected"),
+  );
   on("streamLoading", () => streamEventHandlers.onProgress("streamLoading"));
   on("playStream", () => streamEventHandlers.onProgress("playStream"));
   on("webRtcFailed", () => streamEventHandlers.onWebRtcFailed());
@@ -162,8 +172,7 @@ export function useStreamPixel({
   onUeResponseRef.current = onUeResponse;
 
   const [isLoading, setIsLoading] = useState(true);
-  const [streamPhase, setStreamPhase] =
-    useState<StreamOverlayKind>("loading");
+  const [streamPhase, setStreamPhase] = useState<StreamOverlayKind>("loading");
   const [loadingTitle, setLoadingTitle] = useState<string>(
     LOADING_CONFIG.title,
   );
@@ -284,7 +293,7 @@ export function useStreamPixel({
       hoverMouse: true,
       fakeMouseWithTouches: false,
       preferredCodec: isMobile ? "H264" : undefined,
-      startResolutionMobile: "480p",
+      startResolutionMobile: "720p",
       maxBitrate: isMobile ? 4_000_000 : 10_000_000,
     };
     const initKey = streamPixelInitKey(initConfig);
@@ -301,7 +310,10 @@ export function useStreamPixel({
 
     const fail = (
       copy: DisconnectOverlayCopy,
-      kind: Extract<StreamOverlayKind, "disconnected" | "idle"> = "disconnected",
+      kind: Extract<
+        StreamOverlayKind,
+        "disconnected" | "idle"
+      > = "disconnected",
     ) => {
       if (cancelled || !mountedRef.current) return;
       if (idleTimedOutRef.current && kind !== "idle") return;
@@ -416,7 +428,8 @@ export function useStreamPixel({
 
         registerUeListeners(pixelStreaming);
         ensureSdkOverlayStubs(
-          (appStream.rootElement as HTMLElement | null) ?? videoContainerRef.current,
+          (appStream.rootElement as HTMLElement | null) ??
+            videoContainerRef.current,
         );
 
         // UIControl is not always present — guard the whole object
@@ -504,7 +517,10 @@ export function useStreamPixel({
                 /* ignore */
               }
               unwireTouchesRef.current?.();
-              unwireTouchesRef.current = wireStreamMouseFromTouches(appStream);
+              unwireTouchesRef.current = wireStreamMouseFromTouches(
+                appStream,
+                pixelStreaming,
+              );
               uiControlRef.current?.toggleHoveringMouse?.(true);
             }
 
@@ -531,11 +547,7 @@ export function useStreamPixel({
               appStream,
               STREAM_PIXEL_AFK_TIMEOUT_SECS,
             );
-            fitStreamDom(
-              videoContainerRef.current,
-              appStream,
-              pixelStreaming,
-            );
+            fitStreamDom(videoContainerRef.current, appStream, pixelStreaming);
 
             if (!painted) {
               console.warn(
@@ -553,37 +565,40 @@ export function useStreamPixel({
           }
         };
 
-        const PROGRESS_BY_EVENT: Record<string, { status: string; pct: number }> =
-          {
-            webRtcAutoConnect: {
-              status: LOADING_CONFIG.statusMessages.connecting,
-              pct: LOADING_PROGRESS.autoConnect,
-            },
-            webRtcConnecting: {
-              status: LOADING_CONFIG.statusMessages.webRtcConnecting,
-              pct: LOADING_PROGRESS.webRtcConnecting,
-            },
-            webRtcSdp: {
-              status: LOADING_CONFIG.statusMessages.sdpNegotiation,
-              pct: LOADING_PROGRESS.sdpNegotiation,
-            },
-            webRtcConnected: {
-              status: LOADING_CONFIG.statusMessages.webRtcConnected,
-              pct: LOADING_PROGRESS.webRtcConnected,
-            },
-            streamLoading: {
-              status: LOADING_CONFIG.statusMessages.streamLoading,
-              pct: LOADING_PROGRESS.streamLoading,
-            },
-            playStream: {
-              status: LOADING_CONFIG.statusMessages.playingStream,
-              pct: LOADING_PROGRESS.playingStream,
-            },
-          };
+        const PROGRESS_BY_EVENT: Record<
+          string,
+          { status: string; pct: number }
+        > = {
+          webRtcAutoConnect: {
+            status: LOADING_CONFIG.statusMessages.connecting,
+            pct: LOADING_PROGRESS.autoConnect,
+          },
+          webRtcConnecting: {
+            status: LOADING_CONFIG.statusMessages.webRtcConnecting,
+            pct: LOADING_PROGRESS.webRtcConnecting,
+          },
+          webRtcSdp: {
+            status: LOADING_CONFIG.statusMessages.sdpNegotiation,
+            pct: LOADING_PROGRESS.sdpNegotiation,
+          },
+          webRtcConnected: {
+            status: LOADING_CONFIG.statusMessages.webRtcConnected,
+            pct: LOADING_PROGRESS.webRtcConnected,
+          },
+          streamLoading: {
+            status: LOADING_CONFIG.statusMessages.streamLoading,
+            pct: LOADING_PROGRESS.streamLoading,
+          },
+          playStream: {
+            status: LOADING_CONFIG.statusMessages.playingStream,
+            pct: LOADING_PROGRESS.playingStream,
+          },
+        };
 
         const onWebRtcGone = () => {
           streamReadyRef.current = false;
-          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
+          if (cancelled || !mountedRef.current || idleTimedOutRef.current)
+            return;
           if (afkWarningRef.current) {
             fail(DISCONNECT_COPY.dropped, "idle");
             return;
@@ -641,7 +656,8 @@ export function useStreamPixel({
         };
 
         streamEventHandlers.onReconnectState = (data) => {
-          if (cancelled || !mountedRef.current || idleTimedOutRef.current) return;
+          if (cancelled || !mountedRef.current || idleTimedOutRef.current)
+            return;
 
           switch (data?.status) {
             case "connecting":
@@ -657,9 +673,7 @@ export function useStreamPixel({
                 LOADING_CONFIG.statusMessages.retrying,
                 LOADING_PROGRESS.retrying,
               );
-              setLoadingProgress((p) =>
-                Math.max(p, LOADING_PROGRESS.retrying),
-              );
+              setLoadingProgress((p) => Math.max(p, LOADING_PROGRESS.retrying));
               break;
             case "connected":
               failedRef.current = false;
@@ -690,9 +704,7 @@ export function useStreamPixel({
               break;
             }
             case "failed":
-              fail(
-                overlayCopyForDisconnect(data.code ?? 4007, data.reason),
-              );
+              fail(overlayCopyForDisconnect(data.code ?? 4007, data.reason));
               break;
             default:
               break;

@@ -77,16 +77,36 @@ async function waitUntilEmitAccepted(send: SendFn): Promise<boolean> {
 
 export function syncDraftToUe(args: SyncToUeArgs): Promise<UeSyncResult> {
   const key = syncKey(args);
-  if (!args.force && inflight && inflightKey === key) return inflight;
 
-  const previous = inflight;
+  if (inflight) {
+    const pending = inflight;
+    return pending.then((result) => {
+      const satisfied =
+        result.loadLevel &&
+        (!args.requireLoadCustomization || result.loadCustomization);
+      if (satisfied) return result;
+      return startSync(args, key);
+    });
+  }
+
+  if (!args.force && lastCompletedKey === key) {
+    return Promise.resolve({
+      ok: true,
+      loadLevel: true,
+      loadCustomization: true,
+    });
+  }
+
+  return startSync(args, key);
+}
+
+function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
   const runKey = args.force ? `${key}#force-${Date.now()}` : key;
 
   const run = async (): Promise<UeSyncResult> => {
-    if (previous) await previous.catch(() => UE_SYNC_FAIL);
-
     let loadLevel = Boolean(args.skipLoadLevel) || !args.layoutCode;
-    let loadCustomization = !args.requireLoadCustomization && !args.returningVisit;
+    let loadCustomization =
+      !args.requireLoadCustomization && !args.returningVisit;
 
     if (!(await waitUntilReady(args.isUeReady, args.mockLog))) {
       console.warn("[UE sync] stream never ready");
@@ -157,7 +177,9 @@ export function syncDraftToUe(args: SyncToUeArgs): Promise<UeSyncResult> {
 
     lastCompletedKey = key;
     return {
-      ok: loadLevel && loadCustomization,
+      ok:
+        loadLevel &&
+        (loadCustomization || !args.requireLoadCustomization),
       loadLevel,
       loadCustomization,
     };

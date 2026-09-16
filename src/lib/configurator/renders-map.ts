@@ -1,8 +1,9 @@
 import type { ConfiguratorSession, RoomRenderCard } from "@/types/configurator";
-import type { GetRendersData, RenderCameraStatus } from "@/services/renders.service";
+import type { GetRendersData, RenderZoneCamera } from "@/services/renders.service";
+import { listRenderCameras } from "@/services/renders.service";
 
 function stillStatus(
-  cam: RenderCameraStatus,
+  cam: Pick<RenderZoneCamera, "status" | "render_s3_url" | "is_failed">,
 ): RoomRenderCard["status"] {
   if (cam.status === "completed" && cam.render_s3_url) return "completed";
   if (cam.is_failed || cam.status === "failed") return "error";
@@ -14,63 +15,68 @@ export function mapRendersToRooms(
   session: ConfiguratorSession,
   data: GetRendersData | null,
 ): RoomRenderCard[] {
-  const byZone = new Map<string, RenderCameraStatus[]>();
-  for (const cam of data?.cameras ?? []) {
-    const list = byZone.get(cam.camera_zone_id) ?? [];
-    list.push(cam);
-    byZone.set(cam.camera_zone_id, list);
+  if (data?.camera_zones.length) {
+    return data.camera_zones.map((zone) => {
+      const apiCams = zone.cameras ?? [];
+      const stills = apiCams.map((cam) => ({
+        cameraName: cam.camera_id,
+        imageUrl: cam.render_s3_url || undefined,
+        file: cam.status,
+      }));
+      const statuses = apiCams.map(stillStatus);
+      const allDone =
+        stills.length > 0 && stills.every((s) => Boolean(s.imageUrl));
+      const anyError = statuses.includes("error");
+      const anyRendering = statuses.includes("rendering");
+      const hero = stills.find((s) => s.imageUrl) ?? stills[0];
+      const sessionZone = session.zones.find((z) => z.id === zone.camera_zone_id);
+
+      return {
+        zoneId: zone.camera_zone_id,
+        label: zone.camera_zone_name?.trim() || sessionZone?.label || zone.camera_zone_id,
+        ueZone: sessionZone?.ueZone || zone.camera_zone_id,
+        heroCameraName: hero?.cameraName ?? zone.camera_zone_id,
+        heroCameraIndex: 0,
+        status: allDone
+          ? "completed"
+          : anyError && !anyRendering
+            ? "error"
+            : anyRendering || stills.some((s) => !s.imageUrl)
+              ? "rendering"
+              : "queued",
+        imageUrl: hero?.imageUrl,
+        attempt: Math.max(0, ...apiCams.map((c) => c.attempt_number || 1), 1),
+        stills,
+      };
+    });
   }
 
-  return session.zones.map((zone) => {
-    const apiCams = byZone.get(zone.id);
-    const stills =
-      apiCams && apiCams.length
-        ? apiCams.map((cam) => ({
-            cameraName: cam.camera_id,
-            imageUrl: cam.render_s3_url || undefined,
-            file: cam.status,
-          }))
-        : zone.cameras.map((cam) => ({
-            cameraName: cam.name,
-            imageUrl: undefined as string | undefined,
-          }));
-
-    const statuses = (apiCams ?? []).map(stillStatus);
-    const allDone =
-      stills.length > 0 && stills.every((s) => Boolean(s.imageUrl));
-    const anyError = statuses.includes("error");
-    const anyRendering = statuses.includes("rendering");
-    const hero = stills.find((s) => s.imageUrl) ?? stills[0];
-
-    return {
-      zoneId: zone.id,
-      label: zone.label,
-      ueZone: zone.ueZone,
-      heroCameraName: hero?.cameraName ?? zone.cameras[0]?.name ?? zone.id,
-      heroCameraIndex: 0,
-      status: allDone
-        ? "completed"
-        : anyError && !anyRendering
-          ? "error"
-          : anyRendering || stills.some((s) => !s.imageUrl)
-            ? "rendering"
-            : "queued",
-      imageUrl: hero?.imageUrl,
-      attempt: 0,
-      stills,
-    };
-  });
+  return session.zones.map((zone) => ({
+    zoneId: zone.id,
+    label: zone.label,
+    ueZone: zone.ueZone,
+    heroCameraName: zone.cameras[0]?.name ?? zone.id,
+    heroCameraIndex: 0,
+    status: "queued",
+    imageUrl: undefined,
+    attempt: 0,
+    stills: zone.cameras.map((cam) => ({
+      cameraName: cam.name,
+      imageUrl: undefined as string | undefined,
+    })),
+  }));
 }
 
 export function failedRenderCameras(data: GetRendersData | null) {
-  return (data?.cameras ?? []).filter(
+  return listRenderCameras(data).filter(
     (cam) => cam.is_failed || cam.status === "failed",
   );
 }
 
 export function rendersBusy(data: GetRendersData | null): boolean {
   if (!data) return true;
-  return (data.cameras ?? []).some(
+  if (data.is_all_rendered) return false;
+  return listRenderCameras(data).some(
     (cam) =>
       cam.status !== "completed" ||
       !cam.render_s3_url ||

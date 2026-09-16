@@ -251,6 +251,56 @@ export function clearDraft(
   }
 }
 
+function freshStartIntentKey(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+  apartmentId?: string | null,
+): string {
+  const apt = apartmentId?.trim() || "none";
+  return `atelier:fresh-start:${streamProjectId}:${projectId}:${layoutCode}:${apt}`;
+}
+
+/** Survives the hard reload from "Start new customization" so boot creates a new design_code. */
+export function markFreshStartIntent(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+  apartmentId?: string | null,
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      freshStartIntentKey(streamProjectId, projectId, layoutCode, apartmentId),
+      "1",
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeFreshStartIntent(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+  apartmentId?: string | null,
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const key = freshStartIntentKey(
+      streamProjectId,
+      projectId,
+      layoutCode,
+      apartmentId,
+    );
+    const marked = window.sessionStorage.getItem(key) === "1";
+    if (marked) window.sessionStorage.removeItem(key);
+    return marked;
+  } catch {
+    return false;
+  }
+}
+
 export function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();

@@ -538,6 +538,10 @@ const ReviewSelections = ({
               variant="pill"
               size="pill"
               className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
+              disabled={
+                confirmPending ||
+                (actionsDisabled && !(streamOffline && onReconnect))
+              }
               onClick={streamOffline && onReconnect ? onReconnect : onBack}
             >
               {streamOffline && onReconnect ? (

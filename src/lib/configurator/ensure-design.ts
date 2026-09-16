@@ -1,5 +1,10 @@
 import { createDesign } from "@/services/create-design.service";
-import { clearDraft, loadDraft, saveDraft } from "@/lib/configurator/storage";
+import {
+  clearDraft,
+  consumeFreshStartIntent,
+  loadDraft,
+  saveDraft,
+} from "@/lib/configurator/storage";
 import { isBackendProjectId } from "@/lib/projects/project-id";
 
 export async function ensureBackendDesign(args: {
@@ -8,6 +13,21 @@ export async function ensureBackendDesign(args: {
   layoutCode: string;
   apartmentId?: string | null;
 }): Promise<{ designCode: string; returning: boolean }> {
+  const freshStart = consumeFreshStartIntent(
+    args.streamProjectId,
+    args.backendProjectId,
+    args.layoutCode,
+    args.apartmentId,
+  );
+  if (freshStart) {
+    clearDraft(
+      args.streamProjectId,
+      args.backendProjectId,
+      args.layoutCode,
+      args.apartmentId,
+    );
+  }
+
   const draft = loadDraft(
     args.streamProjectId,
     args.backendProjectId,
@@ -15,7 +35,7 @@ export async function ensureBackendDesign(args: {
     args.apartmentId,
   );
   const existing = draft?.designCode?.trim();
-  if (existing) {
+  if (existing && !freshStart) {
     return { designCode: existing, returning: true };
   }
 
@@ -41,14 +61,16 @@ export async function ensureBackendDesign(args: {
     layoutCode: args.layoutCode,
     apartmentId: args.apartmentId ?? null,
     designCode: data.design_code,
-    selections: draft?.selections ?? [],
+    selections: freshStart ? [] : (draft?.selections ?? []),
     selectionRevision: 0,
-    summaryToken: draft?.summaryToken ?? null,
-    summaryExpiresAt: draft?.summaryExpiresAt ?? null,
-    prepareIdempotencyKey:
-      draft?.prepareIdempotencyKey ?? draft?.retryIdempotencyKey ?? null,
-    retryIdempotencyKey:
-      draft?.prepareIdempotencyKey ?? draft?.retryIdempotencyKey ?? null,
+    summaryToken: freshStart ? null : (draft?.summaryToken ?? null),
+    summaryExpiresAt: freshStart ? null : (draft?.summaryExpiresAt ?? null),
+    prepareIdempotencyKey: freshStart
+      ? null
+      : (draft?.prepareIdempotencyKey ?? draft?.retryIdempotencyKey ?? null),
+    retryIdempotencyKey: freshStart
+      ? null
+      : (draft?.prepareIdempotencyKey ?? draft?.retryIdempotencyKey ?? null),
     highResCaptureSent: false,
     updatedAt: new Date().toISOString(),
   });

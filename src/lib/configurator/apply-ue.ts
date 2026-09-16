@@ -30,6 +30,9 @@ function ackTypesFor(fn: string): string[] {
   if (fn === "SaveCustomization") {
     return ["SaveCustomization", "CustomizationSaved", "Saved"];
   }
+  if (fn === "CaptureCamerasHighRes") {
+    return ["CaptureCamerasHighRes", "CaptureCameras", "CamerasCaptured"];
+  }
   return [fn];
 }
 
@@ -38,6 +41,7 @@ const PROCEED_ON_TIMEOUT = new Set([
   ...SOFT_ACK,
   "LoadLevel",
   "LoadCustomization",
+  "CaptureCamerasHighRes",
   "ChangeMeshByName",
   "ApplyMaterialToMesh",
 ]);
@@ -365,14 +369,18 @@ export async function captureCamerasHighResOnUe(
     console.info("[mock UE] CaptureCamerasHighRes", code);
     return true;
   }
-  return enqueueApply(async () => {
-    await delay(250);
-    return sendUntilAccepted(
+  return enqueueApply(() =>
+    sendAndWaitAck(
       send,
       { Function: "CaptureCamerasHighRes", design_code: code },
-      { attempts: 10, gapMs: 350, label: "CaptureCamerasHighRes" },
-    );
-  });
+      {
+        attempts: 8,
+        gapMs: 300,
+        label: "CaptureCamerasHighRes",
+        timeoutMs: 20000,
+      },
+    ),
+  );
 }
 
 export function captureCamerasOnUe(

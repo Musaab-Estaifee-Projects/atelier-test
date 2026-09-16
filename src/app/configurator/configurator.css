@@ -79,6 +79,7 @@ html.configurator-active body > div {
 
 .stream-viewport #videoElementParent {
   pointer-events: auto;
+  touch-action: none;
 }
 
 .stream-viewport video {

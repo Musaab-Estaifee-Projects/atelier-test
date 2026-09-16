@@ -29,7 +29,7 @@ import {
   type UeSyncResult,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { appliedSelectionMap, clearDraft, isUnstartedRendersDraft, loadDraft, patchDraft } from "@/lib/configurator/storage";
+import { appliedSelectionMap, clearDraft, isUnstartedRendersDraft, loadDraft, markFreshStartIntent, patchDraft } from "@/lib/configurator/storage";
 import { customMapToStored } from "@/lib/configurator/api-selections";
 import {
   createReplacementDesign,
@@ -107,6 +107,7 @@ import FinalDesignViewer from "./final-design/final-design-viewer";
 import ReviewSelections from "./review-selections";
 import LeaveConfiguratorDialog from "./leave-configurator-dialog";
 import FrozenDesignDialog from "./frozen-design-dialog";
+import KeepCustomizationFailedDialog from "./keep-customization-failed-dialog";
 import JourneyGate from "./journey-gate";
 import SelectStyle from "@/components/pages/styles/select-style";
 
@@ -161,6 +162,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     "new" | "keep" | null
   >(null);
   const [frozenFromRenders, setFrozenFromRenders] = useState(false);
+  const [keepCustomizationFailedOpen, setKeepCustomizationFailedOpen] =
+    useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
@@ -177,6 +180,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [currentResolution, setCurrentResolution] = useState("Auto");
 
   const appliedReadyRef = useRef(false);
+  const highResPipelineRef = useRef(false);
   const [sceneReady, setSceneReady] = useState(false);
   const loadedLevelRef = useRef<string | null>(null);
   const lastZoneInUrlRef = useRef<string | null>(params.zone ?? null);
@@ -504,31 +508,41 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const runLoadThenCaptureHighRes = useCallback(async () => {
     const code = designCodeRef.current;
     if (!code) return false;
+    highResPipelineRef.current = true;
     returningVisitRef.current = true;
-    const synced: UeSyncResult = await runUeSyncRef.current({
-      force: true,
-      requireLoadCustomization: true,
-      skipViewRestore: true,
-    });
-    if (!synced.loadLevel || !synced.loadCustomization) {
-      console.warn("[UE] CaptureCamerasHighRes skipped — LoadLevel/LoadCustomization did not succeed", synced);
-      return false;
+    try {
+      const synced: UeSyncResult = await runUeSyncRef.current({
+        force: !appliedReadyRef.current,
+        requireLoadCustomization: true,
+        skipViewRestore: true,
+      });
+      if (!synced.loadLevel || !synced.loadCustomization) {
+        console.warn(
+          "[UE] CaptureCamerasHighRes skipped — LoadLevel/LoadCustomization did not succeed",
+          synced,
+        );
+        return false;
+      }
+      const sent = await captureCamerasHighResOnUe(send, code, {
+        mockLog: MOCK_UE,
+      });
+      if (sent) {
+        patchDraft(
+          {
+            streamProjectId: projectId,
+            projectId: storageProjectId,
+            layoutCode,
+            apartmentId,
+          },
+          { highResCaptureSent: true },
+        );
+      } else {
+        console.warn("[UE] CaptureCamerasHighRes emit was not accepted");
+      }
+      return sent;
+    } finally {
+      highResPipelineRef.current = false;
     }
-    const sent = await captureCamerasHighResOnUe(send, code, { mockLog: MOCK_UE });
-    if (sent) {
-      patchDraft(
-        {
-          streamProjectId: projectId,
-          projectId: storageProjectId,
-          layoutCode,
-          apartmentId,
-        },
-        { highResCaptureSent: true },
-      );
-    } else {
-      console.warn("[UE] CaptureCamerasHighRes emit was not accepted");
-    }
-    return sent;
   }, [apartmentId, layoutCode, projectId, send, storageProjectId]);
 
   // Boot session / design
@@ -643,13 +657,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
+    if (highResPipelineRef.current || appliedReadyRef.current) return;
 
-    // Also runs after reconnect: isLoading true invalidates the UE cache,
-    // then this effect force-syncs finishes/camera when the stream is live again.
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      if (cancelled) return;
-      void runUeSyncRef.current({ force: true });
+      if (cancelled || highResPipelineRef.current) return;
+      void runUeSyncRef.current({ force: !appliedReadyRef.current });
     }, 250);
 
     return () => {
@@ -1216,22 +1229,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       selections.resetAll();
       selections.commitReset();
 
-      const nextCode = await createReplacementDesign({
-        streamProjectId: projectId,
-        backendProjectId: catalogApiProjectId,
-        layoutCode: session.layoutCode || layoutCode,
-        apartmentId,
-        sourceDesignCode: null,
-        selections: [],
-      });
+      const layout = session.layoutCode || layoutCode;
+      markFreshStartIntent(projectId, catalogApiProjectId, layout, apartmentId);
+      clearDraft(projectId, catalogApiProjectId, layout, apartmentId);
       returningVisitRef.current = false;
-      designCodeRef.current = nextCode;
+      designCodeRef.current = "";
       invalidateUeSyncCache();
-
-      const resetOk = await resetToDefaultOnUe(send, { mockLog: MOCK_UE });
-      if (resetOk && nextCode) {
-        await saveCustomizationToUe(send, nextCode, { mockLog: MOCK_UE });
-      }
       reloadWithoutRenders();
     } catch (err) {
       console.warn("[design] replacement failed", err);
@@ -1245,7 +1248,6 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     reloadWithoutRenders,
     renderJob,
     selections,
-    send,
     session,
   ]);
 
@@ -1280,12 +1282,27 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       invalidateUeSyncCache();
 
       if (nextCode) {
-        await saveCustomizationToUe(send, nextCode, { mockLog: MOCK_UE });
+        const saved = await saveCustomizationToUe(send, nextCode, {
+          mockLog: MOCK_UE,
+        });
+        if (!saved) {
+          setFrozenDesignOpen(false);
+          setFrozenDesignPending(null);
+          setKeepCustomizationFailedOpen(true);
+          return;
+        }
+      } else {
+        setFrozenDesignOpen(false);
+        setFrozenDesignPending(null);
+        setKeepCustomizationFailedOpen(true);
+        return;
       }
       reloadWithoutRenders();
     } catch (err) {
       console.warn("[design] keep customization failed", err);
       setFrozenDesignPending(null);
+      setFrozenDesignOpen(false);
+      setKeepCustomizationFailedOpen(true);
     }
   }, [
     apartmentId,
@@ -1737,7 +1754,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             rooms={renderJob.rooms}
             unitSubtitle={unitSubtitle}
             error={renderJob.error}
-            total={Number(designSummary.data?.total_amount ?? 0)}
+            total={renderJob.totalAmount}
             onConfirm={() => {
               if (!renderJob.allReady) {
                 setRendersNotReadyOpen(true);
@@ -1780,7 +1797,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       />
 
       <FrozenDesignDialog
-        open={frozenDesignOpen && !viewOnly}
+        open={frozenDesignOpen && !viewOnly && !keepCustomizationFailedOpen}
         pending={frozenDesignPending}
         showContinueRendering={frozenFromRenders}
         onContinueRendering={handleContinueRendering}
@@ -1791,6 +1808,14 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           void handleStartNewCustomization();
         }}
         onGoToProjects={handleGoToProjects}
+      />
+
+      <KeepCustomizationFailedDialog
+        open={keepCustomizationFailedOpen && !viewOnly}
+        pending={frozenDesignPending === "new"}
+        onStartNew={() => {
+          void handleStartNewCustomization();
+        }}
       />
 
       <LeaveConfiguratorDialog

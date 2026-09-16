@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  captureCamerasOnUe,
-} from "@/lib/configurator/apply-ue";
+import { captureCamerasOnUe } from "@/lib/configurator/apply-ue";
 import { buildApiSelections } from "@/lib/configurator/api-selections";
 import {
   loadDraft,
@@ -12,10 +10,11 @@ import {
 } from "@/lib/configurator/storage";
 import {
   getRenders,
+  listRenderCameras,
+  parseRenderTotalAmount,
   prepareRenders,
   retryRenders,
   type GetRendersData,
-  type RenderCameraStatus,
 } from "@/services/renders.service";
 import type {
   ConfiguratorSession,
@@ -55,45 +54,49 @@ function stabilizeCompletedUrls(
   prev: GetRendersData | null,
   next: GetRendersData,
 ): GetRendersData {
-  if (!prev?.cameras.length) return next;
-  const previous = new Map(
-    prev.cameras.map((cam) => [renderCameraKey(cam), cam]),
-  );
+  const prevCams = listRenderCameras(prev);
+  if (!prevCams.length) return next;
+  const previous = new Map(prevCams.map((cam) => [renderCameraKey(cam), cam]));
   return {
     ...next,
-    cameras: next.cameras.map((cam) => {
-      const old = previous.get(renderCameraKey(cam));
-      if (
-        cam.status === "completed" &&
-        cam.render_s3_url &&
-        old?.status === "completed" &&
-        old.render_s3_url &&
-        assetPath(old.render_s3_url) === assetPath(cam.render_s3_url)
-      ) {
-        return { ...cam, render_s3_url: old.render_s3_url };
-      }
-      return cam;
-    }),
+    camera_zones: next.camera_zones.map((zone) => ({
+      ...zone,
+      cameras: zone.cameras.map((cam) => {
+        const old = previous.get(
+          renderCameraKey({
+            camera_zone_id: zone.camera_zone_id,
+            camera_id: cam.camera_id,
+          }),
+        );
+        if (
+          cam.status === "completed" &&
+          cam.render_s3_url &&
+          old?.status === "completed" &&
+          old.render_s3_url &&
+          assetPath(old.render_s3_url) === assetPath(cam.render_s3_url)
+        ) {
+          return { ...cam, render_s3_url: old.render_s3_url };
+        }
+        return cam;
+      }),
+    })),
   };
 }
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
-function failedCameras(data: GetRendersData | null): RenderCameraStatus[] {
-  if (!data) return [];
-  return data.cameras.filter(
+function failedCameras(data: GetRendersData | null) {
+  return listRenderCameras(data).filter(
     (cam) => cam.is_failed || cam.status === "failed",
   );
 }
 
 function inProgress(data: GetRendersData | null): boolean {
   if (!data) return true;
-  if (data.is_all_rendered) return false;
-  return data.cameras.some(
+  if (data.is_all_rendered || data.is_terminal) return false;
+  return listRenderCameras(data).some(
     (cam) =>
-      !cam.is_failed &&
-      cam.status !== "completed" &&
-      cam.status !== "failed",
+      !cam.is_failed && cam.status !== "completed" && cam.status !== "failed",
   );
 }
 
@@ -101,7 +104,7 @@ function roomsFromRenders(
   session: ConfiguratorSession | null,
   data: GetRendersData | null,
 ): RoomRenderCard[] {
-  if (!data) {
+  if (!data?.camera_zones.length) {
     return (session?.zones ?? []).map((zone) => ({
       zoneId: zone.id,
       label: zone.label,
@@ -121,70 +124,35 @@ function roomsFromRenders(
     }));
   }
 
-  const zones = session?.zones?.length
-    ? session.zones
-    : Array.from(
-        new Set(data.cameras.map((c) => c.camera_zone_id)),
-      ).map((id) => ({
-        id,
-        label: id,
-        ueZone: id,
-        cameras: [] as { name: string; mode: string }[],
-      }));
-
-  const rooms: RoomRenderCard[] = [];
-  const assignedZones = new Set<string>();
-
-  const pushRoom = (
-    zone: { id: string; label: string; ueZone: string },
-    cams: GetRendersData["cameras"],
-  ) => {
-    if (!cams.length) return;
-    assignedZones.add(zone.id);
+  return data.camera_zones.map((zone) => {
+    const cams = zone.cameras ?? [];
     const stills = cams.map((cam) => ({
       cameraName: cam.camera_id,
       imageUrl: cam.render_s3_url ?? undefined,
     }));
-    const allDone = cams.every(
-      (c) => c.status === "completed" && c.render_s3_url,
-    );
+    const allDone =
+      cams.length > 0 &&
+      cams.every((c) => c.status === "completed" && c.render_s3_url);
     const anyFailed = cams.some((c) => c.is_failed || c.status === "failed");
     const hero = cams.find((c) => c.render_s3_url) ?? cams[0];
-    rooms.push({
-      zoneId: zone.id,
-      label: zone.label,
-      ueZone: zone.ueZone || zone.id,
-      heroCameraName: hero?.camera_id ?? zone.id,
+    const sessionZone = session?.zones.find(
+      (z) => z.id === zone.camera_zone_id,
+    );
+    return {
+      zoneId: zone.camera_zone_id,
+      label:
+        zone.camera_zone_name?.trim() ||
+        sessionZone?.label ||
+        zone.camera_zone_id,
+      ueZone: sessionZone?.ueZone || zone.camera_zone_id,
+      heroCameraName: hero?.camera_id ?? zone.camera_zone_id,
       heroCameraIndex: 0,
       status: allDone ? "completed" : anyFailed ? "error" : "rendering",
       imageUrl: hero?.render_s3_url ?? undefined,
-      attempt: Math.max(...cams.map((c) => c.attempt_number || 1), 1),
+      attempt: Math.max(0, ...cams.map((c) => c.attempt_number || 1), 1),
       stills,
-    });
-  };
-
-  for (const zone of zones) {
-    pushRoom(
-      zone,
-      data.cameras.filter((c) => c.camera_zone_id === zone.id),
-    );
-  }
-
-  const leftoverIds = [
-    ...new Set(
-      data.cameras
-        .map((c) => c.camera_zone_id)
-        .filter((id) => !assignedZones.has(id)),
-    ),
-  ];
-  for (const id of leftoverIds) {
-    pushRoom(
-      { id, label: id, ueZone: id },
-      data.cameras.filter((c) => c.camera_zone_id === id),
-    );
-  }
-
-  return rooms;
+    };
+  });
 }
 
 type Args = {
@@ -221,10 +189,17 @@ export function useRenderJob({
   const retryInFlightRef = useRef(false);
   const lastRetryAtRef = useRef(0);
   const pollTimerRef = useRef<number | null>(null);
+  const pollOnceRef = useRef<() => Promise<void>>(async () => undefined);
   const activeRef = useRef(false);
   const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
-  activeRef.current = active;
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   const storageArgs = useMemo(
     () => ({
@@ -254,7 +229,7 @@ export function useRenderJob({
       setData((prev) => stabilizeCompletedUrls(prev, next));
       setError(null);
 
-      if (next.is_all_rendered) {
+      if (next.is_all_rendered || next.is_terminal) {
         stopPolling();
         return;
       }
@@ -309,10 +284,10 @@ export function useRenderJob({
         stopPolling();
         return;
       }
-      const delay = next.poll_after_ms || DEFAULT_POLL_MS;
+      const delay = DEFAULT_POLL_MS;
       stopPolling();
       pollTimerRef.current = window.setTimeout(() => {
-        void pollOnce();
+        void pollOnceRef.current();
       }, delay);
     } catch (err) {
       if (!activeRef.current || !enabledRef.current) {
@@ -324,7 +299,7 @@ export function useRenderJob({
       setError(message);
       stopPolling();
       pollTimerRef.current = window.setTimeout(() => {
-        void pollOnce();
+        void pollOnceRef.current();
       }, DEFAULT_POLL_MS);
     }
   }, [
@@ -338,6 +313,10 @@ export function useRenderJob({
     storageArgs,
     streamProjectId,
   ]);
+
+  useEffect(() => {
+    pollOnceRef.current = pollOnce;
+  }, [pollOnce]);
 
   const startPolling = useCallback(() => {
     stopPolling();
@@ -472,11 +451,11 @@ export function useRenderJob({
 
   const retryRoom = useCallback(
     (zoneId: string) => {
-      const cams = (data?.cameras ?? [])
-        .filter((c) => c.camera_zone_id === zoneId)
+      const zone = data?.camera_zones.find((z) => z.camera_zone_id === zoneId);
+      const cams = (zone?.cameras ?? [])
         .filter((c) => c.is_failed || c.status === "failed")
         .map((c) => ({
-          camera_zone_id: c.camera_zone_id,
+          camera_zone_id: zoneId,
           camera_id: c.camera_id,
         }));
       void retryFailed(cams);
@@ -506,27 +485,32 @@ export function useRenderJob({
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
-  const rooms = useMemo(
-    () => roomsFromRenders(session, data),
-    [session, data],
-  );
+  const rooms = useMemo(() => roomsFromRenders(session, data), [session, data]);
 
   const stills: LightboxStill[] = useMemo(
     () =>
-      (data?.cameras ?? [])
-        .filter((c) => c.render_s3_url)
-        .map((c) => {
-          const zone = session?.zones.find((z) => z.id === c.camera_zone_id);
-          const cameraLabel = session?.slotLabels[c.camera_id] ?? c.camera_id;
-          return {
-            cameraName: c.camera_id,
-            cameraLabel,
-            zoneId: c.camera_zone_id,
-            zoneName: zone?.label ?? c.camera_zone_id,
-            label: zone ? `${zone.label} - ${cameraLabel}` : cameraLabel,
-            imageUrl: c.render_s3_url as string,
-          };
-        }),
+      (data?.camera_zones ?? []).flatMap((zone) =>
+        zone.cameras
+          .filter((c) => c.render_s3_url)
+          .map((c) => {
+            const zoneName =
+              zone.camera_zone_name?.trim() ||
+              session?.zones.find((z) => z.id === zone.camera_zone_id)?.label ||
+              zone.camera_zone_id;
+            const cameraLabel =
+              c.camera_name?.trim() ||
+              session?.slotLabels[c.camera_id] ||
+              c.camera_id;
+            return {
+              cameraName: c.camera_id,
+              cameraLabel,
+              zoneId: zone.camera_zone_id,
+              zoneName,
+              label: `${zoneName} - ${cameraLabel}`,
+              imageUrl: c.render_s3_url as string,
+            };
+          }),
+      ),
     [data, session],
   );
 
@@ -534,8 +518,7 @@ export function useRenderJob({
     (zoneId: string, cameraName?: string) => {
       const index = stills.findIndex(
         (s) =>
-          s.zoneId === zoneId &&
-          (!cameraName || s.cameraName === cameraName),
+          s.zoneId === zoneId && (!cameraName || s.cameraName === cameraName),
       );
       if (index >= 0) setLightboxIndex(index);
     },
@@ -557,6 +540,7 @@ export function useRenderJob({
     setLightboxIndex,
     error,
     allReady: Boolean(data?.is_all_rendered),
+    totalAmount: parseRenderTotalAmount(data?.total_amount),
     confirmDisabled,
     start,
     resume,
