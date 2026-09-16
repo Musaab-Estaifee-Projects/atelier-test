@@ -54,6 +54,7 @@ async function sendAndWaitAck(
     gapMs?: number;
     label?: string;
     timeoutMs?: number;
+    requireAck?: boolean;
   },
 ): Promise<boolean> {
   const fn = String((payload as { Function?: string }).Function ?? "");
@@ -74,7 +75,7 @@ async function sendAndWaitAck(
   if (!accepted) return false;
   const ack = await pending;
   if (ack === "timeout") {
-    if (PROCEED_ON_TIMEOUT.has(fn)) return true;
+    if (!opts?.requireAck && PROCEED_ON_TIMEOUT.has(fn)) return true;
     console.warn("[UE] ack timeout", fn, types);
     return false;
   }
@@ -145,7 +146,7 @@ export async function exitCameraOnUe(
 export async function loadLevelOnUe(
   send: SendFn,
   levelName: string,
-  opts?: { mockLog?: boolean },
+  opts?: { mockLog?: boolean; requireAck?: boolean },
 ): Promise<boolean> {
   if (!levelName) return false;
   if (opts?.mockLog) {
@@ -161,6 +162,7 @@ export async function loadLevelOnUe(
         gapMs: 400,
         label: "LoadLevel",
         timeoutMs: 16000,
+        requireAck: opts?.requireAck,
       },
     ),
   );
@@ -186,10 +188,226 @@ export async function saveCustomizationToUe(
   return ok;
 }
 
+const KEEP_SAVE_ACK_MS = 25_000;
+const KEEP_SAVE_RETRY_GAP_MS = 800;
+const KEEP_STREAM_READY_MS = 60_000;
+const KEEP_STREAM_EMIT_MS = 30_000;
+const KEEP_LOAD_LEVEL_ACK_MS = 90_000;
+const KEEP_LOAD_CUSTOMIZATION_ACK_MS = 60_000;
+
+async function waitUntilUeReady(
+  isUeReady: () => boolean,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (isUeReady()) return true;
+    await delay(200);
+  }
+  return isUeReady();
+}
+
+async function waitUntilKeepEmitAccepted(
+  send: SendFn,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (send({ Function: "ConfiguratorReadyProbe" })) return true;
+    await delay(250);
+  }
+  return send({ Function: "ConfiguratorReadyProbe" });
+}
+
+/** Keep-customization only: do not SaveCustomization until the live stream can accept it. */
+export async function waitForKeepUeStream(args: {
+  send: SendFn;
+  isUeReady: () => boolean;
+  mockLog?: boolean;
+  onWaiting?: () => void;
+}): Promise<boolean> {
+  if (args.mockLog) return true;
+  const readyNow =
+    args.isUeReady() && args.send({ Function: "ConfiguratorReadyProbe" });
+  if (!readyNow) args.onWaiting?.();
+  if (!(await waitUntilUeReady(args.isUeReady, KEEP_STREAM_READY_MS))) {
+    return false;
+  }
+  return waitUntilKeepEmitAccepted(args.send, KEEP_STREAM_EMIT_MS);
+}
+
+export type KeepSourceRestoreResult = {
+  streamReady: boolean;
+  loadLevel: boolean;
+  loadCustomization: boolean;
+};
+
+/**
+ * Keep-customization only: stream ready → LoadLevel → wait for stream again →
+ * LoadCustomization(source). LoadLevel on a slow connection can take a minute;
+ * we do not fail the keep flow on a lost ack if the stream recovers.
+ */
+export async function restoreKeepSourceOnUe(args: {
+  send: SendFn;
+  isUeReady: () => boolean;
+  layoutCode: string;
+  sourceDesignCode: string;
+  mockLog?: boolean;
+  onWaiting?: () => void;
+  onStreamReady?: () => void;
+}): Promise<KeepSourceRestoreResult> {
+  const layout = args.layoutCode.trim();
+  const source = args.sourceDesignCode.trim();
+  if (!layout || !source) {
+    return { streamReady: false, loadLevel: false, loadCustomization: false };
+  }
+  if (args.mockLog) {
+    args.onStreamReady?.();
+    console.info("[mock UE] Keep restore", { layout, source });
+    return { streamReady: true, loadLevel: true, loadCustomization: true };
+  }
+
+  const waitStream = () =>
+    waitForKeepUeStream({
+      send: args.send,
+      isUeReady: args.isUeReady,
+      mockLog: false,
+      onWaiting: args.onWaiting,
+    });
+
+  if (!(await waitStream())) {
+    args.onStreamReady?.();
+    return { streamReady: false, loadLevel: false, loadCustomization: false };
+  }
+
+  const sendLoadLevel = () =>
+    enqueueApply(() =>
+      sendAndWaitAck(
+        args.send,
+        { Function: "LoadLevel", LevelName: layout },
+        {
+          attempts: 30,
+          gapMs: 500,
+          label: "LoadLevel keep",
+          timeoutMs: KEEP_LOAD_LEVEL_ACK_MS,
+          requireAck: true,
+        },
+      ),
+    );
+
+  let loadLevel = await sendLoadLevel();
+  args.onWaiting?.();
+  const readyAfterLevel = await waitStream();
+  if (!loadLevel && readyAfterLevel) {
+    console.warn(
+      "[UE] Keep LoadLevel ack timed out — stream recovered, retrying LoadLevel once",
+    );
+    loadLevel = await sendLoadLevel();
+    args.onWaiting?.();
+    if (!(await waitStream())) {
+      args.onStreamReady?.();
+      return { streamReady: false, loadLevel, loadCustomization: false };
+    }
+    if (!loadLevel) {
+      console.warn(
+        "[UE] Keep LoadLevel ack still missing — continuing because the stream accepts commands",
+      );
+      loadLevel = true;
+    }
+  } else if (!loadLevel || !readyAfterLevel) {
+    args.onStreamReady?.();
+    return {
+      streamReady: readyAfterLevel,
+      loadLevel,
+      loadCustomization: false,
+    };
+  }
+
+  const sendLoadCustomization = () =>
+    loadCustomizationFromUe(args.send, source, {
+      requireAck: true,
+      timeoutMs: KEEP_LOAD_CUSTOMIZATION_ACK_MS,
+    });
+
+  let loadCustomization = await sendLoadCustomization();
+  if (!loadCustomization) {
+    console.warn(
+      "[UE] Keep LoadCustomization first attempt failed — waiting for stream and retrying once",
+    );
+    args.onWaiting?.();
+    if (!(await waitStream())) {
+      args.onStreamReady?.();
+      return { streamReady: false, loadLevel: true, loadCustomization: false };
+    }
+    loadCustomization = await sendLoadCustomization();
+  }
+
+  args.onStreamReady?.();
+  return {
+    streamReady: true,
+    loadLevel: true,
+    loadCustomization,
+  };
+}
+
+/**
+ * Keep-customization only: wait for the first SaveCustomization ack, then
+ * send once more. Other save paths keep the default timeout and no retry.
+ */
+export async function saveKeepCustomizationToUe(
+  send: SendFn,
+  design_code: string,
+  opts?: {
+    mockLog?: boolean;
+    isUeReady?: () => boolean;
+    onWaiting?: () => void;
+  },
+): Promise<boolean> {
+  const code = design_code.trim();
+  if (!code) return false;
+  if (opts?.mockLog) {
+    console.info("[mock UE] SaveCustomization (keep)", code);
+    return true;
+  }
+  if (opts?.isUeReady) {
+    const ready = await waitForKeepUeStream({
+      send,
+      isUeReady: opts.isUeReady,
+      mockLog: false,
+      onWaiting: opts.onWaiting,
+    });
+    if (!ready) return false;
+  }
+  return enqueueApply(async () => {
+    const attempt = (label: string) =>
+      sendAndWaitAck(
+        send,
+        { Function: "SaveCustomization", design_code: code },
+        {
+          attempts: 16,
+          gapMs: 400,
+          label,
+          timeoutMs: KEEP_SAVE_ACK_MS,
+        },
+      );
+    if (await attempt("SaveCustomization keep")) {
+      noteUeLoadId(code);
+      return true;
+    }
+    console.warn(
+      "[UE] Keep SaveCustomization first attempt failed or timed out — retrying once",
+    );
+    await delay(KEEP_SAVE_RETRY_GAP_MS);
+    const retried = await attempt("SaveCustomization keep retry");
+    if (retried) noteUeLoadId(code);
+    return retried;
+  });
+}
+
 export async function loadCustomizationFromUe(
   send: SendFn,
   design_code: string,
-  opts?: { mockLog?: boolean },
+  opts?: { mockLog?: boolean; requireAck?: boolean; timeoutMs?: number },
 ): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
@@ -197,15 +415,18 @@ export async function loadCustomizationFromUe(
     console.info("[mock UE] LoadCustomization", code);
     return true;
   }
+  const timeoutMs = opts?.timeoutMs ?? 20000;
+  const keep = timeoutMs > 20000;
   const ok = await enqueueApply(() =>
     sendAndWaitAck(
       send,
       { Function: "LoadCustomization", design_code: code },
       {
-        attempts: 12,
-        gapMs: 300,
+        attempts: keep ? 24 : 12,
+        gapMs: keep ? 400 : 300,
         label: `LoadCustomization ${code}`,
-        timeoutMs: 20000,
+        timeoutMs,
+        requireAck: opts?.requireAck,
       },
     ),
   );

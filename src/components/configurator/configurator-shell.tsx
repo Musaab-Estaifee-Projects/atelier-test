@@ -18,7 +18,9 @@ import {
   exitCameraOnUe,
   moveToZoneOnUe,
   resetToDefaultOnUe,
+  restoreKeepSourceOnUe,
   saveCustomizationToUe,
+  saveKeepCustomizationToUe,
   shouldApplyMaterialToMesh,
   switchCameraByNameOnUe,
 } from "@/lib/configurator/apply-ue";
@@ -108,6 +110,7 @@ import ReviewSelections from "./review-selections";
 import LeaveConfiguratorDialog from "./leave-configurator-dialog";
 import FrozenDesignDialog from "./frozen-design-dialog";
 import KeepCustomizationFailedDialog from "./keep-customization-failed-dialog";
+import KeepStreamWaitingDialog from "./keep-stream-waiting-dialog";
 import JourneyGate from "./journey-gate";
 import SelectStyle from "@/components/pages/styles/select-style";
 
@@ -164,6 +167,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [frozenFromRenders, setFrozenFromRenders] = useState(false);
   const [keepCustomizationFailedOpen, setKeepCustomizationFailedOpen] =
     useState(false);
+  const [keepStreamWaitingOpen, setKeepStreamWaitingOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
@@ -1256,65 +1260,123 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     const source = designCodeRef.current?.trim();
     if (!source) return;
     setFrozenDesignPending("keep");
+
+    const failKeep = () => {
+      setFrozenDesignOpen(false);
+      setFrozenDesignPending(null);
+      setKeepCustomizationFailedOpen(true);
+      window.setTimeout(() => setKeepStreamWaitingOpen(false), 0);
+    };
+
     try {
       resumedRendersRef.current = true;
       renderJob.reset();
+      if (params.renders) {
+        setKeepStreamWaitingOpen(true);
+      }
+
+      const layout = session.layoutCode || layoutCode;
+      const restored = await restoreKeepSourceOnUe({
+        send,
+        isUeReady,
+        layoutCode: layout,
+        sourceDesignCode: source,
+        mockLog: MOCK_UE,
+        onWaiting: () => setKeepStreamWaitingOpen(true),
+      });
+      if (
+        !restored.streamReady ||
+        !restored.loadLevel ||
+        !restored.loadCustomization
+      ) {
+        console.warn("[design] keep source restore failed", restored);
+        failKeep();
+        return;
+      }
+
+      appliedReadyRef.current = true;
+      loadedLevelRef.current = layout;
+      setSceneReady(true);
+      setUeSyncError(null);
+      setUeSyncStatus(null);
 
       const fromMap = customMapToStored(session, selections.map);
       const fromDraft =
         loadDraft(
           projectId,
           catalogApiProjectId,
-          session.layoutCode || layoutCode,
+          layout,
           apartmentId,
         )?.selections ?? [];
 
       const nextCode = await createReplacementDesign({
         streamProjectId: projectId,
         backendProjectId: catalogApiProjectId,
-        layoutCode: session.layoutCode || layoutCode,
+        layoutCode: layout,
         apartmentId,
         sourceDesignCode: source,
         selections: fromMap.length ? fromMap : fromDraft,
       });
-      returningVisitRef.current = true;
-      designCodeRef.current = nextCode;
-      invalidateUeSyncCache();
-
-      if (nextCode) {
-        const saved = await saveCustomizationToUe(send, nextCode, {
-          mockLog: MOCK_UE,
-        });
-        if (!saved) {
-          setFrozenDesignOpen(false);
-          setFrozenDesignPending(null);
-          setKeepCustomizationFailedOpen(true);
-          return;
-        }
-      } else {
-        setFrozenDesignOpen(false);
-        setFrozenDesignPending(null);
-        setKeepCustomizationFailedOpen(true);
+      if (!nextCode) {
+        failKeep();
         return;
       }
-      reloadWithoutRenders();
+
+      const saved = await saveKeepCustomizationToUe(send, nextCode, {
+        mockLog: MOCK_UE,
+        isUeReady,
+        onWaiting: () => setKeepStreamWaitingOpen(true),
+      });
+      if (!saved) {
+        failKeep();
+        return;
+      }
+
+      returningVisitRef.current = true;
+      designCodeRef.current = nextCode;
+      appliedReadyRef.current = true;
+      loadedLevelRef.current = layout;
+      setDesignCode(nextCode);
+      setSceneReady(true);
+      setReviewOpen(false);
+      setQuoteDialogOpen(false);
+      setSubmitOpen(false);
+      setFrozenFromRenders(false);
+      renderJob.reset();
+      if (params.renders) {
+        setKeepStreamWaitingOpen(true);
+        setParams({ renders: false }, { replace: true });
+      }
+      setFrozenDesignOpen(false);
+      if (!params.renders) {
+        setFrozenDesignPending(null);
+        setKeepStreamWaitingOpen(false);
+      }
     } catch (err) {
       console.warn("[design] keep customization failed", err);
-      setFrozenDesignPending(null);
-      setFrozenDesignOpen(false);
-      setKeepCustomizationFailedOpen(true);
+      failKeep();
     }
   }, [
     apartmentId,
     catalogApiProjectId,
+    isUeReady,
     layoutCode,
+    params.renders,
     projectId,
-    reloadWithoutRenders,
     renderJob,
     selections.map,
     send,
     session,
+    setParams,
   ]);
+
+  useEffect(() => {
+    if (frozenDesignPending !== "keep") return;
+    if (frozenDesignOpen) return;
+    if (params.renders) return;
+    setFrozenDesignPending(null);
+    setKeepStreamWaitingOpen(false);
+  }, [frozenDesignOpen, frozenDesignPending, params.renders]);
 
   const canReconnect =
     Boolean(projectId) &&
@@ -1749,6 +1811,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               !viewOnly &&
               !quotationReady &&
               !frozenDesignOpen &&
+              !keepStreamWaitingOpen &&
+              frozenDesignPending !== "keep" &&
               (renderJob.active || Boolean(params.renders))
             }
             rooms={renderJob.rooms}
@@ -1808,6 +1872,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           void handleStartNewCustomization();
         }}
         onGoToProjects={handleGoToProjects}
+      />
+
+      <KeepStreamWaitingDialog
+        open={keepStreamWaitingOpen && !viewOnly}
       />
 
       <KeepCustomizationFailedDialog
