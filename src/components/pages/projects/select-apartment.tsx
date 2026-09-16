@@ -59,6 +59,7 @@ const SelectApartment = ({ project }: Props) => {
       typeName: choice.typeName,
       layoutCode: choice.layoutCode || choice.levelName,
       apartmentNumber: choice.apartmentNumber || choice.unitId || null,
+      area: choice.area || null,
     });
 
     router.push(

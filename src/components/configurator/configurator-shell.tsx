@@ -53,7 +53,6 @@ import {
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
-import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
 import { backendProjectIdFromUrl, isBackendProjectId, isStreamProjectId } from "@/lib/projects/project-id";
 import { getValidJourneyToken, readJourney } from "@/lib/journey";
 import type {
@@ -132,7 +131,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     projectId,
   );
   const storageProjectId = catalogApiProjectId || "";
-  const layoutCode = params.layoutCode?.trim() || DEFAULT_LAYOUT_CODE;
+  const layoutCode = params.layoutCode?.trim() || "";
 
   const [journeyReady, setJourneyReady] = useState<boolean | null>(null);
   const returningVisitRef = useRef(false);

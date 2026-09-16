@@ -15,6 +15,8 @@ export type MenuId = "search" | "type" | "layout" | null;
 export type TProjectType = {
   id: number;
   name: string;
+  /** Catalog layout code (same as apartment search `layout.code`). */
+  code?: string;
   layout_code: string;
   layout_area: string;
 };

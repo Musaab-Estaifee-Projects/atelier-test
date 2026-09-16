@@ -1,3 +1,5 @@
+import { formatAreaSqFt } from "@/lib/projects/apartment-display";
+
 export type ResidenceLabel = {
   projectSlug?: string;
   projectName?: string;
@@ -5,6 +7,7 @@ export type ResidenceLabel = {
   typeName?: string;
   layoutCode?: string;
   apartmentNumber?: string | null;
+  area?: string | null;
 };
 
 const STORAGE_KEY = "atelier:residence";
@@ -17,11 +20,15 @@ export function residenceSubtitle(args: {
   projectName?: string | null;
   categoryName?: string | null;
   typeName?: string | null;
+  area?: string | number | null;
 }): string {
   const parts = [args.projectName, args.categoryName, args.typeName]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
-  return parts.join(" - ") || "Your residence";
+  const base = parts.join(" - ");
+  if (!base) return "Your residence";
+  const area = formatAreaSqFt(args.area);
+  return area ? `${base} ${area}` : base;
 }
 
 export function writeResidenceLabel(label: ResidenceLabel): void {
@@ -33,14 +40,15 @@ export function writeResidenceLabel(label: ResidenceLabel): void {
     typeName: label.typeName?.trim() || undefined,
     layoutCode: label.layoutCode?.trim() || undefined,
     apartmentNumber: label.apartmentNumber?.trim() || null,
+    area: label.area?.trim() || undefined,
   };
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-      const json = JSON.stringify(payload);
-      window.sessionStorage.setItem(STORAGE_KEY, json);
-    } catch {
-      /* private mode / quota */
-    }
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    const json = JSON.stringify(payload);
+    window.sessionStorage.setItem(STORAGE_KEY, json);
+  } catch {
+    /* private mode / quota */
+  }
 }
 
 export function readResidenceLabel(): ResidenceLabel | null {

@@ -39,7 +39,10 @@ export async function getConfiguratorSession(args: {
       400,
     );
   }
-  const layoutCode = args.layoutCode?.trim() || "1bhk_type_3";
+  const layoutCode = args.layoutCode?.trim();
+  if (!layoutCode) {
+    throw new ApiError("A layout is required to load the apartment catalog.", 400);
+  }
   try {
     const catalog = await getLayoutCatalog(layoutCode, backendProjectId);
     return mapLayoutCatalogToSession({

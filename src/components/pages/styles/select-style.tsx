@@ -5,7 +5,6 @@ import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
 import {
   configuratorHref,
-  getProject,
 } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
@@ -47,22 +46,17 @@ const SelectStyle = ({
 }: Props) => {
   const stored = readResidenceLabel();
   const slug = projectSlug || stored?.projectSlug;
-  const project = slug ? getProject(slug) : undefined;
   const streamId = streamProjectId?.trim() || "";
+  const layoutCode = (levelName || stored?.layoutCode || "").trim();
 
   const customizeHref = streamId
     ? configuratorHref(
         {
           streamProjectId: streamId,
           slug: slug || undefined,
-          projectId: projectId || project?.projectId,
-          levelName: levelName || stored?.layoutCode || project?.levelName || "",
-          layoutCode:
-            levelName ||
-            stored?.layoutCode ||
-            project?.layoutCode ||
-            project?.levelName ||
-            "",
+          projectId: projectId || undefined,
+          levelName: layoutCode,
+          layoutCode,
         },
         {
           apartmentId,

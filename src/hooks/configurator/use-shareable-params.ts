@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ShareableConfiguratorParams } from "@/types/configurator";
 import { normalizeZone } from "@/lib/configurator/url-params";
-import { DEFAULT_LAYOUT_CODE } from "@/lib/projects/catalog";
 import { isStreamProjectId } from "@/lib/projects/project-id";
 
 function firstParam(
@@ -58,9 +57,7 @@ export function useShareableParams(streamIdFromRoute: string) {
       unit: firstParam(searchParams, "apartment_number", "unit"),
       apartmentId: firstParam(searchParams, "apartment_id", "apartmentId"),
       apartmentNumber: firstParam(searchParams, "apartment_number", "unit"),
-      layoutCode:
-        firstParam(searchParams, "layout_code", "layoutCode", "level") ??
-        DEFAULT_LAYOUT_CODE,
+      layoutCode: firstParam(searchParams, "layout_code", "layoutCode", "level"),
       camera,
       zone: normalizeZone(searchParams.get("zone")),
       view: searchParams.get("view") === "1",
@@ -78,7 +75,13 @@ export function useShareableParams(streamIdFromRoute: string) {
     const rawZone = searchParams.get("zone");
     const emptyZone =
       searchParams.has("zone") && normalizeZone(rawZone) == null;
-    const missingCanonical = !searchParams.get("layout_code");
+    const aliasedLayout = firstParam(
+      searchParams,
+      "layoutCode",
+      "level",
+    );
+    const missingCanonical =
+      !searchParams.get("layout_code") && Boolean(aliasedLayout);
     const streamAsProject =
       searchParams.get("project_id") === streamIdFromRoute ||
       isStreamProjectId(searchParams.get("project_id"), streamIdFromRoute);
@@ -92,9 +95,7 @@ export function useShareableParams(streamIdFromRoute: string) {
       "project_id",
       "projectId",
     );
-    const layout =
-      firstParam(searchParams, "layout_code", "layoutCode", "level") ??
-      DEFAULT_LAYOUT_CODE;
+    const layout = firstParam(searchParams, "layout_code", "layoutCode", "level");
     const apartmentId = firstParam(
       searchParams,
       "apartment_id",
@@ -115,7 +116,8 @@ export function useShareableParams(streamIdFromRoute: string) {
     } else {
       next.delete("project_id");
     }
-    next.set("layout_code", layout);
+    if (layout) next.set("layout_code", layout);
+    else next.delete("layout_code");
     if (apartmentId) next.set("apartment_id", apartmentId);
     else next.delete("apartment_id");
     if (apartmentNumber) next.set("apartment_number", apartmentNumber);

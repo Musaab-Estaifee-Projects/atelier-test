@@ -69,9 +69,15 @@ const LoadingUnit = ({
       <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
         Loading Your Unit
       </h1>
-      <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
-        {unitSubtitle}
-      </p>
+      {unitSubtitle === "Your residence" ? (
+        <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize animate-pulse">
+          {unitSubtitle}
+        </p>
+      ) : (
+        <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
+          {unitSubtitle}
+        </p>
+      )}
       <div className="mt-6 h-0.5 w-full max-w-116.75 overflow-hidden bg-white/10">
         <div
           className="h-full bg-[#ada599] transition-[width] duration-700 ease-out"
@@ -411,7 +417,7 @@ const LoadingOverlay = ({
                 endedMessage ??
                 "Please try again, or go back and choose another apartment."
               }
-              secondaryLabel="Back to projects"
+              secondaryLabel="Start new customization"
               onReconnect={onReconnect}
               onSecondary={onBackHome}
             />

@@ -1,4 +1,5 @@
-/** Marketing projects on the Select a Project screen. */
+/** Helpers for configurator / styles URLs. Layout code always comes from the API. */
+
 export type CatalogProject = {
   slug: string;
   name: string;
@@ -6,67 +7,17 @@ export type CatalogProject = {
   handover: string;
   residences: string;
   streamProjectId: string;
-  /** Selected marketing/backend project id — never the StreamPixel app id. */
   projectId: string;
   unitId: string;
   levelName: string;
   layoutCode?: string;
 };
 
-/** Shared StreamPixel session until each tower has its own app id. */
-export const DEMO_STREAM_PROJECT_ID = "6a427d215af97179992c7c66";
-/** Backend catalog project id until it is supplied by the API. */
-export const DEMO_BACKEND_PROJECT_ID = "6a427d215af97179992c7c66";
-export const DEMO_UNIT_ID = "LO-APT-2BHK-T02";
-export const DEMO_LEVEL_NAME = "1bhk_type_3";
-export const DEFAULT_LAYOUT_CODE = "1bhk_type_3";
-
-export const CATALOG_PROJECTS: CatalogProject[] = [
-  {
-    slug: "reef-996",
-    name: "REEF 996",
-    image: "/images/projects/reef-996.png",
-    handover: "Q1 2028",
-    residences: "63 Residences",
-    streamProjectId: DEMO_STREAM_PROJECT_ID,
-    projectId: "reef-996",
-    unitId: DEMO_UNIT_ID,
-    levelName: DEMO_LEVEL_NAME,
-    layoutCode: DEFAULT_LAYOUT_CODE,
-  },
-  {
-    slug: "reef-997",
-    name: "REEF 997",
-    image: "/images/projects/reef-997.png",
-    handover: "Q1 2028",
-    residences: "63 Residences",
-    streamProjectId: DEMO_STREAM_PROJECT_ID,
-    projectId: "reef-997",
-    unitId: DEMO_UNIT_ID,
-    levelName: DEMO_LEVEL_NAME,
-    layoutCode: DEFAULT_LAYOUT_CODE,
-  },
-  {
-    slug: "reef-998",
-    name: "REEF 998",
-    image: "/images/projects/reef-998.png",
-    handover: "Q1 2028",
-    residences: "63 Residences",
-    streamProjectId: DEMO_STREAM_PROJECT_ID,
-    projectId: "reef-998",
-    unitId: DEMO_UNIT_ID,
-    levelName: DEMO_LEVEL_NAME,
-    layoutCode: DEFAULT_LAYOUT_CODE,
-  },
-];
-
-export function getProject(slug: string): CatalogProject | undefined {
-  return CATALOG_PROJECTS.find((p) => p.slug === slug);
-}
-
 export function configuratorHref(
-  project: Pick<CatalogProject, "streamProjectId" | "levelName"> & {
+  project: {
+    streamProjectId: string;
     layoutCode?: string;
+    levelName?: string;
     projectId?: string;
     backendProjectId?: string;
     slug?: string;
@@ -81,10 +32,10 @@ export function configuratorHref(
   },
 ): string {
   const streamId = project.streamProjectId?.trim();
-  const layoutCode =
-    project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE;
+  const layoutCode = (project.layoutCode || project.levelName || "").trim();
   const selectedProjectId = project.projectId || project.backendProjectId || "";
-  const q = new URLSearchParams({ layout_code: layoutCode });
+  const q = new URLSearchParams();
+  if (layoutCode) q.set("layout_code", layoutCode);
   if (project.slug) q.set("project", project.slug);
   if (selectedProjectId && /^\d+$/.test(selectedProjectId)) {
     q.set("project_id", selectedProjectId);
@@ -95,20 +46,22 @@ export function configuratorHref(
   if (extra?.style) q.set("style", extra.style);
   if (extra?.view) q.set("view", "1");
   if (extra?.renders) q.set("renders", "1");
-  return `/configurator/${streamId}?${q.toString()}`;
+  const qs = q.toString();
+  return qs ? `/configurator/${streamId}?${qs}` : `/configurator/${streamId}`;
 }
 
-export function stylesHref(
-  project: Pick<CatalogProject, "slug" | "unitId" | "levelName"> & {
-    layoutCode?: string;
-    projectId?: string;
-    apartmentId?: string;
-    apartmentNumber?: string;
-  },
-): string {
-  const q = new URLSearchParams({
-    layout_code: project.layoutCode || project.levelName || DEFAULT_LAYOUT_CODE,
-  });
+export function stylesHref(project: {
+  slug?: string;
+  layoutCode?: string;
+  levelName?: string;
+  projectId?: string;
+  apartmentId?: string;
+  apartmentNumber?: string;
+  unitId?: string;
+}): string {
+  const q = new URLSearchParams();
+  const layoutCode = (project.layoutCode || project.levelName || "").trim();
+  if (layoutCode) q.set("layout_code", layoutCode);
   if (project.slug) q.set("project", project.slug);
   if (project.projectId && /^\d+$/.test(project.projectId)) {
     q.set("project_id", project.projectId);
@@ -116,5 +69,6 @@ export function stylesHref(
   const apartmentNumber = project.apartmentNumber || project.unitId;
   if (apartmentNumber) q.set("apartment_number", apartmentNumber);
   if (project.apartmentId) q.set("apartment_id", project.apartmentId);
-  return `/styles?${q.toString()}`;
+  const qs = q.toString();
+  return qs ? `/styles?${qs}` : "/styles";
 }

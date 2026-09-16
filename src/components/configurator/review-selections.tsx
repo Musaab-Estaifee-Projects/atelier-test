@@ -190,14 +190,16 @@ const ReviewSkeleton = () => (
           <div
             className={cn("hidden border-b border-white/10 md:grid", ROW_GRID)}
           >
-            {["Surface", "Mesh", "Material", "Area", "Price"].map((label) => (
-              <p
-                key={label}
-                className="px-2 py-3 text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase"
-              >
-                {label}
-              </p>
-            ))}
+            {["Surface", "Finish Type", "Variation", "Area", "Price"].map(
+              (label) => (
+                <p
+                  key={label}
+                  className="px-2 py-3 text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase"
+                >
+                  {label}
+                </p>
+              ),
+            )}
             <div />
           </div>
           {Array.from({ length: 4 }).map((__, rowIndex) => (
@@ -346,16 +348,20 @@ const ReviewSelections = ({
                         ROW_GRID,
                       )}
                     >
-                      {["Surface", "Mesh", "Material", "Area", "Price"].map(
-                        (label) => (
-                          <p
-                            key={label}
-                            className="px-2 py-3 text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase"
-                          >
-                            {label}
-                          </p>
-                        ),
-                      )}
+                      {[
+                        "Surface",
+                        "Finish Type",
+                        "Variation",
+                        "Area",
+                        "Price",
+                      ].map((label) => (
+                        <p
+                          key={label}
+                          className="px-2 py-3 text-[10px] font-medium tracking-[0.03em] text-white/50 uppercase"
+                        >
+                          {label}
+                        </p>
+                      ))}
                       <div />
                     </div>
 
@@ -417,7 +423,7 @@ const ReviewSelections = ({
                           </div>
 
                           <div className="mt-3 px-0 md:mt-0 md:px-2 md:py-3">
-                            <CellLabel>Mesh</CellLabel>
+                            <CellLabel>Finish Type</CellLabel>
                             <div className="mt-1.5 md:mt-0">
                               <MeshCell
                                 selected={line.meshSelected}
@@ -432,7 +438,7 @@ const ReviewSelections = ({
                           </div>
 
                           <div className="mt-3 px-0 md:mt-0 md:px-2 md:py-3">
-                            <CellLabel>Material</CellLabel>
+                            <CellLabel>Variation</CellLabel>
                             <div className="mt-1.5 md:mt-0">
                               <MaterialCell
                                 selected={line.materialSelected}

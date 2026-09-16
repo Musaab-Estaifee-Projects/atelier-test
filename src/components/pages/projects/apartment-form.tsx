@@ -20,6 +20,7 @@ export type ApartmentChoice = {
   layoutCode?: string;
   categoryName?: string;
   typeName?: string;
+  area?: string | null;
 };
 
 type Props = {

@@ -23,6 +23,7 @@ import {
   TApartmentSearchItem,
 } from "@/services/search-apartments.service";
 import { isDesignCode, normalizeDesignCode } from "@/lib/projects/apartments";
+import { formatApartmentSearchLabel, apartmentNumberFromQuery } from "@/lib/projects/apartment-display";
 
 const schema = z.object({
   query: z.string(),
@@ -63,9 +64,11 @@ const SelectStep = ({
   const [selectedUnit, setSelectedUnit] = useState<{
     id: string;
     number: string;
+    label: string;
     layoutCode: string;
     categoryName: string;
     typeName: string;
+    area: string;
   } | null>(null);
 
   // Search + pagination state
@@ -108,8 +111,9 @@ const SelectStep = ({
     return category.types.map((t) => ({
       id: String(t.id),
       label: `${t.name} - ${t.layout_area} sq ft`,
-      layoutCode: t.layout_code,
+      layoutCode: t.code?.trim() || t.layout_code,
       name: t.name,
+      area: t.layout_area,
     }));
   }, [categoryId, project.categories]);
 
@@ -120,9 +124,11 @@ const SelectStep = ({
       setSelectedUnit({
         id: String(item.id),
         number: item.apartment_number,
-        layoutCode: item.layout.code,
+        label: formatApartmentSearchLabel(item),
+        layoutCode: item.layout.code.trim(),
         categoryName: item.layout.category.name,
         typeName: item.layout.type.name,
+        area: item.layout.area,
       });
     },
     [form],
@@ -131,6 +137,16 @@ const SelectStep = ({
   // Debounced first-page search
   useEffect(() => {
     const trimmed = query.trim();
+    const apartmentNumber = apartmentNumberFromQuery(trimmed);
+
+    if (selectedUnit && trimmed === selectedUnit.label) {
+      setSuggestions([]);
+      setIsSearching(false);
+      setIsLoadingMore(false);
+      setHasMore(false);
+      setActiveQuery("");
+      return;
+    }
 
     if (!trimmed) {
       setSuggestions([]);
@@ -143,7 +159,7 @@ const SelectStep = ({
       return;
     }
 
-    if (isDesignCode(trimmed)) {
+    if (isDesignCode(trimmed) || isDesignCode(apartmentNumber)) {
       setSuggestions([]);
       setIsSearching(false);
       setIsLoadingMore(false);
@@ -159,9 +175,9 @@ const SelectStep = ({
 
     const timer = setTimeout(async () => {
       try {
-        const res = await searchApartments(project.id, trimmed, 1);
+        const res = await searchApartments(project.id, apartmentNumber, 1);
         setSuggestions(res.data);
-        setActiveQuery(trimmed);
+        setActiveQuery(apartmentNumber);
         setHasMore(res.pagination.current_page < res.pagination.last_page);
         setPage(1);
       } catch {
@@ -174,7 +190,7 @@ const SelectStep = ({
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [query, project.id]);
+  }, [query, project.id, selectedUnit]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -272,7 +288,7 @@ const SelectStep = ({
     const item = suggestions.find((s) => String(s.id) === apartmentId);
     if (!item) return;
 
-    form.setValue("query", item.apartment_number);
+    form.setValue("query", formatApartmentSearchLabel(item));
     applyApartmentToSelects(item);
     setLocalError(null);
     setOpenMenu(null);
@@ -299,6 +315,7 @@ const SelectStep = ({
         layoutCode: selectedUnit.layoutCode,
         categoryName: selectedUnit.categoryName,
         typeName: selectedUnit.typeName,
+        area: selectedUnit.area,
       });
       return;
     }
@@ -313,9 +330,10 @@ const SelectStep = ({
           apartmentId: String(exact.id),
           apartmentNumber: exact.apartment_number,
           levelName: "",
-          layoutCode: exact.layout.code,
+          layoutCode: exact.layout.code.trim(),
           categoryName: exact.layout.category.name,
           typeName: exact.layout.type.name,
+          area: exact.layout.area,
         });
         return;
       }
@@ -337,6 +355,7 @@ const SelectStep = ({
           layoutCode: type.layoutCode,
           categoryName: category?.name,
           typeName: type.name,
+          area: type.area,
         });
         return;
       }
@@ -414,7 +433,7 @@ const SelectStep = ({
               <OptionList
                 options={suggestions.map((item) => ({
                   id: String(item.id),
-                  label: `${item.apartment_number} - ${item.layout.category.name} - ${item.layout.type.name} - ${item.layout.area} sq ft`,
+                  label: formatApartmentSearchLabel(item),
                 }))}
                 isLoading={isSearching}
                 isLoadingMore={isLoadingMore}
