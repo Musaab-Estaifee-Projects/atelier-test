@@ -227,7 +227,9 @@ export const RoundedRect = forwardRef<HTMLDivElement, RoundedRectProps>(
           )}
         </svg>
 
-        <div className="relative z-10 h-full w-full">{children}</div>
+        <div className="relative z-10 h-full w-full text-center! self-center">
+          {children}
+        </div>
       </motion.div>
     );
   },
