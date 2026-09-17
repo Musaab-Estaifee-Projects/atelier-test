@@ -31,7 +31,14 @@ import {
   type UeSyncResult,
 } from "@/lib/configurator/sync-to-ue";
 import { getMeshesForCamera } from "@/lib/configurator/mesh-rules";
-import { appliedSelectionMap, clearDraft, isUnstartedRendersDraft, loadDraft, markFreshStartIntent, patchDraft } from "@/lib/configurator/storage";
+import {
+  appliedSelectionMap,
+  clearDraft,
+  isUnstartedRendersDraft,
+  loadDraft,
+  markFreshStartIntent,
+  patchDraft,
+} from "@/lib/configurator/storage";
 import { customMapToStored } from "@/lib/configurator/api-selections";
 import {
   createReplacementDesign,
@@ -53,7 +60,11 @@ import {
   zoneIdFromCamera,
 } from "@/lib/configurator/zone-catalog";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
-import { backendProjectIdFromUrl, isBackendProjectId, isStreamProjectId } from "@/lib/projects/project-id";
+import {
+  backendProjectIdFromUrl,
+  isBackendProjectId,
+  isStreamProjectId,
+} from "@/lib/projects/project-id";
 import { getValidJourneyToken, readJourney } from "@/lib/journey";
 import type {
   CameraRule,
@@ -123,8 +134,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const router = useRouter();
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
-  const unitId =
-    params.apartmentNumber?.trim() || params.unit?.trim() || null;
+  const unitId = params.apartmentNumber?.trim() || params.unit?.trim() || null;
   const apartmentId = params.apartmentId?.trim() || null;
   const catalogApiProjectId = backendProjectIdFromUrl(
     params.backendProjectId,
@@ -560,7 +570,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       try {
         if (!catalogApiProjectId) {
           throw new Error(
-            "A valid project is required to load this apartment catalog.",
+            "A valid project or layout is required to load this apartment catalog.",
           );
         }
 
@@ -630,12 +640,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   }, [session, design, viewOnly, designCode]);
 
   useEffect(() => {
-    if (
-      !params.renders ||
-      viewOnly ||
-      !designCode ||
-      !session
-    ) {
+    if (!params.renders || viewOnly || !designCode || !session) {
       return;
     }
     const draft = loadDraft(
@@ -656,7 +661,17 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     setReviewOpen(false);
     renderJob.resume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.renders, viewOnly, designCode, session, frozenDesignOpen, apartmentId, layoutCode, projectId, storageProjectId]);
+  }, [
+    params.renders,
+    viewOnly,
+    designCode,
+    session,
+    frozenDesignOpen,
+    apartmentId,
+    layoutCode,
+    projectId,
+    storageProjectId,
+  ]);
 
   useEffect(() => {
     if (stream.isLoading || !session || !selections.hydrated) return;
@@ -986,7 +1001,15 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         else selections.revertSlot(slot);
       });
     },
-    [viewOnly, getMaterials, selections, activeRule, send, appliedPanelMap, session],
+    [
+      viewOnly,
+      getMaterials,
+      selections,
+      activeRule,
+      send,
+      appliedPanelMap,
+      session,
+    ],
   );
 
   const handleRemoveSelection = useCallback(
@@ -1301,12 +1324,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       const fromMap = customMapToStored(session, selections.map);
       const fromDraft =
-        loadDraft(
-          projectId,
-          catalogApiProjectId,
-          layout,
-          apartmentId,
-        )?.selections ?? [];
+        loadDraft(projectId, catalogApiProjectId, layout, apartmentId)
+          ?.selections ?? [];
 
       const nextCode = await createReplacementDesign({
         streamProjectId: projectId,
@@ -1873,9 +1892,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         onGoToProjects={handleGoToProjects}
       />
 
-      <KeepStreamWaitingDialog
-        open={keepStreamWaitingOpen && !viewOnly}
-      />
+      <KeepStreamWaitingDialog open={keepStreamWaitingOpen && !viewOnly} />
 
       <KeepCustomizationFailedDialog
         open={keepCustomizationFailedOpen && !viewOnly}

@@ -5,6 +5,7 @@ export const ENDPOINTS = {
   GET_LAYOUT_CATALOG: (layoutCode: string) => `/layouts/${layoutCode}/catalog`,
   CREATE_CUSTOMER: "/customers",
   CREATE_DESIGN: "/designs",
+  GET_DESIGN: (designCode: string) => `/designs/${designCode}`,
   DESIGN_SUMMARY: (designCode: string) => `/designs/${designCode}/summary`,
   PREPARE_RENDERS: (designCode: string) =>
     `/designs/${designCode}/prepare-renders`,

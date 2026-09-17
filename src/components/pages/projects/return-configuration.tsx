@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import OverlayDialog from "@/components/ui/overlay-dialog";
-import { getDesign } from "@/lib/configurator/api";
-import { isDesignCode, normalizeDesignCode } from "@/lib/projects/apartments";
-import { configuratorHref } from "@/lib/projects/catalog";
 import { CustomShape } from "@/components/shared/custom-shape";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import {
+  isQuotationDesignCode,
+  normalizeQuotationDesignCode,
+} from "@/lib/quotation/design-code";
 
 type Props = {
   open: boolean;
@@ -23,20 +24,18 @@ const schema = z.object({
     .string()
     .trim()
     .min(1, "Invalid Reference")
-    .transform((v) => v.replace(/\s+/g, "").toUpperCase()),
+    .transform((value) => normalizeQuotationDesignCode(value))
+    .refine((value) => isQuotationDesignCode(value), {
+      message: "Invalid Reference",
+    }),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-function normalizeReference(raw: string): string {
-  const trimmed = raw.trim().replace(/\s+/g, "").toUpperCase();
-  if (isDesignCode(trimmed)) return normalizeDesignCode(trimmed);
-  return trimmed;
-}
-
 const ReturnConfiguration = ({ open, onClose }: Props) => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -46,33 +45,18 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
   useEffect(() => {
     if (!open) return;
     form.reset({ reference: "" });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPending(false);
     const id = window.requestAnimationFrame(() => inputRef.current?.focus());
     return () => window.cancelAnimationFrame(id);
   }, [open, form]);
 
-  const handleSubmit = async (values: FormValues) => {
-    const reference = normalizeReference(values.reference);
-    form.clearErrors();
-
-    try {
-      const design = await getDesign(reference);
-      router.push(
-        configuratorHref(
-            {
-              streamProjectId: design.streamProjectId,
-              levelName: design.configuration.levelName,
-              layoutCode: design.configuration.levelName,
-            },
-            { view: true },
-        ),
-      );
-    } catch {
-      form.setError("reference", { message: "Invalid Reference" });
-    }
+  const handleSubmit = (values: FormValues) => {
+    setPending(true);
+    router.push(`/quotation/${encodeURIComponent(values.reference)}`);
   };
 
   const invalid = !!form.formState.errors.reference;
-  const pending = form.formState.isSubmitting;
 
   return (
     <OverlayDialog
@@ -111,7 +95,6 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
                       <FormControl>
                         <input
                           {...field}
-                          // ref={inputRef}
                           ref={(el) => {
                             field.ref(el);
                             inputRef.current = el;
@@ -151,7 +134,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
                 className="w-full max-w-87"
                 disabled={pending}
               >
-                {pending ? "Checking…" : "Continue"}
+                {pending ? "Opening…" : "Continue"}
               </Button>
 
               <p

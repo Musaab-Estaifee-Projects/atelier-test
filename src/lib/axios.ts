@@ -9,12 +9,26 @@ const apiClient = axios.create({
   },
 });
 
+// apiClient.interceptors.request.use((config) => {
+//   const url = `${config.baseURL ?? ""}${config.url ?? ""}`;
+//   const isCreateCustomer =
+//     (config.method ?? "get").toLowerCase() === "post" &&
+//     url.includes("/customers");
+//   if (isCreateCustomer) return config;
+//   const token = getValidJourneyToken();
+//   if (token) {
+//     config.headers.Authorization = `Bearer ${token}`;
+//   }
+//   return config;
+// });
+
 apiClient.interceptors.request.use((config) => {
-  const url = `${config.baseURL ?? ""}${config.url ?? ""}`;
-  const isCreateCustomer =
-    (config.method ?? "get").toLowerCase() === "post" &&
-    url.includes("/customers");
-  if (isCreateCustomer) return config;
+  const method = (config.method ?? "get").toLowerCase();
+  const path = String(config.url ?? "").split("?")[0];
+  const isCreateCustomer = method === "post" && path.includes("/customers");
+  const isPublicGetDesign =
+    method === "get" && /^\/designs\/[^/]+\/?$/.test(path);
+  if (isCreateCustomer || isPublicGetDesign) return config;
   const token = getValidJourneyToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

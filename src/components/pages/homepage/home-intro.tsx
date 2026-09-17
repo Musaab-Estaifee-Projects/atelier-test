@@ -374,7 +374,7 @@ export default function HomeIntro() {
             {[
               { href: "/about", label: "ABOUT" },
               { href: "/projects", label: "PROJECTS" },
-              { href: "/reference-number", label: "REFERENCE NUMBER" },
+              { href: "/quotation", label: "REFERENCE NUMBER" },
             ].map(({ href, label }) => (
               <Link
                 key={href}
