@@ -71,11 +71,9 @@ function writeContactFromCustomer(customer: StoredCustomer): ContactInfo {
     window.localStorage.setItem(
       CONTACT_STORAGE_KEY,
       JSON.stringify({
-        name: info.name,
+        full_name: customer.full_name,
         email: info.email,
         phone: info.phone,
-        role: info.role,
-        full_name: customer.full_name,
         customer_type: customer.customer_type,
       }),
     );
