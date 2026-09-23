@@ -86,6 +86,7 @@ declare module "streampixelsdk" {
 
   export type UIControlInstance = {
     getResolution: () => unknown;
+    handleResMax?: (value: string) => void;
     setResolution?: (opts: {
       width?: number;
       height?: number;

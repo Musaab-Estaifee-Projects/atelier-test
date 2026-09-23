@@ -61,6 +61,7 @@ export function useShareableParams(streamIdFromRoute: string) {
       camera,
       zone: normalizeZone(searchParams.get("zone")),
       view: searchParams.get("view") === "1",
+      summary: searchParams.get("summary") === "1",
       renders:
         searchParams.get("renders") === "1" ||
         searchParams.get("renders") === "true",
@@ -171,6 +172,10 @@ export function useShareableParams(streamIdFromRoute: string) {
       if (patch.view !== undefined) {
         if (patch.view) next.set("view", "1");
         else next.delete("view");
+      }
+      if (patch.summary !== undefined) {
+        if (patch.summary) next.set("summary", "1");
+        else next.delete("summary");
       }
       if (patch.streamerId !== undefined) {
         if (patch.streamerId) next.set("streamerId", patch.streamerId);

@@ -28,7 +28,11 @@ apiClient.interceptors.request.use((config) => {
   const isCreateCustomer = method === "post" && path.includes("/customers");
   const isPublicGetDesign =
     method === "get" && /^\/designs\/[^/]+\/?$/.test(path);
-  if (isCreateCustomer || isPublicGetDesign) return config;
+  const isPublicGetDesignConfiguration =
+    method === "get" && /^\/designs\/[^/]+\/configuration\/?$/.test(path);
+  if (isCreateCustomer || isPublicGetDesign || isPublicGetDesignConfiguration) {
+    return config;
+  }
   const token = getValidJourneyToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

@@ -38,12 +38,20 @@ import {
   loadDraft,
   markFreshStartIntent,
   patchDraft,
+  hasDraftForLayout,
+  clearDraftsForLayout,
 } from "@/lib/configurator/storage";
 import { customMapToStored } from "@/lib/configurator/api-selections";
 import {
   createReplacementDesign,
   ensureBackendDesign,
 } from "@/lib/configurator/ensure-design";
+import { cloneQuotationDesign } from "@/lib/quotation/clone-design";
+import {
+  clearQuotationResume,
+  patchQuotationResume,
+  readQuotationResume,
+} from "@/lib/quotation/resume-intent";
 import {
   locationWithoutRenders,
   normalizeZone,
@@ -66,6 +74,9 @@ import {
   isStreamProjectId,
 } from "@/lib/projects/project-id";
 import { getValidJourneyToken, readJourney } from "@/lib/journey";
+import { confirmDesign } from "@/services/confirm-design.service";
+import type { ConfirmDesignData } from "@/services/confirm-design.service";
+import type { DesignSummaryData } from "@/services/post-design-summary.service";
 import type {
   CameraRule,
   ConfiguratorCamera,
@@ -78,6 +89,7 @@ import type {
   SubmitDesignResult,
 } from "@/types/configurator";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
+import { setStreamResolution } from "@/lib/stream-pixel/stream-control";
 import { useShareableParams } from "@/hooks/configurator/use-shareable-params";
 import { useCameraZone } from "@/hooks/configurator/use-camera-zone";
 import { useSelectionMap } from "@/hooks/configurator/use-selection-map";
@@ -122,6 +134,7 @@ import FrozenDesignDialog from "./frozen-design-dialog";
 import KeepCustomizationFailedDialog from "./keep-customization-failed-dialog";
 import KeepStreamWaitingDialog from "./keep-stream-waiting-dialog";
 import JourneyGate from "./journey-gate";
+import OverrideCustomizationDialog from "@/components/pages/quotation/override-customization-dialog";
 import SelectStyle from "@/components/pages/styles/select-style";
 
 const MOCK_UE =
@@ -134,6 +147,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const router = useRouter();
   const { params, setParams } = useShareableParams(projectId);
   const viewOnly = Boolean(params.view);
+  const summaryOnly = Boolean(params.summary);
   const unitId = params.apartmentNumber?.trim() || params.unit?.trim() || null;
   const apartmentId = params.apartmentId?.trim() || null;
   const catalogApiProjectId = backendProjectIdFromUrl(
@@ -165,6 +179,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SubmitDesignResult | null>(null);
   const [quotationReady, setQuotationReady] = useState(false);
+  const [confirmedQuote, setConfirmedQuote] =
+    useState<ConfirmDesignData | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const confirmInFlightRef = useRef(false);
   const [rendersNotReadyOpen, setRendersNotReadyOpen] = useState(false);
   const [ueSyncStatus, setUeSyncStatus] = useState<string | null>(null);
   const [ueSyncError, setUeSyncError] = useState<string | null>(null);
@@ -178,6 +197,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     useState(false);
   const [keepStreamWaitingOpen, setKeepStreamWaitingOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [viewEditOverrideOpen, setViewEditOverrideOpen] = useState(false);
+  const [viewEditPending, setViewEditPending] = useState(false);
+  const [viewEditOverridePending, setViewEditOverridePending] = useState(false);
+  const [viewEditError, setViewEditError] = useState<string | null>(null);
+  const [seededSummary, setSeededSummary] = useState<DesignSummaryData | null>(
+    null,
+  );
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(() =>
     matchZoneId(params.zone),
@@ -314,6 +340,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     [cameraZone, setParams],
   );
 
+  const quotationResumeMode =
+    typeof window === "undefined"
+      ? null
+      : (readQuotationResume()?.mode ?? null);
+  const holdStreamForQuotation =
+    Boolean(quotationResumeMode) &&
+    !summaryOnly &&
+    !designCode &&
+    (quotationResumeMode === "edit" || quotationResumeMode === "fresh");
+
   const stream = useStreamPixel({
     projectId,
     streamerId: params.streamerId,
@@ -322,6 +358,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     onUeResponse: handleUeResponse,
     videoContainerRef,
     fullscreenTargetRef: shellRef,
+    enabled: !summaryOnly && !holdStreamForQuotation,
   });
 
   useEffect(() => {
@@ -361,10 +398,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   ingestRenderRef.current = finalDesign.ingestUeResponse;
   capturePhaseRef.current = finalDesign.phase;
 
+  const quotationResume = readQuotationResume();
+  const quotationEditPendingClone =
+    quotationResume?.mode === "edit" && !quotationResume.clonedDesignCode;
+
   const designSummary = useDesignSummary({
     enabled:
       journeyReady === true &&
       !viewOnly &&
+      !summaryOnly &&
+      !quotationEditPendingClone &&
       Boolean(session && designCode && selections.hydrated),
     streamProjectId: projectId,
     backendProjectId: storageProjectId,
@@ -380,7 +423,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   });
 
   const renderJob = useRenderJob({
-    enabled: journeyReady === true && !viewOnly,
+    enabled:
+      journeyReady === true && !viewOnly && !quotationEditPendingClone,
     send,
     mockUe: MOCK_UE,
     streamProjectId: projectId,
@@ -393,8 +437,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   });
   const resumedRendersRef = useRef(false);
 
+  const pendingViewEditRef = useRef(false);
+  const quoteAdoptInFlightRef = useRef(false);
+
   useEffect(() => {
-    if (viewOnly) {
+    if (viewOnly && !pendingViewEditRef.current) {
       setJourneyReady(true);
       return;
     }
@@ -405,7 +452,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     if (journeyReady === false) setSessionLoading(false);
   }, [journeyReady]);
 
-  const isUeReady = useCallback(() => {
+  const isUeReady = () => {
     if (MOCK_UE) return true;
     const ps = stream.pixelStreamingRef.current as {
       emitUIInteraction?: (p: Record<string, unknown>) => boolean | void;
@@ -415,7 +462,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       "video",
     ) as HTMLVideoElement | null;
     return Boolean(video && video.readyState >= 2);
-  }, [stream.pixelStreamingRef, stream.streamReadyRef]);
+  };
 
   const runUeSync = useCallback(
     async (opts?: {
@@ -425,11 +472,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       requireLoadCustomization?: boolean;
     }) => {
       if (!session) return { ...UE_SYNC_FAIL };
-      if (viewOnly) return { ...UE_SYNC_FAIL };
+      if (summaryOnly) {
+        return { ok: true, loadLevel: true, loadCustomization: true };
+      }
 
       const code = designCodeRef.current;
       setUeSyncError(null);
-      if (returningVisitRef.current && code) {
+      if (returningVisitRef.current && code && !opts?.skipLoadLevel) {
         setUeSyncStatus("Restoring your saved finishes…");
       }
 
@@ -468,15 +517,17 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           isUeReady,
           layoutCode: levelName,
           designCode: code,
-          returningVisit: returningVisitRef.current,
+          returningVisit: returningVisitRef.current || viewOnly,
           zone,
           camera: camera ?? null,
           skipLoadLevel: opts?.skipLoadLevel,
           skipViewRestore: opts?.skipViewRestore,
-          requireLoadCustomization: opts?.requireLoadCustomization,
+          requireLoadCustomization: opts?.requireLoadCustomization || viewOnly,
           force: opts?.force,
           mockLog: MOCK_UE,
-          onProgress: (msg) => setUeSyncStatus(msg),
+          onProgress: opts?.skipLoadLevel
+            ? undefined
+            : (msg) => setUeSyncStatus(msg),
         });
 
         if (result.ok) {
@@ -510,8 +561,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       layoutCode,
       cameraZone,
       send,
-      isUeReady,
       selections.selections,
+      summaryOnly,
     ],
   );
 
@@ -522,19 +573,23 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     const code = designCodeRef.current;
     if (!code) return false;
     highResPipelineRef.current = true;
-    returningVisitRef.current = true;
     try {
-      const synced: UeSyncResult = await runUeSyncRef.current({
-        force: !appliedReadyRef.current,
-        requireLoadCustomization: true,
-        skipViewRestore: true,
-      });
-      if (!synced.loadLevel || !synced.loadCustomization) {
-        console.warn(
-          "[UE] CaptureCamerasHighRes skipped — LoadLevel/LoadCustomization did not succeed",
-          synced,
-        );
-        return false;
+      const streamAlreadyOpen =
+        MOCK_UE || (isUeReady() && appliedReadyRef.current);
+      if (!streamAlreadyOpen) {
+        returningVisitRef.current = true;
+        const synced: UeSyncResult = await runUeSyncRef.current({
+          force: true,
+          requireLoadCustomization: true,
+          skipViewRestore: true,
+        });
+        if (!synced.loadLevel || !synced.loadCustomization) {
+          console.warn(
+            "[UE] CaptureCamerasHighRes skipped — LoadLevel/LoadCustomization did not succeed",
+            synced,
+          );
+          return false;
+        }
       }
       const sent = await captureCamerasHighResOnUe(send, code, {
         mockLog: MOCK_UE,
@@ -568,6 +623,15 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       setDesignError(null);
 
       try {
+        const resumeEarly = readQuotationResume();
+        if (resumeEarly?.mode === "keep-offline" && resumeEarly.sourceDesignCode) {
+          clearQuotationResume();
+          router.replace(
+            `/quotation/${encodeURIComponent(resumeEarly.sourceDesignCode)}/keep`,
+          );
+          return;
+        }
+
         if (!catalogApiProjectId) {
           throw new Error(
             "A valid project or layout is required to load this apartment catalog.",
@@ -584,7 +648,42 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         setActiveCatalogZones(sess.zones);
         setSession(sess);
 
-        if (!viewOnly) {
+        const resume = readQuotationResume();
+        const resumeMatches =
+          Boolean(resume) &&
+          resume!.streamProjectId === projectId &&
+          resume!.projectId === catalogApiProjectId &&
+          resume!.layoutCode === sess.layoutCode;
+
+        if (viewOnly && resumeMatches && resume?.mode === "view") {
+          returningVisitRef.current = true;
+          designCodeRef.current = resume.sourceDesignCode;
+          setDesignCode(resume.sourceDesignCode);
+        } else if (!viewOnly && resumeMatches && resume?.mode === "edit") {
+          returningVisitRef.current = true;
+          const code = resume.clonedDesignCode || resume.sourceDesignCode;
+          designCodeRef.current = code;
+          setDesignCode(code);
+        } else if (!viewOnly && resumeMatches && resume?.mode === "fresh") {
+          clearDraftsForLayout(projectId, catalogApiProjectId, sess.layoutCode);
+          markFreshStartIntent(
+            projectId,
+            catalogApiProjectId,
+            sess.layoutCode,
+            apartmentId,
+          );
+          const ensured = await ensureBackendDesign({
+            streamProjectId: projectId,
+            backendProjectId: catalogApiProjectId,
+            layoutCode: sess.layoutCode,
+            apartmentId,
+          });
+          if (cancelled) return;
+          clearQuotationResume();
+          returningVisitRef.current = false;
+          designCodeRef.current = ensured.designCode;
+          setDesignCode(ensured.designCode);
+        } else if (!viewOnly) {
           const ensured = await ensureBackendDesign({
             streamProjectId: projectId,
             backendProjectId: catalogApiProjectId,
@@ -597,6 +696,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           setDesignCode(ensured.designCode);
         }
 
+        if (cancelled) return;
         setParams(
           {
             backendProjectId: catalogApiProjectId,
@@ -625,19 +725,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     catalogApiProjectId,
     layoutCode,
     apartmentId,
-    viewOnly,
+    summaryOnly,
   ]);
 
   // Hydrate FE selections from storage only — never paint them onto UE
   useEffect(() => {
     if (!session || !designCode) return;
-    if (viewOnly && design) {
-      selections.hydrateFromDesign(design.configuration.selections);
+    if (viewOnly || quotationEditPendingClone) {
+      selections.hydrateFromDesign([]);
       return;
     }
-    if (!viewOnly) selections.hydrateFromStorage();
+    selections.hydrateFromStorage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, design, viewOnly, designCode]);
+  }, [session, design, viewOnly, designCode, quotationEditPendingClone]);
 
   useEffect(() => {
     if (!params.renders || viewOnly || !designCode || !session) {
@@ -649,7 +749,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
       session.layoutCode || layoutCode,
       apartmentId,
     );
-    if (isUnstartedRendersDraft(draft)) {
+    if (isUnstartedRendersDraft(draft) && !summaryOnly) {
       setParams({ renders: false }, { replace: true });
       resumedRendersRef.current = false;
       return;
@@ -671,9 +771,15 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     layoutCode,
     projectId,
     storageProjectId,
+    summaryOnly,
   ]);
 
   useEffect(() => {
+    if (summaryOnly) {
+      appliedReadyRef.current = true;
+      setSceneReady(true);
+      return;
+    }
     if (stream.isLoading || !session || !selections.hydrated) return;
     if (highResPipelineRef.current || appliedReadyRef.current) return;
 
@@ -692,20 +798,22 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     session,
     selections.hydrated,
     projectId,
-    viewOnly,
     designCode,
+    summaryOnly,
   ]);
 
   useEffect(() => {
+    if (summaryOnly) return;
     if (stream.isLoading) {
       appliedReadyRef.current = false;
       setSceneReady(false);
       invalidateUeSyncCache();
     }
-  }, [stream.isLoading]);
+  }, [stream.isLoading, summaryOnly]);
 
   // URL layout_code change → LoadLevel (customization restored via LoadCustomization)
   useEffect(() => {
+    if (summaryOnly) return;
     if (stream.isLoading || !session || !selections.hydrated) return;
     const level = session.layoutCode || layoutCode;
     if (!level) return;
@@ -718,7 +826,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
     loadedLevelRef.current = level;
     void runUeSyncRef.current({ force: true });
-  }, [layoutCode, stream.isLoading, session, selections.hydrated]);
+  }, [layoutCode, stream.isLoading, session, selections.hydrated, summaryOnly]);
 
   const zoneCameras = useMemo(() => {
     if (!activeZoneId || !session) return [];
@@ -850,7 +958,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       freeModeRef.current = false;
       setFreeCameraActive(false);
-      setSidePanelOpen(true);
+      setSidePanelOpen(!viewOnly);
       setActiveRule(rule);
       setActiveCameraKey(cameraKey(rule));
       setParams(
@@ -863,7 +971,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       void switchCameraByNameOnUe(send, rule.name, { mockLog: MOCK_UE });
     },
-    [activeCameraKey, setParams, send, handleFreeCamera],
+    [activeCameraKey, setParams, send, handleFreeCamera, viewOnly],
   );
 
   const handleSelectZone = useCallback(
@@ -1139,28 +1247,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     })();
   }, [selections, send, handleFreeCamera]);
 
-  const handleChangeResolution = useCallback(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    (option: ResolutionOption) => {
-      setCurrentResolution(option.label);
-      const ui = stream.uiControlRef.current;
-      try {
-        if (option.width && option.height) {
-          ui?.setResolution?.({
-            width: option.width,
-            height: option.height,
-            label: option.label,
-          });
-        } else {
-          ui?.setResolution?.({ label: option.label });
-        }
-      } catch (err) {
-        console.warn("[Stream] setResolution failed", err);
-      }
-      setSettingsOpen(false);
-    },
-    [stream.uiControlRef],
-  );
+  const handleChangeResolution = (option: ResolutionOption) => {
+    setCurrentResolution(option.label);
+    setStreamResolution(
+      {
+        pixelStreaming: stream.pixelStreamingRef.current,
+        uiControl: stream.uiControlRef.current,
+        appStream: stream.appStreamRef.current,
+        container: videoContainerRef.current,
+      },
+      option,
+    );
+    setSettingsOpen(false);
+  };
 
   const handleSubmit = useCallback(
     async (contact: { name: string; email: string; phone: string }) => {
@@ -1214,9 +1313,60 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     ],
   );
 
+  const handleConfirmSelection = useCallback(async () => {
+    if (confirmInFlightRef.current) return;
+    if (!renderJob.allReady) {
+      setRendersNotReadyOpen(true);
+      return;
+    }
+    const code = (designCodeRef.current ?? designCode ?? "").trim();
+    if (!code) {
+      setConfirmError("Missing design code. Please try again.");
+      return;
+    }
+
+    confirmInFlightRef.current = true;
+    setConfirmPending(true);
+    setConfirmError(null);
+    try {
+      const result = await confirmDesign(code);
+      if (!result.ok) {
+        setConfirmError(result.message);
+        return;
+      }
+
+      setConfirmedQuote(result.data);
+      setDesignCode(result.data.design_code);
+      designCodeRef.current = result.data.design_code;
+      clearDraft(
+        projectId,
+        storageProjectId,
+        session?.layoutCode || layoutCode,
+        apartmentId,
+      );
+      renderJob.stop();
+      setParams({ renders: false }, { replace: true });
+      setQuotationReady(true);
+    } finally {
+      confirmInFlightRef.current = false;
+      setConfirmPending(false);
+    }
+  }, [
+    apartmentId,
+    designCode,
+    layoutCode,
+    projectId,
+    renderJob,
+    session?.layoutCode,
+    setParams,
+    storageProjectId,
+  ]);
+
   const handleStartOwn = useCallback(() => {
     setDesign(null);
     setSuccess(null);
+    setConfirmedQuote(null);
+    setQuotationReady(false);
     setParams({ view: false }, { replace: true });
     selections.resetAll();
     selections.commitReset();
@@ -1227,6 +1377,160 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     skipPopGuardRef.current = true;
     router.push("/projects");
   }, [router]);
+
+  const handleViewCancel = useCallback(() => {
+    if (viewEditPending) return;
+    const resume = readQuotationResume();
+    allowUnloadRef.current = true;
+    skipPopGuardRef.current = true;
+    const code = resume?.sourceDesignCode || designCodeRef.current;
+    clearQuotationResume();
+    router.push(code ? `/quotation/${encodeURIComponent(code)}` : "/quotation");
+  }, [router, viewEditPending]);
+
+  const adoptQuotationCloneFromSource = useCallback(
+    async (source: string) => {
+      if (!session || !catalogApiProjectId) {
+        return { ok: false as const, message: "Project is not ready." };
+      }
+      const cloned = await cloneQuotationDesign({
+        sourceDesignCode: source,
+        streamProjectId: projectId,
+        backendProjectId: catalogApiProjectId,
+        layoutCode: session.layoutCode || layoutCode,
+        apartmentId,
+        persistLocalSelections: true,
+        postSummary: true,
+      });
+      if (!cloned.ok) return cloned;
+
+      const saved = await saveCustomizationToUe(send, cloned.designCode, {
+        mockLog: MOCK_UE,
+      });
+      if (!saved) {
+        return {
+          ok: false as const,
+          message: "Could not save this design to the 3D session.",
+        };
+      }
+
+      patchQuotationResume({
+        mode: "edit",
+        clonedDesignCode: cloned.designCode,
+      });
+      returningVisitRef.current = true;
+      appliedReadyRef.current = true;
+      designCodeRef.current = cloned.designCode;
+      setDesignCode(cloned.designCode);
+      setParams({ view: false }, { replace: true });
+      selections.hydrateFromStorage();
+      if (cloned.summary) setSeededSummary(cloned.summary);
+      return cloned;
+    },
+    [
+      apartmentId,
+      catalogApiProjectId,
+      layoutCode,
+      projectId,
+      selections,
+      send,
+      session,
+      setParams,
+    ],
+  );
+
+  const applyViewEdit = useCallback(async () => {
+    const source =
+      readQuotationResume()?.sourceDesignCode ||
+      designCodeRef.current?.trim() ||
+      "";
+    if (!source) {
+      setViewEditPending(false);
+      setViewEditOverridePending(false);
+      return;
+    }
+    setViewEditError(null);
+    const result = await adoptQuotationCloneFromSource(source);
+    if (!result.ok) {
+      setViewEditError(result.message);
+      setViewEditOverridePending(false);
+    }
+  }, [adoptQuotationCloneFromSource]);
+
+  useEffect(() => {
+    if (viewOnly) return;
+    setViewEditOverrideOpen(false);
+    setViewEditOverridePending(false);
+    setViewEditPending(false);
+  }, [viewOnly]);
+
+  useEffect(() => {
+    if (viewOnly || summaryOnly || !sceneReady || !session) return;
+    const resume = readQuotationResume();
+    if (
+      !resume ||
+      resume.mode !== "edit" ||
+      resume.clonedDesignCode ||
+      resume.streamProjectId !== projectId
+    ) {
+      return;
+    }
+    if (quoteAdoptInFlightRef.current) return;
+    quoteAdoptInFlightRef.current = true;
+    setUeSyncStatus("Copying your design…");
+    void adoptQuotationCloneFromSource(resume.sourceDesignCode).then(
+      (result) => {
+        setUeSyncStatus(null);
+        if (!result.ok) {
+          quoteAdoptInFlightRef.current = false;
+          setUeSyncError(result.message);
+        }
+      },
+    );
+  }, [
+    adoptQuotationCloneFromSource,
+    projectId,
+    sceneReady,
+    session,
+    summaryOnly,
+    viewOnly,
+  ]);
+
+  const handleViewEdit = useCallback(() => {
+    if (!catalogApiProjectId) return;
+    setViewEditPending(true);
+    setViewEditError(null);
+    if (!getValidJourneyToken()) {
+      pendingViewEditRef.current = true;
+      setJourneyReady(false);
+      return;
+    }
+    pendingViewEditRef.current = false;
+    if (
+      hasDraftForLayout(
+        projectId,
+        catalogApiProjectId,
+        session?.layoutCode || layoutCode,
+      )
+    ) {
+      setViewEditOverrideOpen(true);
+      return;
+    }
+    void applyViewEdit();
+  }, [
+    applyViewEdit,
+    catalogApiProjectId,
+    layoutCode,
+    projectId,
+    session?.layoutCode,
+  ]);
+
+  useEffect(() => {
+    if (journeyReady !== true) return;
+    if (!pendingViewEditRef.current) return;
+    pendingViewEditRef.current = false;
+    handleViewEdit();
+  }, [handleViewEdit, journeyReady]);
 
   const handleContinueRendering = useCallback(() => {
     setFrozenDesignOpen(false);
@@ -1405,8 +1709,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const overlayKind = (() => {
     if (sessionError && !session) return "error" as const;
+    if (sessionError && summaryOnly) return "error" as const;
+    if (summaryOnly) return "loading" as const;
     if (stream.streamPhase === "disconnected" && !stream.hasEverBeenReady) {
       return "error" as const;
+    }
+    if (stream.streamPhase === "idle" && !stream.hasEverBeenReady) {
+      return "loading" as const;
     }
     return streamOverlayKind({
       streamPhase: stream.streamPhase,
@@ -1415,15 +1724,18 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     });
   })();
   const streamBlocking =
-    stream.isLoading ||
-    overlayKind === "queue" ||
-    overlayKind === "disconnected" ||
-    overlayKind === "idle" ||
-    overlayKind === "reconnecting" ||
-    overlayKind === "error";
+    !summaryOnly &&
+    (stream.isLoading ||
+      overlayKind === "queue" ||
+      overlayKind === "disconnected" ||
+      overlayKind === "idle" ||
+      overlayKind === "reconnecting" ||
+      overlayKind === "error");
   const showStreamOverlay =
     overlayKind === "error" ||
-    ((streamBlocking || sessionLoading || !sceneReady) &&
+    (summaryOnly && !reviewOpen && (sessionLoading || !session)) ||
+    (!summaryOnly &&
+      (streamBlocking || sessionLoading || !sceneReady) &&
       !streamOverlayDismissed);
   const overlayProgress =
     overlayKind === "loading" || overlayKind === "reconnecting"
@@ -1440,6 +1752,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     stream.afkWarning && !showStreamOverlay && overlayKind !== "idle";
 
   useEffect(() => {
+    if (summaryOnly) return;
     if (overlayKind !== "idle" && overlayKind !== "disconnected") return;
     if (overlayKind === "idle") setStreamOverlayDismissed(false);
     setQuoteDialogOpen(false);
@@ -1448,7 +1761,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     setSelectionsOpen(false);
     setSettingsOpen(false);
     setBrowseStylesOpen(false);
-  }, [overlayKind]);
+  }, [overlayKind, summaryOnly]);
 
   const reloadSession = useCallback(() => {
     allowUnloadRef.current = true;
@@ -1655,7 +1968,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         />
       ) : null}
 
-      {viewOnly && designCode && (
+      {viewOnly && designCode && readQuotationResume()?.mode !== "view" && (
         <ViewOnlyBanner designCode={designCode} onStartOwn={handleStartOwn} />
       )}
 
@@ -1665,7 +1978,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         </div>
       )}
 
-      {sceneReady && session && (
+      {sceneReady && session && !summaryOnly && (
         <div inert={showAfkWarning ? true : undefined}>
           <ZoneTopBar
             zones={session.zones}
@@ -1678,7 +1991,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             onSelectCamera={handleSelectCamera}
           />
 
-          {sidePanelOpen && activeZoneId && !freeCameraActive && (
+          {sidePanelOpen && activeZoneId && !freeCameraActive && !viewOnly ? (
             <ZoneSidePanel
               cameras={zoneCameras}
               activeCameraKey={activeCameraKey}
@@ -1693,7 +2006,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               viewOnly={viewOnly}
               onClose={() => setSidePanelOpen(false)}
             />
-          )}
+          ) : null}
 
           <ConfiguratorDock
             saveStatus={
@@ -1713,6 +2026,9 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             onChangeResolution={handleChangeResolution}
             resolutionEnabled={stream.resolutionEnabled}
             viewOnly={viewOnly}
+            onViewEdit={handleViewEdit}
+            onViewCancel={handleViewCancel}
+            viewEditPending={viewEditPending}
             materialsOpen={sidePanelOpen && !freeCameraActive}
             onShowMaterials={handleShowMaterials}
             onQuote={handleOpenQuote}
@@ -1745,24 +2061,13 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       <QuotationReady
         open={quotationReady || Boolean(success)}
-        designCode={success?.designCode ?? designCode ?? ""}
-        shareUrl={
-          success?.shareUrl ??
-          (typeof window !== "undefined"
-            ? `${window.location.origin}${window.location.pathname}?${new URLSearchParams(
-                {
-                  ...(catalogApiProjectId
-                    ? { project_id: catalogApiProjectId }
-                    : {}),
-                  layout_code: layoutCode,
-                  ...(apartmentId ? { apartment_id: apartmentId } : {}),
-                  ...(unitId ? { apartment_number: unitId } : {}),
-                },
-              ).toString()}`
-            : "")
+        designCode={
+          confirmedQuote?.design_code ?? success?.designCode ?? designCode ?? ""
         }
         unitSubtitle={unitSubtitle}
         email={readJourney()?.customer.email}
+        pdfStatus={confirmedQuote?.pdf_status}
+        emailStatus={confirmedQuote?.email_status}
       />
 
       {session ? (
@@ -1792,25 +2097,44 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             selections={selections.selections}
             unitId={unitId}
             unitSubtitle={unitSubtitle}
-            summary={designSummary.data}
-            summaryLoading={designSummary.loading}
-            summaryError={designSummary.error}
+            summary={seededSummary ?? designSummary.data}
+            summaryLoading={designSummary.loading && !seededSummary}
+            summaryError={seededSummary ? null : designSummary.error}
             confirmPending={renderJob.preparing}
+            confirmLabel={summaryOnly ? "Continue to renders" : undefined}
+            backLabel={summaryOnly ? "Back to quotation" : undefined}
             confirmError={renderJob.active ? null : renderJob.error}
             actionsDisabled={
-              streamBlocking &&
-              overlayKind !== "disconnected" &&
-              overlayKind !== "idle"
+              summaryOnly ||
+              (streamBlocking &&
+                overlayKind !== "disconnected" &&
+                overlayKind !== "idle")
             }
             streamOffline={
-              overlayKind === "disconnected" || overlayKind === "idle"
+              !summaryOnly &&
+              (overlayKind === "disconnected" || overlayKind === "idle")
             }
-            onReconnect={canReconnect ? reloadSession : undefined}
+            onReconnect={
+              summaryOnly ? undefined : canReconnect ? reloadSession : undefined
+            }
             onBack={() => {
+              if (summaryOnly) {
+                handleViewCancel();
+                return;
+              }
               setReviewOpen(false);
               setQuoteDialogOpen(false);
             }}
             onConfirm={async () => {
+              if (summaryOnly) {
+                resumedRendersRef.current = true;
+                setQuoteDialogOpen(false);
+                setSubmitOpen(false);
+                setReviewOpen(false);
+                setParams({ renders: true }, { replace: true });
+                await renderJob.start({ pollOnly: true });
+                return;
+              }
               const ok = await renderJob.start();
               if (!ok) return;
               resumedRendersRef.current = true;
@@ -1820,8 +2144,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               setParams({ renders: true }, { replace: true });
               void runLoadThenCaptureHighRes();
             }}
-            onRemove={handleRemoveSelection}
-            onEdit={handleEditReviewSlot}
+            onRemove={summaryOnly ? undefined : handleRemoveSelection}
+            onEdit={summaryOnly ? undefined : handleEditReviewSlot}
           />
 
           <FinalDesignProgress
@@ -1837,20 +2161,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             unitSubtitle={unitSubtitle}
             error={renderJob.error}
             total={renderJob.totalAmount}
+            confirmPending={confirmPending}
+            confirmDisabled={renderJob.confirmDisabled}
+            confirmError={confirmError}
             onConfirm={() => {
-              if (!renderJob.allReady) {
-                setRendersNotReadyOpen(true);
-                return;
-              }
-              clearDraft(
-                projectId,
-                storageProjectId,
-                session.layoutCode || layoutCode,
-                apartmentId,
-              );
-              renderJob.stop();
-              setParams({ renders: false }, { replace: true });
-              setQuotationReady(true);
+              void handleConfirmSelection();
             }}
             onBack={() => {
               renderJob.stop();
@@ -1907,6 +2222,26 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         onStay={stayOnConfigurator}
         onLeave={confirmLeave}
       />
+
+      <OverrideCustomizationDialog
+        open={viewEditOverrideOpen}
+        pending={viewEditOverridePending}
+        onCancel={() => {
+          if (viewEditOverridePending) return;
+          setViewEditOverrideOpen(false);
+          setViewEditPending(false);
+        }}
+        onContinue={() => {
+          if (viewEditOverridePending) return;
+          setViewEditOverridePending(true);
+          void applyViewEdit();
+        }}
+      />
+      {viewEditError ? (
+        <div className="absolute bottom-24 left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-lg bg-red-950/90 px-4 py-2 text-center text-xs text-[#ff8585]">
+          {viewEditError}
+        </div>
+      ) : null}
 
       {journeyReady === false ? (
         <JourneyGate onReady={() => setJourneyReady(true)} />

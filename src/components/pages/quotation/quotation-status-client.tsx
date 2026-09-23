@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CustomShape } from "@/components/shared/custom-shape";
 import { Button } from "@/components/ui/button";
 import CreateNewQuotationDialog from "@/components/pages/quotation/create-new-quotation-dialog";
+import OverrideCustomizationDialog from "@/components/pages/quotation/override-customization-dialog";
 import QuotationPageFrame, {
   QuotationPageHeader,
 } from "@/components/pages/quotation/quotation-page-frame";
@@ -13,6 +14,7 @@ import {
   formatQuotationTotal,
   quotationResidenceSubtitle,
 } from "@/lib/quotation/display";
+import { useQuotationActions } from "@/hooks/quotation/use-quotation-actions";
 import type { SavedDesignData } from "@/services/get-saved-design.service";
 
 type Props = {
@@ -20,13 +22,14 @@ type Props = {
 };
 
 const QuotationStatusClient = ({ data }: Props) => {
-  const expired = Boolean(data.quotation.is_expired);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const actions = useQuotationActions(data);
   const [previewFailed, setPreviewFailed] = useState(false);
   const previewSrc =
     !previewFailed && data.preview_url?.trim()
       ? data.preview_url
       : "/images/quotation-image.png";
+
+  const busy = actions.pending != null;
 
   return (
     <QuotationPageFrame>
@@ -103,14 +106,14 @@ const QuotationStatusClient = ({ data }: Props) => {
 
                     <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-3 md:flex-col md:items-start lg:flex-row lg:items-center">
                       <h3
-                        className={`${expired ? "text-[#FF8585]" : "text-white opacity-50"} text-[0.625rem] font-medium leading-[120%] tracking-[0.01875rem] uppercase`}
+                        className={`${actions.expired ? "text-[#FF8585]" : "text-white opacity-50"} text-[0.625rem] font-medium leading-[120%] tracking-[0.01875rem] uppercase`}
                       >
                         Valid until
                       </h3>
                       <span
-                        className={`${expired ? "text-[#FF8585] tracking-[0.01875rem] flex flex-wrap items-center justify-start gap-2" : "text-white"} text-sm font-medium leading-[116%] uppercase`}
+                        className={`${actions.expired ? "text-[#FF8585] tracking-[0.01875rem] flex flex-wrap items-center justify-start gap-2" : "text-white"} text-sm font-medium leading-[116%] uppercase`}
                       >
-                        {expired ? (
+                        {actions.expired ? (
                           <span className="flex h-7 items-center justify-center rounded-[5.5rem] bg-[rgba(255,133,133,0.10)] px-[0.81rem] text-sm leading-3 text-[#FF8585] italic capitalize">
                             Expired
                           </span>
@@ -143,28 +146,85 @@ const QuotationStatusClient = ({ data }: Props) => {
 
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  {!expired ? (
+                  {!actions.expired && actions.valid ? (
                     <>
-                      <Button type="button" variant="pill-solid" size="pill">
+                      <Button
+                        type="button"
+                        variant="pill-solid"
+                        size="pill"
+                        disabled={busy}
+                        onClick={() => actions.request("download")}
+                      >
                         Download My Quotation
                       </Button>
-                      <Button type="button" variant="pill" size="pill">
-                        Walk in 3D
+                      <Button
+                        type="button"
+                        variant="pill"
+                        size="pill"
+                        disabled={busy}
+                        onClick={() => actions.request("walk")}
+                      >
+                        {actions.pending === "walk" ? "Opening…" : "Walk in 3D"}
                       </Button>
-                      <Button type="button" variant="pill" size="pill">
-                        Edit My choices
+                      <Button
+                        type="button"
+                        variant="pill"
+                        size="pill"
+                        disabled={busy}
+                        onClick={() => actions.request("edit")}
+                      >
+                        {actions.pending === "edit"
+                          ? "Opening…"
+                          : "Edit My choices"}
                       </Button>
                     </>
-                  ) : (
+                  ) : null}
+
+                  {!actions.expired && !actions.valid ? (
                     <Button
                       type="button"
                       variant="pill"
                       size="pill"
-                      onClick={() => setDialogOpen(true)}
+                      disabled={busy}
+                      onClick={() => actions.request("fresh")}
+                    >
+                      {actions.pending === "fresh"
+                        ? "Opening…"
+                        : "Start new customization"}
+                    </Button>
+                  ) : null}
+
+                  {actions.expired && actions.valid ? (
+                    <Button
+                      type="button"
+                      variant="pill"
+                      size="pill"
+                      disabled={busy}
+                      onClick={() => actions.setExpiredDialogOpen(true)}
                     >
                       Create new quotation
                     </Button>
-                  )}
+                  ) : null}
+
+                  {actions.expired && !actions.valid ? (
+                    <Button
+                      type="button"
+                      variant="pill"
+                      size="pill"
+                      disabled={busy}
+                      onClick={() => actions.request("fresh")}
+                    >
+                      {actions.pending === "fresh"
+                        ? "Opening…"
+                        : "Start new customization"}
+                    </Button>
+                  ) : null}
+
+                  {actions.error ? (
+                    <p className="text-center text-[12px] leading-[1.4] text-[#ff8585]">
+                      {actions.error}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-1">
@@ -205,9 +265,19 @@ const QuotationStatusClient = ({ data }: Props) => {
       </footer>
 
       <CreateNewQuotationDialog
-        open={dialogOpen}
-        onCancel={() => setDialogOpen(false)}
-        onContinue={() => setDialogOpen(false)}
+        open={actions.expiredDialogOpen}
+        onCancel={() => actions.setExpiredDialogOpen(false)}
+        onContinue={(mode) => {
+          actions.setExpiredDialogOpen(false);
+          actions.request(mode === "keep" ? "keep-offline" : "edit");
+        }}
+      />
+
+      <OverrideCustomizationDialog
+        open={actions.overrideOpen}
+        pending={busy}
+        onCancel={actions.cancelOverride}
+        onContinue={actions.confirmOverride}
       />
     </QuotationPageFrame>
   );

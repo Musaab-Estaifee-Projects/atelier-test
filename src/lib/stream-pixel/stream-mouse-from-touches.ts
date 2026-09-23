@@ -17,9 +17,10 @@ type PlayerRoot = {
   [key: string]: unknown;
 };
 
-const DOUBLE_TAP_MS = 380;
-const DOUBLE_TAP_PX = 36;
-const LOOK_PX = 4;
+const DOUBLE_TAP_MS = 520;
+const DOUBLE_TAP_PX = 48;
+const LOOK_PX = 12;
+const DOUBLE_TAP_LOOK_PX = 28;
 
 type Coord = { x: number; y: number };
 type Handlers = { get: (name: string) => ((args?: unknown) => void) | undefined };
@@ -173,6 +174,15 @@ type StreamMouse = {
   dbl: (clientX: number, clientY: number) => void;
 };
 
+function sendClick(
+  handlers: Handlers,
+  x: number,
+  y: number,
+) {
+  handlers.get("MouseDown")?.([0, x, y]);
+  handlers.get("MouseUp")?.([0, x, y]);
+}
+
 function createStreamMouse(
   surface: HTMLElement,
   app: PlayerRoot,
@@ -210,7 +220,11 @@ function createStreamMouse(
       dbl: (clientX, clientY) => {
         const c = toUnsigned(clientX, clientY);
         handlers.get("MouseMove")?.([c.x, c.y, 0, 0]);
-        handlers.get("MouseDouble")?.([0, c.x, c.y]);
+        sendClick(handlers, c.x, c.y);
+        sendClick(handlers, c.x, c.y);
+        const dbl = handlers.get("MouseDouble");
+        if (dbl) dbl([0, c.x, c.y]);
+        else dispatchOnSurface(surface, "dblclick", clientX, clientY, 0, 0, 0, 2);
       },
     };
   }
@@ -225,6 +239,12 @@ function createStreamMouse(
       dispatchOnSurface(surface, "mousemove", clientX, clientY, 1, dx, dy),
     dbl: (clientX, clientY) => {
       dispatchOnSurface(surface, "mousemove", clientX, clientY, 0);
+      dispatchOnSurface(surface, "mousedown", clientX, clientY, 1, 0, 0, 1);
+      dispatchOnSurface(surface, "mouseup", clientX, clientY, 0, 0, 0, 1);
+      dispatchOnSurface(surface, "click", clientX, clientY, 0, 0, 0, 1);
+      dispatchOnSurface(surface, "mousedown", clientX, clientY, 1, 0, 0, 2);
+      dispatchOnSurface(surface, "mouseup", clientX, clientY, 0, 0, 0, 2);
+      dispatchOnSurface(surface, "click", clientX, clientY, 0, 0, 0, 2);
       dispatchOnSurface(surface, "dblclick", clientX, clientY, 0, 0, 0, 2);
     },
   };
@@ -234,11 +254,16 @@ export function wireStreamMouseFromTouches(
   app: PlayerRoot,
   pixelStreaming?: unknown,
 ): () => void {
-  const surface =
+  const parent =
     app.stream?.videoElementParent ??
     app.rootElement ??
+    null;
+  const video = (parent?.querySelector?.("video") as HTMLElement | null) ?? null;
+  const surface =
+    video ??
+    parent ??
     (typeof document !== "undefined"
-      ? (document.querySelector("video") as HTMLElement | null)
+      ? (document.querySelector(".stream-viewport video") as HTMLElement | null)
       : null);
   if (!surface || typeof window === "undefined") return () => undefined;
 
@@ -255,10 +280,14 @@ export function wireStreamMouseFromTouches(
   let lastTapAt = 0;
   let lastTapX = 0;
   let lastTapY = 0;
+  let pendingDouble = false;
+  let pendingX = 0;
+  let pendingY = 0;
 
   const isDoubleCandidate = (x: number, y: number) => {
     const now = Date.now();
     return (
+      lastTapAt > 0 &&
       now - lastTapAt <= DOUBLE_TAP_MS &&
       Math.abs(x - lastTapX) <= DOUBLE_TAP_PX &&
       Math.abs(y - lastTapY) <= DOUBLE_TAP_PX
@@ -283,6 +312,7 @@ export function wireStreamMouseFromTouches(
     if (event.touches.length !== 1) {
       if (activeId != null) endLook(lastX, lastY);
       activeId = null;
+      pendingDouble = false;
       return;
     }
     const t = event.changedTouches[0];
@@ -294,8 +324,12 @@ export function wireStreamMouseFromTouches(
     moved = false;
 
     if (isDoubleCandidate(t.clientX, t.clientY)) {
+      pendingDouble = true;
+      pendingX = lastTapX;
+      pendingY = lastTapY;
       return;
     }
+    pendingDouble = false;
   };
 
   const onMove = (event: TouchEvent) => {
@@ -309,12 +343,17 @@ export function wireStreamMouseFromTouches(
     const dy = t.clientY - lastY;
     lastX = t.clientX;
     lastY = t.clientY;
-    if (
-      Math.abs(t.clientX - startX) > LOOK_PX ||
-      Math.abs(t.clientY - startY) > LOOK_PX
-    ) {
+    const travel = Math.max(
+      Math.abs(t.clientX - startX),
+      Math.abs(t.clientY - startY),
+    );
+    const lookThreshold = pendingDouble ? DOUBLE_TAP_LOOK_PX : LOOK_PX;
+    if (travel > lookThreshold) {
       moved = true;
-      lastTapAt = 0;
+      if (pendingDouble) {
+        pendingDouble = false;
+        lastTapAt = 0;
+      }
       if (!looking) startLook(t.clientX, t.clientY);
     }
     if (looking && (dx !== 0 || dy !== 0)) {
@@ -335,14 +374,14 @@ export function wireStreamMouseFromTouches(
 
     if (looking) {
       endLook(x, y);
-      if (moved) {
-        lastTapAt = 0;
-        return;
-      }
+      pendingDouble = false;
+      lastTapAt = 0;
+      return;
     }
 
-    if (isDoubleCandidate(x, y)) {
-      mouse.dbl(x, y);
+    if (pendingDouble && !moved) {
+      mouse.dbl(pendingX || x, pendingY || y);
+      pendingDouble = false;
       lastTapAt = 0;
       return;
     }
@@ -350,26 +389,19 @@ export function wireStreamMouseFromTouches(
     lastTapAt = Date.now();
     lastTapX = x;
     lastTapY = y;
+    pendingDouble = false;
   };
 
   const opts: AddEventListenerOptions = { capture: true, passive: false };
-  const nodes: EventTarget[] = [surface];
-  const video = surface.querySelector?.("video");
-  if (video) nodes.push(video);
-
-  for (const node of nodes) {
-    node.addEventListener("touchstart", onStart as EventListener, opts);
-    node.addEventListener("touchmove", onMove as EventListener, opts);
-    node.addEventListener("touchend", onEnd as EventListener, opts);
-    node.addEventListener("touchcancel", onEnd as EventListener, opts);
-  }
+  surface.addEventListener("touchstart", onStart as EventListener, opts);
+  surface.addEventListener("touchmove", onMove as EventListener, opts);
+  surface.addEventListener("touchend", onEnd as EventListener, opts);
+  surface.addEventListener("touchcancel", onEnd as EventListener, opts);
 
   return () => {
-    for (const node of nodes) {
-      node.removeEventListener("touchstart", onStart as EventListener, opts);
-      node.removeEventListener("touchmove", onMove as EventListener, opts);
-      node.removeEventListener("touchend", onEnd as EventListener, opts);
-      node.removeEventListener("touchcancel", onEnd as EventListener, opts);
-    }
+    surface.removeEventListener("touchstart", onStart as EventListener, opts);
+    surface.removeEventListener("touchmove", onMove as EventListener, opts);
+    surface.removeEventListener("touchend", onEnd as EventListener, opts);
+    surface.removeEventListener("touchcancel", onEnd as EventListener, opts);
   };
 }

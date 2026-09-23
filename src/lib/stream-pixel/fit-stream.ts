@@ -2,6 +2,17 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/** Auto follows the viewport; a picked resolution must not be overwritten. */
+let matchViewportRes = true;
+
+export function setMatchViewportRes(enabled: boolean) {
+  matchViewportRes = enabled;
+}
+
+export function shouldMatchViewportRes() {
+  return matchViewportRes;
+}
+
 function fillBox(el: HTMLElement | null | undefined, cover = false) {
   if (!el) return;
   el.style.setProperty("position", "absolute", "important");
@@ -77,7 +88,10 @@ export function fitStreamDom(
   fillBox(media, true);
 
   try {
-    pixelStreaming?.config?.setFlagEnabled?.("MatchViewportRes", true);
+    pixelStreaming?.config?.setFlagEnabled?.(
+      "MatchViewportRes",
+      matchViewportRes,
+    );
   } catch {
     /* optional */
   }

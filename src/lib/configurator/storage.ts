@@ -380,3 +380,66 @@ export function isUnstartedRendersDraft(draft: LocalDraft | null): boolean {
   if (!draft) return true;
   return !draft.highResCaptureSent && !draft.prepareIdempotencyKey?.trim();
 }
+
+function layoutDraftPrefix(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+) {
+  return `atelier:config:${streamProjectId}:${projectId}:${layoutCode}`;
+}
+
+/** Any local draft for this stream + project + layout, regardless of apartment. */
+export function hasDraftForLayout(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+): boolean {
+  const prefix = layoutDraftPrefix(streamProjectId, projectId, layoutCode);
+  for (const [key, draft] of Object.entries(memoryFallback)) {
+    if ((key === prefix || key.startsWith(`${prefix}:`)) && draft?.designCode) {
+      return true;
+    }
+  }
+  if (typeof window === "undefined") return false;
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key || (key !== prefix && !key.startsWith(`${prefix}:`))) continue;
+      const migrated = migrateDraft(readRaw(key), {
+        streamProjectId,
+        projectId,
+        layoutCode,
+      });
+      if (migrated?.designCode) return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+export function clearDraftsForLayout(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+): void {
+  const prefix = layoutDraftPrefix(streamProjectId, projectId, layoutCode);
+  for (const key of Object.keys(memoryFallback)) {
+    if (key === prefix || key.startsWith(`${prefix}:`)) {
+      delete memoryFallback[key];
+    }
+  }
+  if (typeof window === "undefined") return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && (key === prefix || key.startsWith(`${prefix}:`))) keys.push(key);
+    }
+    for (const key of keys) window.localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+

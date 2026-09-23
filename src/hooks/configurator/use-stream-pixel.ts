@@ -18,6 +18,10 @@ import {
 import { ensureSdkOverlayStubs } from "@/lib/stream-pixel/ensure-sdk-overlays";
 import { wireStreamMouseFromTouches } from "@/lib/stream-pixel/stream-mouse-from-touches";
 import {
+  getLastStreamResolution,
+  setStreamResolution,
+} from "@/lib/stream-pixel/stream-control";
+import {
   fitStreamDom,
   toggleFullscreen,
   waitForVideoFrame,
@@ -145,6 +149,8 @@ type UseStreamPixelArgs = {
   videoContainerRef: React.RefObject<HTMLDivElement | null>;
   /** Element to fullscreen (shell with UI chrome). Defaults to video container. */
   fullscreenTargetRef?: React.RefObject<HTMLElement | null>;
+  /** Skip StreamPixel entirely (offline summary / continue-to-renders). */
+  enabled?: boolean;
 };
 
 /**
@@ -160,6 +166,7 @@ export function useStreamPixel({
   onUeResponse,
   videoContainerRef,
   fullscreenTargetRef,
+  enabled = true,
 }: UseStreamPixelArgs) {
   const pixelStreamingRef = useRef<any>(null);
   const appStreamRef = useRef<any>(null);
@@ -276,7 +283,14 @@ export function useStreamPixel({
   }, [isLoading, streamPhase]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (enabled) return;
+    streamReadyRef.current = false;
+    setIsLoading(false);
+    setStreamPhase("loading");
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !projectId) return;
 
     const isMobile = isMobileClient();
     const initConfig = {
@@ -434,11 +448,14 @@ export function useStreamPixel({
 
         // UIControl is not always present — guard the whole object
         try {
-          if (UIControl?.getResolution?.()) {
-            setResolutionEnabled(true);
-          }
+          const canSet =
+            typeof UIControl?.handleResMax === "function" ||
+            typeof UIControl?.setResolution === "function" ||
+            Boolean(UIControl?.getResolution?.()) ||
+            Boolean(pixelStreaming);
+          setResolutionEnabled(canSet);
         } catch {
-          setResolutionEnabled(false);
+          setResolutionEnabled(Boolean(pixelStreaming));
         }
 
         safeHideDefaultUi(appStream);
@@ -536,6 +553,18 @@ export function useStreamPixel({
                 appStream,
                 pixelStreaming,
               );
+              const last = getLastStreamResolution();
+              if (last.label !== "Auto") {
+                setStreamResolution(
+                  {
+                    pixelStreaming,
+                    uiControl: UIControl,
+                    appStream,
+                    container: videoContainerRef.current,
+                  },
+                  last,
+                );
+              }
             }, 100);
 
             const painted = await waitForVideoFrame(videoElement, 25000);
@@ -812,6 +841,7 @@ export function useStreamPixel({
     registerUeListeners,
     safeHideDefaultUi,
     videoContainerRef,
+    enabled,
   ]);
 
   useEffect(() => {

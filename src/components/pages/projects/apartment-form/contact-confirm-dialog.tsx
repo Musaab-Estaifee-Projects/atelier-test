@@ -56,8 +56,8 @@ const ContactConfirmDialog = ({
       }}
       title="Confirm Your Information"
       blur={false}
-      overlayClassName="z-52"
-      contentClassName="z-52 w-[min(100%-2rem,674px)] flex items-center justify-center"
+      overlayClassName="z-100"
+      contentClassName="z-100 w-[min(100%-2rem,674px)] flex items-center justify-center"
     >
       <div className="relative w-auto overflow-hidden">
         <CustomShape

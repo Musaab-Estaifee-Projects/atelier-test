@@ -19,6 +19,11 @@ type Props = {
   error?: string | null;
   total?: number;
   confirmDisabled?: boolean;
+  confirmPending?: boolean;
+  confirmError?: string | null;
+  title?: string;
+  /** Keep-offline: layout-matched room grid instead of a centered spinner. */
+  skeleton?: boolean;
   onConfirm?: () => void;
   submitPending?: boolean;
   submitError?: string | null;
@@ -54,6 +59,38 @@ function stillProgress(room: RoomRenderCard) {
   const done = room.stills.filter((s) => s.imageUrl).length;
   return { done, total };
 }
+
+const RenderingTile = () => (
+  <div className="relative aspect-711/398 w-full overflow-hidden bg-[#003d43]">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+      <AtelierSpinner />
+      <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
+        Rendering
+      </p>
+    </div>
+  </div>
+);
+
+const RendersRoomsSkeleton = () => (
+  <div aria-hidden>
+    {Array.from({ length: 3 }).map((_, roomIndex) => (
+      <section key={roomIndex} className="mb-12 last:mb-0">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="h-[clamp(24px,2.4vw,32px)] w-48 animate-pulse bg-white/10" />
+            <DiamondRule className="mt-1.5 h-4.5 w-37.5" />
+          </div>
+          <div className="h-3.5 w-28 animate-pulse bg-white/10" />
+        </div>
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((__, tileIndex) => (
+            <RenderingTile key={tileIndex} />
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+);
 
 const RoomBlock = ({
   room,
@@ -169,7 +206,11 @@ const FinalDesignProgress = ({
   unitSubtitle,
   error,
   total = 0,
-  confirmDisabled = true,
+  confirmPending = false,
+  confirmDisabled = false,
+  confirmError = null,
+  title = "Creating Final Renders",
+  skeleton = false,
   onConfirm,
   onBack,
   onView,
@@ -179,7 +220,7 @@ const FinalDesignProgress = ({
 
   return (
     <div
-      className="absolute inset-0 z-60 overflow-y-auto hidden-scrollbar overflow-x-hidden bg-[#00272d] text-white pt-8"
+      className="absolute inset-0 z-60 h-full overflow-y-auto overscroll-contain hidden-scrollbar overflow-x-hidden bg-[#00272d] text-white pt-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="fd-progress-title"
@@ -214,7 +255,7 @@ const FinalDesignProgress = ({
             id="fd-progress-title"
             className="text-center font-baskerville text-[clamp(26px,3vw,36px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8]"
           >
-            Creating Final Renders
+            {title}
           </h1>
           <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
             {unitSubtitle}
@@ -232,12 +273,16 @@ const FinalDesignProgress = ({
         <div className="mt-8 flex flex-col gap-10 lg:mt-10 lg:flex-row lg:items-start lg:gap-8 w-full">
           <div className="min-w-0 flex-1">
             {rooms.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-16">
-                <AtelierSpinner />
-                <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
-                  Loading renders
-                </p>
-              </div>
+              skeleton ? (
+                <RendersRoomsSkeleton />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 py-16">
+                  <AtelierSpinner />
+                  <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
+                    Loading renders
+                  </p>
+                </div>
+              )
             ) : (
               rooms.map((room) => (
                 <RoomBlock
@@ -269,14 +314,23 @@ const FinalDesignProgress = ({
               {Number.isFinite(total) ? total.toLocaleString() : "0"}
             </p>
           </div>
-          <Button
-            type="button"
-            size="pill"
-            className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] md:w-56"
-            onClick={onConfirm}
-          >
-            Confirm My Selection
-          </Button>
+          <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
+            {confirmError ? (
+              <p className="max-w-56 text-center text-[11px] leading-4 text-[#f2b8b5] md:text-right">
+                {confirmError}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              size="pill"
+              className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] disabled:opacity-60 md:w-56"
+              disabled={confirmPending || confirmDisabled}
+              aria-busy={confirmPending}
+              onClick={onConfirm}
+            >
+              {confirmPending ? "Confirming…" : "Confirm My Selection"}
+            </Button>
+          </div>
         </div>
       </footer>
     </div>

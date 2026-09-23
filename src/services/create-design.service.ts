@@ -7,6 +7,7 @@ export type CreateDesignBody = {
   layout_code: string;
   apartment_id: number | string | null;
   source_design_code: string | null;
+  keep_customizations?: 0 | 1;
 };
 
 export type CreateDesignData = {

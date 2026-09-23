@@ -23,8 +23,8 @@ const ROW_GRID =
 
 type Props = {
   open: boolean;
-  session: ConfiguratorSession;
-  selections: SelectionEntry[];
+  session?: ConfiguratorSession | null;
+  selections?: SelectionEntry[];
   unitId?: string | null;
   unitSubtitle: string;
   summary?: DesignSummaryData | null;
@@ -33,6 +33,8 @@ type Props = {
   onBack: () => void;
   onConfirm: () => void | Promise<void>;
   confirmPending?: boolean;
+  confirmLabel?: string;
+  backLabel?: string;
   confirmError?: string | null;
   onRemove?: (slot: string) => void;
   onEdit?: (slot: string) => void;
@@ -240,7 +242,7 @@ const ReviewSkeleton = () => (
 const ReviewSelections = ({
   open,
   session,
-  selections,
+  selections = [],
   unitId: _unitId,
   unitSubtitle,
   summary,
@@ -250,6 +252,8 @@ const ReviewSelections = ({
   onConfirm,
   confirmPending,
   confirmError,
+  confirmLabel = "Prepare final renders",
+  backLabel,
   onRemove,
   onEdit,
   actionsDisabled,
@@ -257,7 +261,10 @@ const ReviewSelections = ({
   onReconnect,
 }: Props) => {
   const fallback = useMemo(
-    () => buildReviewSections(session, selections),
+    () =>
+      session
+        ? buildReviewSections(session, selections)
+        : { sections: [], total: 0 },
     [session, selections],
   );
   const mapped = useMemo(() => mapSummaryToDisplay(summary ?? null), [summary]);
@@ -282,12 +289,12 @@ const ReviewSelections = ({
 
   return (
     <div
-      className="cfg-review absolute inset-0 z-55 flex flex-col bg-[#00272d] text-white"
+      className="cfg-review absolute inset-0 z-55 flex h-full min-h-0 flex-col overflow-hidden bg-[#00272d] text-white"
       role="dialog"
       aria-modal="true"
       aria-labelledby="review-selections-title"
     >
-      <div className="relative min-h-0 flex-1 overflow-y-auto hidden-scrollbar">
+      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain hidden-scrollbar">
         <div className="relative z-10 mx-auto flex w-full max-w-300 flex-col px-4 pt-6 pb-[calc(11rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
           <div className="flex flex-col items-center">
             <AtelierMark />
@@ -544,10 +551,10 @@ const ReviewSelections = ({
               variant="pill"
               size="pill"
               className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
-              disabled={
-                confirmPending ||
-                (actionsDisabled && !(streamOffline && onReconnect))
-              }
+                disabled={
+                  confirmPending ||
+                  (streamOffline && !onReconnect)
+                }
               onClick={streamOffline && onReconnect ? onReconnect : onBack}
             >
               {streamOffline && onReconnect ? (
@@ -555,19 +562,21 @@ const ReviewSelections = ({
               ) : (
                 <Undo2 className="size-4.5" strokeWidth={1.75} />
               )}
-              {streamOffline && onReconnect ? "Reconnect" : "Back to customize"}
+              {streamOffline && onReconnect
+                ? "Reconnect"
+                : (backLabel ?? "Back to customize")}
             </Button>
             {!streamOffline ? (
               <Button
                 type="button"
                 size="pill"
                 className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] disabled:opacity-40 md:w-44.5"
-                disabled={confirmPending || actionsDisabled}
+                disabled={confirmPending}
                 onClick={() => {
                   void onConfirm();
                 }}
               >
-                {confirmPending ? "Preparing…" : "Prepare final renders"}
+                {confirmPending ? "Preparing…" : confirmLabel}
               </Button>
             ) : null}
           </div>

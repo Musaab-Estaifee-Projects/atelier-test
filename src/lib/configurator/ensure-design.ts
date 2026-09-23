@@ -84,6 +84,7 @@ export async function createReplacementDesign(args: {
   layoutCode: string;
   apartmentId?: string | null;
   sourceDesignCode?: string | null;
+  keepCustomizations?: boolean;
   selections?: import("@/types/stored-selection").StoredSelection[];
 }): Promise<string> {
   if (!isBackendProjectId(args.backendProjectId)) {
@@ -106,6 +107,7 @@ export async function createReplacementDesign(args: {
     layout_code: args.layoutCode,
     apartment_id: apartmentId,
     source_design_code: args.sourceDesignCode?.trim() || null,
+    ...(args.keepCustomizations ? { keep_customizations: 1 as const } : {}),
   });
 
   saveDraft({

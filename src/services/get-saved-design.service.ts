@@ -11,12 +11,17 @@ export type SavedDesignApartment = {
 
 export type SavedDesignData = {
   design_code: string;
+  /** Catalog/schema mismatch. `true` means the design cannot be consumed or viewed. */
+  is_invalid: boolean;
   quotation: {
     priced_at: string;
     expires_at: string;
     is_expired: boolean;
     total_amount: string;
+    pdf_url?: string | null;
+    pdf_status?: string | null;
   };
+  pdf_url?: string | null;
   property: {
     project: {
       id: number;
@@ -49,7 +54,7 @@ export type GetSavedDesignResult =
 
 type SavedDesignResponse = {
   message: string;
-  data?: SavedDesignData;
+  data?: Omit<SavedDesignData, "is_invalid"> & { is_invalid?: boolean };
 };
 
 export async function getSavedDesign(
@@ -64,14 +69,22 @@ export async function getSavedDesign(
         headers: { "Cache-Control": "no-store" },
       },
     );
-    if (!response.data?.data) {
+    const payload = response.data?.data;
+    const message = response.data?.message || "Failed to load saved design.";
+    if (!payload?.design_code) {
       return {
         ok: false,
-        reason: "failed",
-        message: response.data?.message || "Failed to load saved design.",
+        reason: isNotFoundMessage(message) ? "not_found" : "failed",
+        message,
       };
     }
-    return { ok: true, data: response.data.data };
+    return {
+      ok: true,
+      data: {
+        ...payload,
+        is_invalid: payload.is_invalid === true,
+      },
+    };
   } catch (err) {
     if (isAxiosError(err) && err.response?.status === 404) {
       const message =
@@ -86,4 +99,24 @@ export async function getSavedDesign(
       message: "Failed to load saved design.",
     };
   }
+}
+
+function isNotFoundMessage(message?: string): boolean {
+  const text = message?.trim().toLowerCase() ?? "";
+  return text === "not found." || text === "not found";
+}
+
+export function isSavedDesignInvalid(data: SavedDesignData): boolean {
+  return data.is_invalid === true;
+}
+
+export function isSavedDesignValid(data: SavedDesignData): boolean {
+  return !isSavedDesignInvalid(data);
+}
+
+export function savedDesignPdfUrl(data: SavedDesignData): string | null {
+  const direct = data.pdf_url?.trim();
+  if (direct) return direct;
+  const nested = data.quotation.pdf_url?.trim();
+  return nested || null;
 }

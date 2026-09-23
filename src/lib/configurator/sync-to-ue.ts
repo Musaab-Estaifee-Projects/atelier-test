@@ -177,9 +177,7 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
 
     lastCompletedKey = key;
     return {
-      ok:
-        loadLevel &&
-        (loadCustomization || !args.requireLoadCustomization),
+      ok: loadLevel && (loadCustomization || !args.requireLoadCustomization),
       loadLevel,
       loadCustomization,
     };

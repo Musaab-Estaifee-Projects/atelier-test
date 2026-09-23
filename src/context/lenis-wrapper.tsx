@@ -8,7 +8,9 @@ import { useEffect, useRef } from "react";
 const LenisWrapper = () => {
   const lenisRef = useRef<LenisRef>(null);
   const pathname = usePathname();
-  const isConfigurator = pathname?.startsWith("/configurator");
+  const isConfigurator =
+    Boolean(pathname?.startsWith("/configurator")) ||
+    Boolean(pathname?.match(/^\/quotation\/[^/]+\/keep\/?$/));
 
   useEffect(() => {
     const lenis = lenisRef.current?.lenis;

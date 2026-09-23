@@ -1,7 +1,8 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, LucidePen, LucideX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
 import { RESOLUTION_OPTIONS } from "@/lib/stream-pixel/types";
 import CloudSaved from "../icons/configurator/cloud-saved";
@@ -34,6 +35,9 @@ type Props = {
   onChangeResolution: (option: ResolutionOption) => void;
   resolutionEnabled?: boolean;
   viewOnly?: boolean;
+  onViewEdit?: () => void;
+  onViewCancel?: () => void;
+  viewEditPending?: boolean;
   materialsOpen?: boolean;
   onShowMaterials?: () => void;
   onQuote?: () => void;
@@ -98,6 +102,9 @@ const ConfiguratorDock = ({
   onChangeResolution,
   resolutionEnabled = true,
   viewOnly,
+  onViewEdit,
+  onViewCancel,
+  viewEditPending = false,
   materialsOpen,
   onShowMaterials,
   onQuote,
@@ -112,13 +119,46 @@ const ConfiguratorDock = ({
       : "No items selected";
 
   return (
-    <div className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]" data-cfg-chrome>
+    <div
+      className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]"
+      data-cfg-chrome
+    >
       <div
         className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
         role="toolbar"
         aria-label="Configurator tools"
       >
-        {!materialsOpen && onShowMaterials ? (
+        {viewOnly ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {onViewCancel ? (
+              <Button
+                type="button"
+                variant="pill"
+                className="h-8 rounded-full border-transparent bg-[#00272d] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#003840] disabled:opacity-45 cursor-pointer transition-colors duration-200"
+                disabled={viewEditPending}
+                onClick={onViewCancel}
+              >
+                Cancel <LucideX className="size-[0.75625rem]" />
+              </Button>
+            ) : null}
+            {onViewEdit ? (
+              <Button
+                type="button"
+                variant="pill"
+                className="h-8 gap-1.5 rounded-full border-transparent bg-[#1A5E63] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#1A5E63]/80 disabled:opacity-45 cursor-pointer transition-colors duration-200"
+                disabled={viewEditPending}
+                aria-busy={viewEditPending}
+                onClick={onViewEdit}
+              >
+                {viewEditPending ? (
+                  <AtelierSpinner sizeClassName="size-3.5" />
+                ) : null}
+                Edit
+                <LucidePen className="size-[0.75625rem]" />
+              </Button>
+            ) : null}
+          </div>
+        ) : !materialsOpen && onShowMaterials ? (
           <button
             type="button"
             className="flex h-8 shrink-0 items-center justify-center gap-1.25 rounded-full bg-[#00272d] px-3.25 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
@@ -136,12 +176,13 @@ const ConfiguratorDock = ({
           </button>
         ) : null}
 
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            {selectedItems.length > 0 ? (
-              <span className="relative flex items-center">
-                <span className="flex items-center">
-                  {selectedItems.slice(0, 3).map((item, index, list) => (
+        {viewOnly ? null : (
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {selectedItems.length > 0 ? (
+                <span className="relative flex items-center">
+                  <span className="flex items-center">
+                    {selectedItems.slice(0, 3).map((item, index, list) => (
                       <CatalogThumb
                         key={item.slot}
                         src={item.thumbnailUrl}
@@ -152,70 +193,71 @@ const ConfiguratorDock = ({
                         sizes="32px"
                       />
                     ))}
-                </span>
-                <button
-                  type="button"
-                  className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
-                  onClick={onToggleSelections}
-                  aria-pressed={selectionsOpen}
-                  aria-label="Edit selected items"
-                  title="Edit selected items"
-                >
-                  <span className="relative block size-[10.5px] overflow-clip">
-                    <Pen className="w-full h-full" />
                   </span>
-                </button>
-              </span>
-            ) : (
-              <EmptySelectionIcon />
-            )}
-            <button
-              type="button"
-              className="hidden min-w-0 flex-col items-start gap-1 sm:flex"
-              onClick={onToggleSelections}
-              aria-pressed={selectionsOpen}
-              title="Selected items"
-            >
-              <span className="font-sans text-[0.625rem] uppercase tracking-[0.06875rem] text-white/70">
-                Selected Items
-              </span>
-              <span className="max-w-36 truncate font-sans text-[0.8125rem] leading-[1.16] text-white">
-                {summary}
-              </span>
-            </button>
-          </div>
-
-          <DockIcon
-            icon={<Reset className="w-full h-full" />}
-            label="Reset selections"
-            onClick={onReset}
-            disabled={viewOnly || selectedItems.length === 0}
-          />
-
-          {(saveStatus === "saving" || selectedItems.length > 0) && (
-            <span
-              className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
-                saveStatus === "saving"
-                  ? "opacity-70"
-                  : saveStatus === "failed"
-                    ? "opacity-90"
-                    : ""
-              }`}
-              title={saveLabel(saveStatus, viewOnly)}
-              aria-label={saveLabel(saveStatus, viewOnly)}
-            >
-              {saveStatus === "saving" ? (
-                <Loader2 className="size-4.5 animate-spin text-white" />
-              ) : saveStatus === "failed" ? (
-                <CloudSlash className="size-4.5" />
+                  <button
+                    type="button"
+                    className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
+                    onClick={onToggleSelections}
+                    aria-pressed={selectionsOpen}
+                    aria-label="Edit selected items"
+                    title="Edit selected items"
+                  >
+                    <span className="relative block size-[10.5px] overflow-clip">
+                      <Pen className="w-full h-full" />
+                    </span>
+                  </button>
+                </span>
               ) : (
-                <CloudSaved className="w-full h-full" />
+                <EmptySelectionIcon />
               )}
-            </span>
-          )}
-        </div>
+              <button
+                type="button"
+                className="hidden min-w-0 flex-col items-start gap-1 sm:flex"
+                onClick={onToggleSelections}
+                aria-pressed={selectionsOpen}
+                title="Selected items"
+              >
+                <span className="font-sans text-[0.625rem] uppercase tracking-[0.06875rem] text-white/70">
+                  Selected Items
+                </span>
+                <span className="max-w-36 truncate font-sans text-[0.8125rem] leading-[1.16] text-white">
+                  {summary}
+                </span>
+              </button>
+            </div>
 
-        {onQuote ? (
+            <DockIcon
+              icon={<Reset className="w-full h-full" />}
+              label="Reset selections"
+              onClick={onReset}
+              disabled={viewOnly || selectedItems.length === 0}
+            />
+
+            {(saveStatus === "saving" || selectedItems.length > 0) && (
+              <span
+                className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
+                  saveStatus === "saving"
+                    ? "opacity-70"
+                    : saveStatus === "failed"
+                      ? "opacity-90"
+                      : ""
+                }`}
+                title={saveLabel(saveStatus, viewOnly)}
+                aria-label={saveLabel(saveStatus, viewOnly)}
+              >
+                {saveStatus === "saving" ? (
+                  <Loader2 className="size-4.5 animate-spin text-white" />
+                ) : saveStatus === "failed" ? (
+                  <CloudSlash className="size-4.5" />
+                ) : (
+                  <CloudSaved className="w-full h-full" />
+                )}
+              </span>
+            )}
+          </div>
+        )}
+
+        {viewOnly ? null : onQuote ? (
           <Button
             type="button"
             variant="pill"

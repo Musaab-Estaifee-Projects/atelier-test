@@ -323,7 +323,7 @@ export function useRenderJob({
     void pollOnce();
   }, [pollOnce, stopPolling]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (opts?: { pollOnly?: boolean }) => {
     if (!enabledRef.current) return false;
     if (!designCode || !session) {
       setError("Design is not ready yet.");
@@ -337,7 +337,7 @@ export function useRenderJob({
       apartmentId,
     );
     const summaryToken = draft?.summaryToken;
-    if (!summaryToken) {
+    if (!opts?.pollOnly && !summaryToken) {
       setError("Quotation summary is not ready yet.");
       return false;
     }
@@ -346,6 +346,14 @@ export function useRenderJob({
     setPreparing(true);
     retryRoundsRef.current = 0;
     lastRetryAtRef.current = 0;
+
+    if (opts?.pollOnly) {
+      setActive(true);
+      activeRef.current = true;
+      startPolling();
+      setPreparing(false);
+      return true;
+    }
 
     const idempotencyKey = draft?.prepareIdempotencyKey || newIdempotencyKey();
     patchDraft(storageArgs, {
@@ -358,7 +366,7 @@ export function useRenderJob({
         designCode,
         {
           selection_revision: 0,
-          summary_token: summaryToken,
+          summary_token: summaryToken!,
           selections: buildApiSelections(session, customMap),
         },
         idempotencyKey,

@@ -7,6 +7,7 @@
 export type StreamPixelUiControl = {
   getResolution?: () => unknown;
   getStreamStats?: () => Record<string, string | number> | null;
+  handleResMax?: (value: string) => void;
   setResolution?: (opts: {
     width?: number;
     height?: number;

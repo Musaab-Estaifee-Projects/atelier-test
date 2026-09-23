@@ -6,6 +6,9 @@ export const ENDPOINTS = {
   CREATE_CUSTOMER: "/customers",
   CREATE_DESIGN: "/designs",
   GET_DESIGN: (designCode: string) => `/designs/${designCode}`,
+  GET_DESIGN_CONFIGURATION: (designCode: string) =>
+    `/designs/${designCode}/configuration`,
+  CONFIRM_DESIGN: (designCode: string) => `/designs/${designCode}/confirm`,
   DESIGN_SUMMARY: (designCode: string) => `/designs/${designCode}/summary`,
   PREPARE_RENDERS: (designCode: string) =>
     `/designs/${designCode}/prepare-renders`,

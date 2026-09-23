@@ -71,6 +71,7 @@ export type ShareableConfiguratorParams = {
   zone?: string | null;
   view?: boolean;
   renders?: boolean;
+  summary?: boolean;
   streamerId?: string | null;
   sfuHost?: string | null;
   sfuPlayer?: string | null;
