@@ -7,7 +7,7 @@ import {
 import { clearDraftsForLayout, saveDraft } from "@/lib/configurator/storage";
 import { isBackendProjectId } from "@/lib/projects/project-id";
 import type { StoredSelection } from "@/types/stored-selection";
-import { isAxiosError } from "axios";
+import { apiErrorMessage } from "@/lib/api-error";
 
 export type CloneQuotationDesignArgs = {
   sourceDesignCode: string;
@@ -36,19 +36,6 @@ export type CloneQuotationDesignResult =
 function apartmentIdNumber(raw?: string | null): number | null {
   const value = raw?.trim();
   return value && /^\d+$/.test(value) ? Number(value) : null;
-}
-
-function cloneErrorMessage(err: unknown): string {
-  if (isAxiosError(err)) {
-    return String(
-      (err.response?.data as { message?: string } | undefined)?.message ||
-        err.message ||
-        "Could not copy this design. Please try again.",
-    );
-  }
-  return err instanceof Error
-    ? err.message
-    : "Could not copy this design. Please try again.";
 }
 
 export async function cloneQuotationDesign(
@@ -141,35 +128,12 @@ export async function cloneQuotationDesign(
       summary,
     };
   } catch (err) {
-    return { ok: false, message: cloneErrorMessage(err) };
-  }
-}
-
-export async function postSummaryFromSourceConfiguration(
-  sourceDesignCode: string,
-  newDesignCode: string,
-): Promise<
-  { ok: true; summary: DesignSummaryData } | { ok: false; message: string }
-> {
-  const withDefaults = await getDesignConfiguration(sourceDesignCode, {
-    includeDefaults: true,
-  });
-  if (!withDefaults.ok) {
     return {
       ok: false,
-      message:
-        withDefaults.reason === "not_found"
-          ? "Saved choices for this design could not be found."
-          : withDefaults.message,
+      message: apiErrorMessage(
+        err,
+        "Could not copy this design. Please try again.",
+      ),
     };
-  }
-  try {
-    const summary = await postDesignSummary(newDesignCode, {
-      selection_revision: 0,
-      selections: withDefaults.selections,
-    });
-    return { ok: true, summary };
-  } catch (err) {
-    return { ok: false, message: cloneErrorMessage(err) };
   }
 }

@@ -1,8 +1,4 @@
-import type {
-  CameraRule,
-  MeshOption,
-  MeshRulesConfig,
-} from "@/types/configurator";
+import type { MeshOption, MeshRulesConfig } from "@/types/configurator";
 
 /**
  * Camera → mesh variant rules (from ATELIER-Rules CSVs).

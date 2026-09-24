@@ -6,10 +6,7 @@ import CatalogThumb from "./catalog-thumb";
 import SelectionRowMenu from "./selection-row-menu";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
-import {
-  buildReviewSections,
-  type ReviewSurfaceLine,
-} from "@/lib/configurator/review-selections";
+import { buildReviewSections } from "@/lib/configurator/review-selections";
 import { mapSummaryToDisplay } from "@/lib/configurator/map-summary-display";
 import type { DesignSummaryData } from "@/services/post-design-summary.service";
 import { cn } from "@/lib/utils";
@@ -25,7 +22,6 @@ type Props = {
   open: boolean;
   session?: ConfiguratorSession | null;
   selections?: SelectionEntry[];
-  unitId?: string | null;
   unitSubtitle: string;
   summary?: DesignSummaryData | null;
   summaryLoading?: boolean;
@@ -243,7 +239,6 @@ const ReviewSelections = ({
   open,
   session,
   selections = [],
-  unitId: _unitId,
   unitSubtitle,
   summary,
   summaryLoading,

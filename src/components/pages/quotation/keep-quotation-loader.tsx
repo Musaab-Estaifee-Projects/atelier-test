@@ -1,10 +1,12 @@
+import "server-only";
 import { redirect } from "next/navigation";
 import KeepQuotationClient from "@/components/pages/quotation/keep-quotation-client";
 import QuotationNotFound from "@/components/pages/quotation/quotation-not-found";
 import {
   isQuotationDesignCode,
-  normalizeQuotationDesignCode,
+  quotationCodeFromSlug,
 } from "@/lib/quotation/design-code";
+import { quotationPath } from "@/lib/quotation/share-url";
 import {
   getSavedDesign,
   isSavedDesignValid,
@@ -15,10 +17,10 @@ type Props = {
 };
 
 const KeepQuotationLoader = async ({ slug }: Props) => {
-  const code = normalizeQuotationDesignCode(decodeURIComponent(slug));
+  const code = quotationCodeFromSlug(slug);
 
   if (!isQuotationDesignCode(code)) {
-    return <QuotationNotFound designCode={slug} />;
+    return <QuotationNotFound />;
   }
 
   const result = await getSavedDesign(code);
@@ -37,7 +39,7 @@ const KeepQuotationLoader = async ({ slug }: Props) => {
   }
 
   if (!result.data.quotation.is_expired || !isSavedDesignValid(result.data)) {
-    redirect(`/quotation/${encodeURIComponent(code)}`);
+    redirect(quotationPath(code));
   }
 
   return <KeepQuotationClient source={result.data} />;

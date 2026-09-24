@@ -37,7 +37,6 @@ export type SyncToUeArgs = {
   /** Fail the sync if LoadCustomization does not succeed. */
   requireLoadCustomization?: boolean;
   force?: boolean;
-  mockLog?: boolean;
   onProgress?: (msg: string) => void;
 };
 
@@ -55,11 +54,7 @@ function syncKey(args: SyncToUeArgs): string {
   ].join("|");
 }
 
-async function waitUntilReady(
-  isUeReady: () => boolean,
-  mockLog: boolean | undefined,
-): Promise<boolean> {
-  if (mockLog) return true;
+async function waitUntilReady(isUeReady: () => boolean): Promise<boolean> {
   for (let i = 0; i < 120; i++) {
     if (isUeReady()) return true;
     await delay(200);
@@ -108,21 +103,19 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
     let loadCustomization =
       !args.requireLoadCustomization && !args.returningVisit;
 
-    if (!(await waitUntilReady(args.isUeReady, args.mockLog))) {
+    if (!(await waitUntilReady(args.isUeReady))) {
       console.warn("[UE sync] stream never ready");
       return { ...UE_SYNC_FAIL };
     }
     await delay(400);
-    if (!args.mockLog && !(await waitUntilEmitAccepted(args.send))) {
+    if (!(await waitUntilEmitAccepted(args.send))) {
       console.warn("[UE sync] emit never accepted");
       return { ...UE_SYNC_FAIL };
     }
 
     if (!args.skipLoadLevel && args.layoutCode) {
       args.onProgress?.("Opening your apartment…");
-      loadLevel = await loadLevelOnUe(args.send, args.layoutCode, {
-        mockLog: args.mockLog,
-      });
+      loadLevel = await loadLevelOnUe(args.send, args.layoutCode);
       if (!loadLevel) {
         console.warn("[UE sync] LoadLevel emit was not accepted");
         return { ok: false, loadLevel: false, loadCustomization: false };
@@ -135,9 +128,8 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
       (args.returningVisit || args.requireLoadCustomization);
     if (loadSaved) {
       const streamOk =
-        args.mockLog ||
-        ((await waitUntilReady(args.isUeReady, args.mockLog)) &&
-          (await waitUntilEmitAccepted(args.send)));
+        (await waitUntilReady(args.isUeReady)) &&
+        (await waitUntilEmitAccepted(args.send));
       if (!streamOk) {
         console.warn("[UE sync] skip LoadCustomization — stream not ready");
         loadCustomization = false;
@@ -149,7 +141,6 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
         loadCustomization = await loadCustomizationFromUe(
           args.send,
           args.designCode!,
-          { mockLog: args.mockLog },
         );
         if (!loadCustomization) {
           console.warn(
@@ -171,7 +162,6 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
       await restoreCameraZoneToUe(args.send, {
         zone: args.zone,
         camera: args.camera,
-        mockLog: args.mockLog,
       });
     }
 
@@ -192,10 +182,6 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
   });
   inflight = promise;
   return promise;
-}
-
-export function getLastUeSyncKey(): string {
-  return lastCompletedKey;
 }
 
 export function invalidateUeSyncCache(): void {

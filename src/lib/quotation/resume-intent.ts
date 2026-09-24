@@ -1,4 +1,6 @@
-export type QuotationResumeMode = "view" | "edit" | "keep-offline" | "fresh";
+export type QuotationResumeMode = "view" | "edit" | "fresh";
+
+const RESUME_MODES: readonly QuotationResumeMode[] = ["view", "edit", "fresh"];
 
 export type QuotationResumeIntent = {
   sourceDesignCode: string;
@@ -28,7 +30,11 @@ export function readQuotationResume(): QuotationResumeIntent | null {
     const raw = window.sessionStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as QuotationResumeIntent;
-    if (!parsed?.sourceDesignCode || !parsed.streamProjectId || !parsed.mode) {
+    if (
+      !parsed?.sourceDesignCode ||
+      !parsed.streamProjectId ||
+      !RESUME_MODES.includes(parsed.mode)
+    ) {
       return null;
     }
     return parsed;
@@ -63,7 +69,6 @@ export function configuratorResumeHref(args: {
   apartmentId?: string | null;
   apartmentNumber?: string | null;
   view?: boolean;
-  summary?: boolean;
 }): string {
   const query = new URLSearchParams();
   if (args.projectId) query.set("project_id", args.projectId);
@@ -73,7 +78,6 @@ export function configuratorResumeHref(args: {
     query.set("apartment_number", args.apartmentNumber);
   }
   if (args.view) query.set("view", "1");
-  if (args.summary) query.set("summary", "1");
   const qs = query.toString();
   return `/configurator/${encodeURIComponent(args.streamProjectId)}${qs ? `?${qs}` : ""}`;
 }

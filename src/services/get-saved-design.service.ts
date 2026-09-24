@@ -114,9 +114,17 @@ export function isSavedDesignValid(data: SavedDesignData): boolean {
   return !isSavedDesignInvalid(data);
 }
 
+function httpUrlOrNull(raw?: string | null): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "http:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function savedDesignPdfUrl(data: SavedDesignData): string | null {
-  const direct = data.pdf_url?.trim();
-  if (direct) return direct;
-  const nested = data.quotation.pdf_url?.trim();
-  return nested || null;
+  return httpUrlOrNull(data.pdf_url) ?? httpUrlOrNull(data.quotation.pdf_url);
 }

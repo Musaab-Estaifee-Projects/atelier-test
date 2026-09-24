@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import QuotationStatusLoader from "@/components/pages/quotation/quotation-status-loader";
 import QuotationStatusSkeleton from "@/components/pages/quotation/quotation-status-skeleton";
-import { normalizeQuotationDesignCode } from "@/lib/quotation/design-code";
+import {
+  isQuotationDesignCode,
+  quotationCodeFromSlug,
+} from "@/lib/quotation/design-code";
 
 export const dynamic = "force-dynamic";
-// export const revalidate = 0;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -15,18 +17,22 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const code = normalizeQuotationDesignCode(decodeURIComponent(slug));
+  const code = quotationCodeFromSlug(slug);
   return {
-    title: `ATELIER · ${code || "Quotation"}`,
+    title: `ATELIER · ${isQuotationDesignCode(code) ? code : "Quotation"}`,
     description: "Return to a saved quotation and configuration.",
   };
 }
 
-const page = async ({ params }: PageProps) => {
+async function StatusPage({ params }: PageProps) {
   const { slug } = await params;
+  return <QuotationStatusLoader slug={slug} />;
+}
+
+const page = ({ params }: PageProps) => {
   return (
     <Suspense fallback={<QuotationStatusSkeleton />}>
-      <QuotationStatusLoader slug={slug} />
+      <StatusPage params={params} />
     </Suspense>
   );
 };

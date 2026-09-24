@@ -269,7 +269,7 @@ const QuotationStatusClient = ({ data }: Props) => {
         onCancel={() => actions.setExpiredDialogOpen(false)}
         onContinue={(mode) => {
           actions.setExpiredDialogOpen(false);
-          actions.request(mode === "keep" ? "keep-offline" : "edit");
+          actions.request(mode === "keep" ? "keep" : "edit");
         }}
       />
 

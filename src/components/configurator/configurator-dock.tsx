@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, LucidePen, LucideX } from "lucide-react";
+import { Info, Loader2, LucidePen, LucideX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
@@ -29,6 +29,7 @@ type Props = {
   onToggleSelections: () => void;
   onReset: () => void;
   onFullscreen: () => void;
+  onReplayTour?: () => void;
   settingsOpen: boolean;
   onToggleSettings: () => void;
   currentResolution: string;
@@ -45,6 +46,7 @@ type Props = {
   levels?: string[];
   activeLevel?: string;
   onLoadLevel?: (levelName: string) => void;
+  tourHighlight?: boolean;
 };
 
 function saveLabel(status: SaveStatus, viewOnly?: boolean): string {
@@ -96,6 +98,7 @@ const ConfiguratorDock = ({
   onToggleSelections,
   onReset,
   onFullscreen,
+  onReplayTour,
   settingsOpen,
   onToggleSettings,
   currentResolution,
@@ -112,6 +115,7 @@ const ConfiguratorDock = ({
   levels = [],
   activeLevel,
   onLoadLevel,
+  tourHighlight,
 }: Props) => {
   const summary =
     selectedItems.length > 0
@@ -120,8 +124,11 @@ const ConfiguratorDock = ({
 
   return (
     <div
-      className="cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]"
+      className={`cfg-dock-wrap pointer-events-none absolute inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-32 flex justify-center px-2 sm:bottom-[max(20px,env(safe-area-inset-bottom))]${
+        tourHighlight ? " z-40" : ""
+      }`}
       data-cfg-chrome
+      data-tour-target="dock"
     >
       <div
         className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
@@ -327,6 +334,15 @@ const ConfiguratorDock = ({
             label="Fullscreen"
             onClick={onFullscreen}
           />
+          {onReplayTour ? (
+            <DockIcon
+              icon={
+                <Info className="size-full text-white" strokeWidth={1.33} />
+              }
+              label="Replay tour"
+              onClick={onReplayTour}
+            />
+          ) : null}
         </div>
       </div>
     </div>

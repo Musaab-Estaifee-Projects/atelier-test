@@ -8,11 +8,17 @@ import QuotationPageFrame, {
 type Props = {
   designCode?: string;
   message?: string;
+  title?: string;
+  hint?: string;
+  onRetry?: () => void;
 };
 
 const QuotationNotFound = ({
   designCode,
   message = "We couldn’t find a quotation for this reference.",
+  title = "Quotation not found",
+  hint = "Check the reference on your quotation PDF and try again.",
+  onRetry,
 }: Props) => {
   return (
     <QuotationPageFrame>
@@ -52,14 +58,22 @@ const QuotationNotFound = ({
             <div className="relative flex w-full shrink-0 flex-col justify-between gap-8 p-7 lg:p-9">
               <div className="flex w-full flex-col items-center gap-4 text-center">
                 <h2 className="font-baskerville text-[1.625rem] leading-[116%] capitalize text-[#F2E9D8]">
-                  Quotation not found
+                  {title}
                 </h2>
-                <p className="text-sm leading-[1.6] text-white/70">
-                  Check the reference on your quotation PDF and try again.
-                </p>
+                <p className="text-sm leading-[1.6] text-white/70">{hint}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Button variant="pill-solid" size="pill" asChild>
+                {onRetry ? (
+                  <Button
+                    type="button"
+                    variant="pill-solid"
+                    size="pill"
+                    onClick={onRetry}
+                  >
+                    Try again
+                  </Button>
+                ) : null}
+                <Button variant={onRetry ? "pill" : "pill-solid"} size="pill" asChild>
                   <Link href="/quotation">Enter another reference</Link>
                 </Button>
                 <Button variant="pill" size="pill" asChild>

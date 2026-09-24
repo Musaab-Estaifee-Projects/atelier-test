@@ -6,10 +6,7 @@ import { isDesignFrozenError } from "@/lib/configurator/is-design-frozen";
 import { patchDraft } from "@/lib/configurator/storage";
 import { postDesignSummary } from "@/services/post-design-summary.service";
 import type { DesignSummaryData } from "@/services/post-design-summary.service";
-import type {
-  ConfiguratorSession,
-  SelectionMap,
-} from "@/types/configurator";
+import type { ConfiguratorSession, SelectionMap } from "@/types/configurator";
 import type { StoredSelection } from "@/types/stored-selection";
 
 type Args = {
@@ -41,17 +38,25 @@ export function useDesignSummary({
   const seqRef = useRef(0);
   const frozenRef = useRef(false);
   const onFrozenRef = useRef(onFrozen);
-  onFrozenRef.current = onFrozen;
   const payloadRef = useRef<StoredSelection[]>([]);
 
   const payload = useMemo(() => {
     if (!session) return [];
     return buildApiSelections(session, customMap);
   }, [session, customMap]);
-  payloadRef.current = payload;
+
+  useEffect(() => {
+    onFrozenRef.current = onFrozen;
+    payloadRef.current = payload;
+  }, [onFrozen, payload]);
 
   useEffect(() => {
     frozenRef.current = false;
+    // Drop the previous design's priced snapshot so the overlay cannot stick
+    // on stale totals while the next summary request is in flight.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setData(null);
+    setError(null);
   }, [designCode]);
 
   const refresh = useCallback(async () => {

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ApartmentForm, {
   type ApartmentChoice,
 } from "@/components/pages/projects/apartment-form";
-import { getDesign } from "@/lib/configurator/api";
 import { writeResidenceLabel } from "@/lib/configurator/residence-label";
-import { configuratorHref, stylesHref } from "@/lib/projects/catalog";
+import { stylesHref } from "@/lib/projects/catalog";
+import { quotationPath } from "@/lib/quotation/share-url";
 import { TProject } from "@/types/types";
 import ProjectInfoBar from "./project-info-bar";
 import Image from "next/image";
@@ -18,37 +17,10 @@ type Props = {
 
 const SelectApartment = ({ project }: Props) => {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (choice: ApartmentChoice) => {
-    setError(null);
-
+  const handleSubmit = (choice: ApartmentChoice) => {
     if (choice.designCode) {
-      setPending(true);
-      try {
-        const design = await getDesign(choice.designCode);
-        const streamId = project.streampixel_app_id?.trim();
-        if (!streamId) {
-          setError("This project has no stream session id.");
-          return;
-        }
-        router.push(
-          configuratorHref(
-            {
-              streamProjectId: streamId,
-              projectId: String(project.id),
-              levelName: design.configuration.levelName,
-              layoutCode: design.configuration.levelName,
-            },
-            { view: true, apartmentId: choice.apartmentId },
-          ),
-        );
-      } catch {
-        setError("We couldn’t find that design code. Check it and try again.");
-      } finally {
-        setPending(false);
-      }
+      router.push(quotationPath(choice.designCode));
       return;
     }
 
@@ -96,12 +68,8 @@ const SelectApartment = ({ project }: Props) => {
       <div className="flex flex-1 flex-col items-center justify-center px-5 py-16 sm:px-10 lg:w-[50dvw] lg:min-h-dvh">
         <ApartmentForm
           project={project}
-          pending={pending}
-          error={error}
           autoFocus
-          onSubmit={(choice) => {
-            void handleSubmit(choice);
-          }}
+          onSubmit={handleSubmit}
         />
       </div>
     </>

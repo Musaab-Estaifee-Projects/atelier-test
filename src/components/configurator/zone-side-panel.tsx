@@ -16,7 +16,8 @@ import {
 import { isDefaultEntry } from "@/lib/configurator/storage";
 import SidePanelClear from "../icons/configurator/side-panel-clear";
 import SidePanelClose from "../icons/configurator/side-panel-close";
-import PanelFrame from "../icons/configurator/panel-frame";
+import { CustomShape } from "@/components/shared/custom-shape";
+import { cn } from "@/lib/utils";
 
 type Props = {
   cameras: CameraRule[];
@@ -30,6 +31,9 @@ type Props = {
   onRemoveSelection?: (slot: string) => void;
   defaults?: SelectionEntry[];
   viewOnly?: boolean;
+  /** Tour preview: show the panel but block all interaction. */
+  interactionLocked?: boolean;
+  tourHighlight?: boolean;
   onClose: () => void;
 };
 
@@ -45,6 +49,8 @@ const ZoneSidePanel = ({
   onRemoveSelection,
   defaults,
   viewOnly,
+  interactionLocked = false,
+  tourHighlight = false,
   onClose,
 }: Props) => {
   const activeCamera =
@@ -59,45 +65,65 @@ const ZoneSidePanel = ({
     variations.find((mat) => mat.id === activeEntry?.materialId) ?? null;
   const showingDefault = Boolean(
     activeMesh &&
-      isDefaultEntry(defaults, {
-        slot: activeSlot,
-        meshId: activeMesh.id,
-        materialId: selectedMaterial?.id || activeEntry?.materialId || "",
-      }),
+    isDefaultEntry(defaults, {
+      slot: activeSlot,
+      meshId: activeMesh.id,
+      materialId: selectedMaterial?.id || activeEntry?.materialId || "",
+    }),
   );
-  const showClear =
-    Boolean(onRemoveSelection && activeSlot && !viewOnly && !showingDefault);
+  const showClear = Boolean(
+    onRemoveSelection &&
+    activeSlot &&
+    !viewOnly &&
+    !interactionLocked &&
+    !showingDefault,
+  );
 
   return (
-    <aside
-      className="cfg-side-panel pointer-events-auto absolute inset-x-3 bottom-21 z-30 flex max-h-[min(58dvh,560px)] flex-col overflow-hidden md:inset-auto md:bottom-auto md:left-3 md:top-15.5 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none py-8"
+    <div
+      className={cn(
+        "cfg-side-panel absolute inset-x-3 bottom-21 z-30 flex h-[min(58dvh,560px)] max-h-[min(58dvh,560px)] flex-col overflow-hidden",
+        // Large screens: pin to the left and vertically center
+        "md:inset-auto md:left-3 md:top-1/2 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none md:-translate-y-1/2",
+        interactionLocked ? "pointer-events-none" : "pointer-events-auto",
+        tourHighlight && "z-40",
+      )}
       data-cfg-chrome
-      aria-label="Materials"
+      data-tour-target="materials"
     >
-      <PanelFrame className="pointer-events-none absolute inset-0 h-full w-full flex-1" />
+      <CustomShape
+        as="aside"
+        fill="panel"
+        stroke="rgba(255,255,255,0.25)"
+        strokeWidth={1}
+        radius={{ base: 18, sm: 20, md: 24 }}
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+        aria-label="Materials"
+        aria-disabled={interactionLocked || undefined}
+      >
+        <div className="cfg-side-panel-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-5 py-8 touch-pan-y sm:gap-8 sm:px-7">
+          <header className="flex shrink-0 flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-1.5">
+              <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
+                Materials
+              </h2>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto hidden-scrollbar px-5 sm:gap-8 sm:px-7">
-        <header className="flex shrink-0 flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-1.5">
-            <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
-              Materials
-            </h2>
-
-            <button
-              type="button"
-              className="relative flex size-4.5 shrink-0 items-center justify-center"
-              onClick={onClose}
-              aria-label="Close materials"
-            >
-              <span className="relative block size-2.75 overflow-clip">
-                <SidePanelClose className="w-full h-full" />
-              </span>
-            </button>
-          </div>
-          <p className="font-sans text-[12px] leading-[1.2] text-white/70">
-            Customize finishes for your space
-          </p>
-        </header>
+              <button
+                type="button"
+                className="relative flex size-4.5 shrink-0 items-center justify-center"
+                onClick={onClose}
+                disabled={interactionLocked}
+                aria-label="Close materials"
+              >
+                <span className="relative block size-2.75 overflow-clip">
+                  <SidePanelClose className="w-full h-full" />
+                </span>
+              </button>
+            </div>
+            <p className="font-sans text-[12px] leading-[1.2] text-white/70">
+              Customize finishes for your space
+            </p>
+          </header>
 
         <section className="flex shrink-0 flex-col gap-3.5">
           <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white">
@@ -286,8 +312,9 @@ const ZoneSidePanel = ({
             )}
           </section>
         </div>
-      </div>
-    </aside>
+        </div>
+      </CustomShape>
+    </div>
   );
 };
 

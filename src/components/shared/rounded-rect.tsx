@@ -83,6 +83,7 @@ export const RoundedRect = forwardRef<HTMLDivElement, RoundedRectProps>(
       stroke = "rgba(255,255,255,0.4)",
       strokeWidth = 1,
       noiseOpacity = 0,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `as` must not be forwarded to motion.div
       as: Component = "div",
       className = "",
       style,

@@ -31,6 +31,7 @@ type PhoneInputVariant = "default" | "atelier";
 
 function CountryFlag({ code }: { code: string }) {
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
       alt=""

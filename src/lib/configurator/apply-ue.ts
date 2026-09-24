@@ -89,52 +89,35 @@ async function sendAndWaitAck(
 export async function moveToZoneOnUe(
   send: SendFn,
   zoneName: string | null | undefined,
-  opts?: { mockLog?: boolean },
 ): Promise<boolean> {
   const name = zoneName?.trim();
   if (!name) return false;
-  return enqueueApply(async () => {
-    if (opts?.mockLog) {
-      console.info("[mock UE] MoveToZone", name);
-      return true;
-    }
-    return sendAndWaitAck(
+  return enqueueApply(() =>
+    sendAndWaitAck(
       send,
       { Function: "MoveToZone", ZoneName: name },
       { attempts: 10, gapMs: 280, label: `MoveToZone ${name}` },
-    );
-  });
+    ),
+  );
 }
 
 export async function switchCameraByNameOnUe(
   send: SendFn,
   cameraName: string | null | undefined,
-  opts?: { mockLog?: boolean },
 ): Promise<boolean> {
   const name = cameraName?.trim();
   if (!name) return false;
-  return enqueueApply(async () => {
-    if (opts?.mockLog) {
-      console.info("[mock UE] SwitchCameraByName", name);
-      return true;
-    }
-    return sendAndWaitAck(
+  return enqueueApply(() =>
+    sendAndWaitAck(
       send,
       { Function: "SwitchCameraByName", CameraName: name },
       { attempts: 10, gapMs: 280, label: `SwitchCameraByName ${name}` },
-    );
-  });
+    ),
+  );
 }
 
-export async function exitCameraOnUe(
-  send: SendFn,
-  opts?: { mockLog?: boolean },
-): Promise<void> {
+export async function exitCameraOnUe(send: SendFn): Promise<void> {
   await enqueueApply(async () => {
-    if (opts?.mockLog) {
-      console.info("[mock UE] ExitCamera");
-      return;
-    }
     await sendAndWaitAck(
       send,
       { Function: "ExitCamera" },
@@ -146,13 +129,9 @@ export async function exitCameraOnUe(
 export async function loadLevelOnUe(
   send: SendFn,
   levelName: string,
-  opts?: { mockLog?: boolean; requireAck?: boolean },
+  opts?: { requireAck?: boolean },
 ): Promise<boolean> {
   if (!levelName) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] LoadLevel", levelName);
-    return true;
-  }
   return enqueueApply(() =>
     sendAndWaitAck(
       send,
@@ -171,14 +150,9 @@ export async function loadLevelOnUe(
 export async function saveCustomizationToUe(
   send: SendFn,
   design_code: string,
-  opts?: { mockLog?: boolean },
 ): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] SaveCustomization", code);
-    return true;
-  }
   const ok = await sendAndWaitAck(
     send,
     { Function: "SaveCustomization", design_code: code },
@@ -220,13 +194,11 @@ async function waitUntilKeepEmitAccepted(
 }
 
 /** Keep-customization only: do not SaveCustomization until the live stream can accept it. */
-export async function waitForKeepUeStream(args: {
+async function waitForKeepUeStream(args: {
   send: SendFn;
   isUeReady: () => boolean;
-  mockLog?: boolean;
   onWaiting?: () => void;
 }): Promise<boolean> {
-  if (args.mockLog) return true;
   const readyNow =
     args.isUeReady() && args.send({ Function: "ConfiguratorReadyProbe" });
   if (!readyNow) args.onWaiting?.();
@@ -252,7 +224,6 @@ export async function restoreKeepSourceOnUe(args: {
   isUeReady: () => boolean;
   layoutCode: string;
   sourceDesignCode: string;
-  mockLog?: boolean;
   onWaiting?: () => void;
   onStreamReady?: () => void;
 }): Promise<KeepSourceRestoreResult> {
@@ -261,17 +232,11 @@ export async function restoreKeepSourceOnUe(args: {
   if (!layout || !source) {
     return { streamReady: false, loadLevel: false, loadCustomization: false };
   }
-  if (args.mockLog) {
-    args.onStreamReady?.();
-    console.info("[mock UE] Keep restore", { layout, source });
-    return { streamReady: true, loadLevel: true, loadCustomization: true };
-  }
 
   const waitStream = () =>
     waitForKeepUeStream({
       send: args.send,
       isUeReady: args.isUeReady,
-      mockLog: false,
       onWaiting: args.onWaiting,
     });
 
@@ -358,22 +323,16 @@ export async function saveKeepCustomizationToUe(
   send: SendFn,
   design_code: string,
   opts?: {
-    mockLog?: boolean;
     isUeReady?: () => boolean;
     onWaiting?: () => void;
   },
 ): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] SaveCustomization (keep)", code);
-    return true;
-  }
   if (opts?.isUeReady) {
     const ready = await waitForKeepUeStream({
       send,
       isUeReady: opts.isUeReady,
-      mockLog: false,
       onWaiting: opts.onWaiting,
     });
     if (!ready) return false;
@@ -407,14 +366,10 @@ export async function saveKeepCustomizationToUe(
 export async function loadCustomizationFromUe(
   send: SendFn,
   design_code: string,
-  opts?: { mockLog?: boolean; requireAck?: boolean; timeoutMs?: number },
+  opts?: { requireAck?: boolean; timeoutMs?: number },
 ): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] LoadCustomization", code);
-    return true;
-  }
   const timeoutMs = opts?.timeoutMs ?? 20000;
   const keep = timeoutMs > 20000;
   const ok = await enqueueApply(() =>
@@ -442,59 +397,21 @@ export function shouldApplyMaterialToMesh(
   return (materialsByMesh?.[meshId]?.length ?? 0) > 1;
 }
 
-export async function paintSelectionsToUe(
-  send: SendFn,
-  entries: SelectionEntry[],
-  opts?: { mockLog?: boolean; materialsByMesh?: Record<string, string[]> },
-): Promise<boolean> {
-  const list = entries.filter((e) => e.meshId);
-  if (!list.length) return true;
-  return enqueueApply(async () => {
-    let allOk = true;
-    for (const entry of list) {
-      const ok = await paintEntry(send, entry, {
-        mockLog: opts?.mockLog,
-        attempts: 8,
-        applyMaterial: shouldApplyMaterialToMesh(
-          entry.meshId,
-          opts?.materialsByMesh,
-        ),
-      });
-      if (!ok) allOk = false;
-      await delay(120);
-    }
-    return allOk;
-  });
-}
-
-export async function resetToDefaultOnUe(
-  send: SendFn,
-  opts?: { mockLog?: boolean },
-): Promise<boolean> {
-  return enqueueApply(async () => {
-    if (opts?.mockLog) {
-      console.info("[mock UE] ResetToDefault");
-      return true;
-    }
-    return sendAndWaitAck(
+export async function resetToDefaultOnUe(send: SendFn): Promise<boolean> {
+  return enqueueApply(() =>
+    sendAndWaitAck(
       send,
       { Function: "ResetToDefault" },
       { attempts: 10, gapMs: 250, label: "ResetToDefault" },
-    );
-  });
+    ),
+  );
 }
 
 async function paintEntry(
   send: SendFn,
   entry: SelectionEntry,
-  opts?: { mockLog?: boolean; attempts?: number; applyMaterial?: boolean },
+  opts?: { attempts?: number; applyMaterial?: boolean },
 ): Promise<boolean> {
-  if (opts?.mockLog) {
-    console.info("[mock UE] ChangeMesh/ApplyMaterial", entry, {
-      applyMaterial: opts.applyMaterial,
-    });
-    return true;
-  }
   const attempts = opts?.attempts ?? 12;
   const meshOk = await sendAndWaitAck(
     send,
@@ -519,7 +436,6 @@ export async function applyOneSelectionToUe(
   send: SendFn,
   entry: SelectionEntry,
   opts?: {
-    mockLog?: boolean;
     design_code?: string | null;
     onSaveStatus?: (status: "saving" | "saved" | "failed") => void;
     skipSave?: boolean;
@@ -529,7 +445,6 @@ export async function applyOneSelectionToUe(
   return enqueueApply(async () => {
     opts?.onSaveStatus?.("saving");
     const ok = await paintEntry(send, entry, {
-      mockLog: opts?.mockLog,
       applyMaterial: Boolean(opts?.applyMaterial),
     });
     if (!ok) {
@@ -546,9 +461,7 @@ export async function applyOneSelectionToUe(
       opts?.onSaveStatus?.("failed");
       return false;
     }
-    const saved = await saveCustomizationToUe(send, code, {
-      mockLog: opts?.mockLog,
-    });
+    const saved = await saveCustomizationToUe(send, code);
     opts?.onSaveStatus?.(saved ? "saved" : "failed");
     return saved;
   });
@@ -559,37 +472,23 @@ export async function restoreCameraZoneToUe(
   opts: {
     zone?: string | null;
     camera?: string | null;
-    mockLog?: boolean;
   },
 ): Promise<void> {
   const zone = opts.zone?.trim() || null;
   const camera = opts.camera?.trim() || null;
   if (camera) {
-    await switchCameraByNameOnUe(send, camera, { mockLog: opts.mockLog });
+    await switchCameraByNameOnUe(send, camera);
     return;
   }
-  if (zone) await moveToZoneOnUe(send, zone, { mockLog: opts.mockLog });
-}
-
-/** @deprecated ResetToDefault is the live reset path. */
-export async function resetCustomizationOnUe(
-  send: SendFn,
-  opts?: { mockLog?: boolean },
-): Promise<boolean> {
-  return resetToDefaultOnUe(send, opts);
+  if (zone) await moveToZoneOnUe(send, zone);
 }
 
 export async function captureCamerasHighResOnUe(
   send: SendFn,
   design_code: string,
-  opts?: { mockLog?: boolean },
 ): Promise<boolean> {
   const code = design_code.trim();
   if (!code) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] CaptureCamerasHighRes", code);
-    return true;
-  }
   return enqueueApply(() =>
     sendAndWaitAck(
       send,
@@ -608,14 +507,9 @@ export function captureCamerasOnUe(
   send: SendFn,
   design_code: string,
   cameraNames: string[],
-  opts?: { mockLog?: boolean },
 ): boolean {
   const code = design_code.trim();
   if (!code || !cameraNames.length) return false;
-  if (opts?.mockLog) {
-    console.info("[mock UE] CaptureCameras", code, cameraNames);
-    return true;
-  }
   return send({
     Function: "CaptureCameras",
     design_code: code,

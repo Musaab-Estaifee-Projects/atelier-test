@@ -21,6 +21,11 @@ type CustomShapeOwnProps = {
   children?: ReactNode;
 
   radius?: ResponsiveValue<number>;
+  /**
+   * `"gradient"` — vertical teal (dialogs).
+   * `"panel"` — horizontal sand @ 50% (materials side panel / dock glass).
+   * Any CSS color — solid fill.
+   */
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
@@ -155,7 +160,9 @@ export const CustomShape = forwardRef<HTMLElement, CustomShapeProps>(
 
     const gradientId = `g-${uid}`;
     const clipId = `clip-${uid}`;
-    const useGradient = fill === "gradient";
+    const useTealGradient = fill === "gradient";
+    const usePanelGradient = fill === "panel";
+    const useGradient = useTealGradient || usePanelGradient;
 
     return (
       <Component
@@ -171,10 +178,17 @@ export const CustomShape = forwardRef<HTMLElement, CustomShapeProps>(
           aria-hidden
         >
           <defs>
-            {useGradient && (
+            {useTealGradient && (
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop stopColor="#00272D" stopOpacity="0.98" />
                 <stop offset="1" stopColor="#003E47" stopOpacity="0.98" />
+              </linearGradient>
+            )}
+            {usePanelGradient && (
+              // Matches PanelFrame: #ADA599 → #4D4539 @ 50%, left←right
+              <linearGradient id={gradientId} x1="1" y1="0.5" x2="0" y2="0.5">
+                <stop stopColor="#ADA599" stopOpacity="0.5" />
+                <stop offset="1" stopColor="#4D4539" stopOpacity="0.5" />
               </linearGradient>
             )}
 

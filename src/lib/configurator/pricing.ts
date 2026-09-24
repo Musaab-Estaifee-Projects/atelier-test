@@ -36,15 +36,3 @@ export function estimatePriceFromSession(
   }
   return Math.round(total);
 }
-
-/**
- * MOCK server-side recompute — never trust client price on submit.
- * // MOCK: replace with real pricing service
- */
-export function computeAuthoritativePrice(
-  session: ConfiguratorSession,
-  selections: SelectionEntry[],
-): number {
-  // Intentionally same formula as optimistic for demo, but called only in mock submit
-  return estimatePriceFromSession(session, selections);
-}

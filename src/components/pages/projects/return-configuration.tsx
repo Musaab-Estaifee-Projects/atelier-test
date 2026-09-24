@@ -13,6 +13,7 @@ import {
   isQuotationDesignCode,
   normalizeQuotationDesignCode,
 } from "@/lib/quotation/design-code";
+import { quotationPath } from "@/lib/quotation/share-url";
 
 type Props = {
   open: boolean;
@@ -53,7 +54,7 @@ const ReturnConfiguration = ({ open, onClose }: Props) => {
 
   const handleSubmit = (values: FormValues) => {
     setPending(true);
-    router.push(`/quotation/${encodeURIComponent(values.reference)}`);
+    router.push(quotationPath(values.reference));
   };
 
   const invalid = !!form.formState.errors.reference;

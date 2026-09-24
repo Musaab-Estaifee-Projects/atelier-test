@@ -8,6 +8,7 @@ import {
   writeQuotationResume,
   type QuotationResumeMode,
 } from "@/lib/quotation/resume-intent";
+import { quotationKeepPath } from "@/lib/quotation/share-url";
 import {
   isSavedDesignValid,
   savedDesignPdfUrl,
@@ -18,7 +19,7 @@ export type QuotationAction =
   | "download"
   | "walk"
   | "edit"
-  | "keep-offline"
+  | "keep"
   | "fresh";
 
 function resumeFromDesign(
@@ -54,7 +55,7 @@ export function useQuotationActions(data: SavedDesignData) {
   const [expiredDialogOpen, setExpiredDialogOpen] = useState(false);
 
   const needsOverride = (action: QuotationAction) => {
-    if (action === "download" || action === "walk" || action === "keep-offline") {
+    if (action === "download" || action === "walk" || action === "keep") {
       return false;
     }
     return hasDraftForLayout(
@@ -70,7 +71,7 @@ export function useQuotationActions(data: SavedDesignData) {
     layoutCode: string,
     apartmentId: string | null,
     apartmentNumber: string | null,
-    opts: { view?: boolean; summary?: boolean },
+    opts: { view?: boolean },
   ) => {
     router.push(
       configuratorResumeHref({
@@ -80,7 +81,6 @@ export function useQuotationActions(data: SavedDesignData) {
         apartmentId,
         apartmentNumber,
         view: opts.view,
-        summary: opts.summary,
       }),
     );
   };
@@ -99,11 +99,9 @@ export function useQuotationActions(data: SavedDesignData) {
       return;
     }
 
-    if (action === "keep-offline") {
-      setPending("keep-offline");
-      router.push(
-        `/quotation/${encodeURIComponent(data.design_code)}/keep`,
-      );
+    if (action === "keep") {
+      setPending("keep");
+      router.push(quotationKeepPath(data.design_code));
       return;
     }
 

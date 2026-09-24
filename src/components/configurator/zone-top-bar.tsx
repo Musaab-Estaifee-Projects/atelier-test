@@ -20,6 +20,7 @@ type Props = {
   activeCameraKey: string | null;
   onSelectCamera: (camera: CameraRule) => void;
   disabled?: boolean;
+  tourHighlight?: boolean;
 };
 
 const glassPill =
@@ -28,7 +29,7 @@ const glassPill =
 const chip =
   "h-8 shrink-0 rounded-full px-[13px] font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white whitespace-nowrap transition hover:bg-white/10 disabled:opacity-40";
 
-export default function ZoneTopBar({
+const ZoneTopBar = ({
   zones,
   activeZoneId,
   freeCameraActive,
@@ -38,12 +39,19 @@ export default function ZoneTopBar({
   activeCameraKey,
   onSelectCamera,
   disabled,
-}: Props) {
+  tourHighlight,
+}: Props) => {
   const zoneSelected = Boolean(activeZoneId);
   const showSurfaces = zoneSelected && cameras.length > 0;
 
   return (
-    <div className="cfg-zone-bar pointer-events-none absolute inset-x-0 top-0 z-[28] flex flex-col items-center gap-1.5 px-3 pt-[max(10px,env(safe-area-inset-top))] sm:gap-2 sm:pt-[max(14px,env(safe-area-inset-top))]" data-cfg-chrome>
+    <div
+      className={`cfg-zone-bar pointer-events-none absolute inset-x-0 top-0 z-[28] flex flex-col items-center gap-1.5 px-3 pt-[max(10px,env(safe-area-inset-top))] sm:gap-2 sm:pt-[max(14px,env(safe-area-inset-top))]${
+        tourHighlight ? " z-40" : ""
+      }`}
+      data-cfg-chrome
+      data-tour-target="zones"
+    >
       <div className="flex flex-col items-center">
         <AtelierLogo className="h-[1.6rem] w-auto" />
         <ByWord className="mt-0.5 h-[5px] w-auto" />
@@ -107,4 +115,6 @@ export default function ZoneTopBar({
       ) : null}
     </div>
   );
-}
+};
+
+export default ZoneTopBar;

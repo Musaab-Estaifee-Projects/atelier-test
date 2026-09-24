@@ -38,8 +38,9 @@ import {
   overlayCopyForQueueMessage,
   type DisconnectOverlayCopy,
 } from "@/lib/stream-pixel/disconnect-reason";
+import { env } from "@/lib/env";
 
-const SHOW_DEV_TOOLS = process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === "true";
+const SHOW_DEV_TOOLS = env.NEXT_PUBLIC_SHOW_DEV_TOOLS;
 
 function isMobileClient() {
   if (typeof navigator === "undefined") return false;
@@ -149,7 +150,7 @@ type UseStreamPixelArgs = {
   videoContainerRef: React.RefObject<HTMLDivElement | null>;
   /** Element to fullscreen (shell with UI chrome). Defaults to video container. */
   fullscreenTargetRef?: React.RefObject<HTMLElement | null>;
-  /** Skip StreamPixel entirely (offline summary / continue-to-renders). */
+  /** Hold the StreamPixel connection until the caller is ready to boot it. */
   enabled?: boolean;
 };
 
@@ -285,6 +286,7 @@ export function useStreamPixel({
   useEffect(() => {
     if (enabled) return;
     streamReadyRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- caller toggled the stream off
     setIsLoading(false);
     setStreamPhase("loading");
   }, [enabled]);

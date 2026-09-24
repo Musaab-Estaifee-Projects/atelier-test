@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import AtelierMark from "@/components/icons/atelier-mark";
+import ConfirmTermsDialog from "@/components/configurator/confirm-terms-dialog";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
 import type { RoomRenderCard } from "@/types/configurator";
-import type { SubmitContactForm } from "@/components/configurator/submit-modal";
-// import BackArrow from "@/components/icons/configurator/back-arrow";
 import DiamondRule from "@/components/icons/configurator/diamond-rule";
 import TitleRule from "@/components/icons/title-rule";
 import { cn } from "@/lib/utils";
@@ -25,12 +24,8 @@ type Props = {
   /** Keep-offline: layout-matched room grid instead of a centered spinner. */
   skeleton?: boolean;
   onConfirm?: () => void;
-  submitPending?: boolean;
-  submitError?: string | null;
-  onBack?: () => void;
   onView: (zoneId: string, cameraName?: string) => void;
   onRetry: (zoneId: string) => void;
-  onSubmit: (contact: SubmitContactForm) => void;
 };
 
 const Dirham = ({
@@ -168,38 +163,6 @@ const RoomBlock = ({
   );
 };
 
-// const QuoteForm = ({
-//   pending,
-//   error,
-//   onSubmit,
-// }: {
-//   pending: boolean;
-//   error?: string | null;
-//   onSubmit: (contact: SubmitContactForm) => void;
-// }) => {
-//   return (
-//     <aside className="relative w-full shrink-0 lg:sticky lg:top-6 lg:w-86.5">
-//       <FromFrame className="pointer-events-none absolute inset-0 hidden! h-full w-full lg:block!" />
-
-//       <ContactForm
-//         pending={pending}
-//         error={error}
-//         title="Where should we send it?"
-//         submitLabel="Submit"
-//         pendingLabel="Submitting…"
-//         className="border border-white/10 bg-white/5 p-7 lg:border-0 lg:bg-transparent lg:p-9 max-w-none"
-//         onSubmit={(info: ContactInfo) => {
-//           onSubmit({
-//             name: info.name,
-//             email: info.email,
-//             phone: info.phone,
-//           });
-//         }}
-//       />
-//     </aside>
-//   );
-// };
-
 const FinalDesignProgress = ({
   open,
   rooms,
@@ -212,10 +175,11 @@ const FinalDesignProgress = ({
   title = "Creating Final Renders",
   skeleton = false,
   onConfirm,
-  onBack,
   onView,
   onRetry,
 }: Props) => {
+  const [termsOpen, setTermsOpen] = useState(false);
+
   if (!open) return null;
 
   return (
@@ -225,21 +189,8 @@ const FinalDesignProgress = ({
       aria-modal="true"
       aria-labelledby="fd-progress-title"
     >
-      {/* <div className="pointer-events-none absolute inset-x-0 top-0! left-[16%] h-[min(382px,42vw)] overflow-hidden opacity-45">
-        <CustomHeaderStyle className="h-full w-full object-cover object-[center_top]" />
-      </div> */}
-
       <div className="relative z-10 mx-auto flex w-full max-w-360 flex-col px-4 pt-5 pb-[calc(11rem+env(safe-area-inset-bottom))] sm:px-9 md:pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
         <header className="relative flex items-center justify-between gap-3">
-          {/* <Button
-            type="button"
-            variant="pill-solid"
-            size="pill-sm"
-            onClick={onBack}
-          >
-            <BackArrow className="w-[0.28125rem]! h-auto" />
-            Back To summary
-          </Button> */}
           <div className="absolute left-1/2 hidden -translate-x-1/2 sm:block">
             <AtelierMark />
           </div>
@@ -294,12 +245,6 @@ const FinalDesignProgress = ({
               ))
             )}
           </div>
-          {/* 
-          <QuoteForm
-            pending={submitPending}
-            error={submitError}
-            onSubmit={onSubmit}
-          /> */}
         </div>
       </div>
 
@@ -326,13 +271,22 @@ const FinalDesignProgress = ({
               className="h-10 w-full rounded-full bg-[#00272d] px-3.25 text-[10px] tracking-[0.03em] text-[#f2e9d8] hover:bg-[#00343c] disabled:opacity-60 md:w-56"
               disabled={confirmPending || confirmDisabled}
               aria-busy={confirmPending}
-              onClick={onConfirm}
+              onClick={() => setTermsOpen(true)}
             >
               {confirmPending ? "Confirming…" : "Confirm My Selection"}
             </Button>
           </div>
         </div>
       </footer>
+
+      <ConfirmTermsDialog
+        open={termsOpen}
+        onCancel={() => setTermsOpen(false)}
+        onAgree={() => {
+          setTermsOpen(false);
+          void onConfirm?.();
+        }}
+      />
     </div>
   );
 };

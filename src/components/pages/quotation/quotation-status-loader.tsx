@@ -1,8 +1,9 @@
+import "server-only";
 import QuotationStatusClient from "@/components/pages/quotation/quotation-status-client";
 import QuotationNotFound from "@/components/pages/quotation/quotation-not-found";
 import {
   isQuotationDesignCode,
-  normalizeQuotationDesignCode,
+  quotationCodeFromSlug,
 } from "@/lib/quotation/design-code";
 import { getSavedDesign } from "@/services/get-saved-design.service";
 
@@ -11,10 +12,10 @@ type Props = {
 };
 
 const QuotationStatusLoader = async ({ slug }: Props) => {
-  const code = normalizeQuotationDesignCode(decodeURIComponent(slug));
+  const code = quotationCodeFromSlug(slug);
 
   if (!isQuotationDesignCode(code)) {
-    return <QuotationNotFound designCode={slug} />;
+    return <QuotationNotFound />;
   }
 
   const result = await getSavedDesign(code);

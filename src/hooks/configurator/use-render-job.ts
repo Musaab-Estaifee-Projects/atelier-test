@@ -9,6 +9,14 @@ import {
   patchDraft,
 } from "@/lib/configurator/storage";
 import {
+  failedRenderCameras,
+  rendersInProgress,
+  roomsFromRenders,
+  stillIndexFor,
+  stillsFromRenders,
+} from "@/lib/configurator/renders-view";
+import { apiErrorMessage } from "@/lib/api-error";
+import {
   getRenders,
   listRenderCameras,
   parseRenderTotalAmount,
@@ -16,22 +24,9 @@ import {
   retryRenders,
   type GetRendersData,
 } from "@/services/renders.service";
-import type {
-  ConfiguratorSession,
-  RoomRenderCard,
-  SelectionMap,
-} from "@/types/configurator";
+import type { ConfiguratorSession, SelectionMap } from "@/types/configurator";
 import type { LightboxStill } from "@/components/configurator/final-design/final-design-viewer";
 import type { UeInteractionPayload } from "@/lib/stream-pixel/ue-protocol";
-import { isAxiosError } from "axios";
-
-function apiErrorMessage(err: unknown, fallback: string) {
-  if (isAxiosError(err)) {
-    const body = err.response?.data as { message?: string } | undefined;
-    return body?.message || err.message || fallback;
-  }
-  return err instanceof Error ? err.message : fallback;
-}
 
 const MAX_AUTO_RETRIES = 3;
 const DEFAULT_POLL_MS = 3000;
@@ -85,80 +80,9 @@ function stabilizeCompletedUrls(
 
 type SendFn = (payload: UeInteractionPayload) => boolean;
 
-function failedCameras(data: GetRendersData | null) {
-  return listRenderCameras(data).filter(
-    (cam) => cam.is_failed || cam.status === "failed",
-  );
-}
-
-function inProgress(data: GetRendersData | null): boolean {
-  if (!data) return true;
-  if (data.is_all_rendered || data.is_terminal) return false;
-  return listRenderCameras(data).some(
-    (cam) =>
-      !cam.is_failed && cam.status !== "completed" && cam.status !== "failed",
-  );
-}
-
-function roomsFromRenders(
-  session: ConfiguratorSession | null,
-  data: GetRendersData | null,
-): RoomRenderCard[] {
-  if (!data?.camera_zones.length) {
-    return (session?.zones ?? []).map((zone) => ({
-      zoneId: zone.id,
-      label: zone.label,
-      ueZone: zone.ueZone || zone.id,
-      heroCameraName: zone.cameras[0]?.name ?? zone.id,
-      heroCameraIndex: 0,
-      status: "rendering" as const,
-      imageUrl: undefined,
-      attempt: 1,
-      stills: (zone.cameras.length
-        ? zone.cameras
-        : [{ name: zone.id, mode: "" }]
-      ).map((cam) => ({
-        cameraName: cam.name,
-        imageUrl: undefined,
-      })),
-    }));
-  }
-
-  return data.camera_zones.map((zone) => {
-    const cams = zone.cameras ?? [];
-    const stills = cams.map((cam) => ({
-      cameraName: cam.camera_id,
-      imageUrl: cam.render_s3_url ?? undefined,
-    }));
-    const allDone =
-      cams.length > 0 &&
-      cams.every((c) => c.status === "completed" && c.render_s3_url);
-    const anyFailed = cams.some((c) => c.is_failed || c.status === "failed");
-    const hero = cams.find((c) => c.render_s3_url) ?? cams[0];
-    const sessionZone = session?.zones.find(
-      (z) => z.id === zone.camera_zone_id,
-    );
-    return {
-      zoneId: zone.camera_zone_id,
-      label:
-        zone.camera_zone_name?.trim() ||
-        sessionZone?.label ||
-        zone.camera_zone_id,
-      ueZone: sessionZone?.ueZone || zone.camera_zone_id,
-      heroCameraName: hero?.camera_id ?? zone.camera_zone_id,
-      heroCameraIndex: 0,
-      status: allDone ? "completed" : anyFailed ? "error" : "rendering",
-      imageUrl: hero?.render_s3_url ?? undefined,
-      attempt: Math.max(0, ...cams.map((c) => c.attempt_number || 1), 1),
-      stills,
-    };
-  });
-}
-
 type Args = {
   enabled: boolean;
   send: SendFn;
-  mockUe: boolean;
   streamProjectId: string;
   backendProjectId: string;
   layoutCode: string;
@@ -171,7 +95,6 @@ type Args = {
 export function useRenderJob({
   enabled,
   send,
-  mockUe,
   streamProjectId,
   backendProjectId,
   layoutCode,
@@ -192,6 +115,7 @@ export function useRenderJob({
   const pollOnceRef = useRef<() => Promise<void>>(async () => undefined);
   const activeRef = useRef(false);
   const enabledRef = useRef(enabled);
+  const startInFlightRef = useRef(false);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -218,6 +142,24 @@ export function useRenderJob({
     }
   }, []);
 
+  const retryKeyFromDraft = useCallback(() => {
+    const draft = loadDraft(
+      streamProjectId,
+      backendProjectId,
+      layoutCode,
+      apartmentId,
+    );
+    const retryKey =
+      draft?.prepareIdempotencyKey ||
+      draft?.retryIdempotencyKey ||
+      newIdempotencyKey();
+    patchDraft(storageArgs, {
+      prepareIdempotencyKey: retryKey,
+      retryIdempotencyKey: retryKey,
+    });
+    return retryKey;
+  }, [apartmentId, backendProjectId, layoutCode, storageArgs, streamProjectId]);
+
   const pollOnce = useCallback(async () => {
     if (!designCode || !activeRef.current || !enabledRef.current) return;
     try {
@@ -234,7 +176,7 @@ export function useRenderJob({
         return;
       }
 
-      const failed = failedCameras(next);
+      const failed = failedRenderCameras(next);
       const canAutoRetry =
         failed.length &&
         retryRoundsRef.current < MAX_AUTO_RETRIES &&
@@ -247,34 +189,21 @@ export function useRenderJob({
         retryRoundsRef.current += 1;
         lastRetryAtRef.current = Date.now();
         try {
-          const names = failed.map((c) => c.camera_id);
-          captureCamerasOnUe(send, designCode, names, { mockLog: mockUe });
-          const draft = loadDraft(
-            streamProjectId,
-            backendProjectId,
-            layoutCode,
-            apartmentId,
+          captureCamerasOnUe(
+            send,
+            designCode,
+            failed.map((c) => c.camera_id),
           );
-          const retryKey =
-            draft?.prepareIdempotencyKey ||
-            draft?.retryIdempotencyKey ||
-            newIdempotencyKey();
-          patchDraft(storageArgs, {
-            prepareIdempotencyKey: retryKey,
-            retryIdempotencyKey: retryKey,
-          });
           await retryRenders(
             designCode,
             failed.map((c) => ({
               camera_zone_id: c.camera_zone_id,
               camera_id: c.camera_id,
             })),
-            retryKey,
+            retryKeyFromDraft(),
           );
         } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Render retry failed";
-          setError(message);
+          setError(apiErrorMessage(err, "Render retry failed"));
         } finally {
           retryInFlightRef.current = false;
         }
@@ -284,35 +213,22 @@ export function useRenderJob({
         stopPolling();
         return;
       }
-      const delay = DEFAULT_POLL_MS;
       stopPolling();
       pollTimerRef.current = window.setTimeout(() => {
         void pollOnceRef.current();
-      }, delay);
+      }, DEFAULT_POLL_MS);
     } catch (err) {
       if (!activeRef.current || !enabledRef.current) {
         stopPolling();
         return;
       }
-      const message =
-        err instanceof Error ? err.message : "Failed to load render progress";
-      setError(message);
+      setError(apiErrorMessage(err, "Failed to load render progress"));
       stopPolling();
       pollTimerRef.current = window.setTimeout(() => {
         void pollOnceRef.current();
       }, DEFAULT_POLL_MS);
     }
-  }, [
-    apartmentId,
-    backendProjectId,
-    designCode,
-    layoutCode,
-    mockUe,
-    send,
-    stopPolling,
-    storageArgs,
-    streamProjectId,
-  ]);
+  }, [designCode, retryKeyFromDraft, send, stopPolling]);
 
   useEffect(() => {
     pollOnceRef.current = pollOnce;
@@ -323,8 +239,8 @@ export function useRenderJob({
     void pollOnce();
   }, [pollOnce, stopPolling]);
 
-  const start = useCallback(async (opts?: { pollOnly?: boolean }) => {
-    if (!enabledRef.current) return false;
+  const start = useCallback(async () => {
+    if (!enabledRef.current || startInFlightRef.current) return false;
     if (!designCode || !session) {
       setError("Design is not ready yet.");
       return false;
@@ -337,23 +253,16 @@ export function useRenderJob({
       apartmentId,
     );
     const summaryToken = draft?.summaryToken;
-    if (!opts?.pollOnly && !summaryToken) {
+    if (!summaryToken) {
       setError("Quotation summary is not ready yet.");
       return false;
     }
 
+    startInFlightRef.current = true;
     setError(null);
     setPreparing(true);
     retryRoundsRef.current = 0;
     lastRetryAtRef.current = 0;
-
-    if (opts?.pollOnly) {
-      setActive(true);
-      activeRef.current = true;
-      startPolling();
-      setPreparing(false);
-      return true;
-    }
 
     const idempotencyKey = draft?.prepareIdempotencyKey || newIdempotencyKey();
     patchDraft(storageArgs, {
@@ -366,7 +275,7 @@ export function useRenderJob({
         designCode,
         {
           selection_revision: 0,
-          summary_token: summaryToken!,
+          summary_token: summaryToken,
           selections: buildApiSelections(session, customMap),
         },
         idempotencyKey,
@@ -382,6 +291,7 @@ export function useRenderJob({
       setError(apiErrorMessage(err, "Failed to prepare renders"));
       return false;
     } finally {
+      startInFlightRef.current = false;
       setPreparing(false);
     }
   }, [
@@ -390,8 +300,6 @@ export function useRenderJob({
     customMap,
     designCode,
     layoutCode,
-    mockUe,
-    send,
     session,
     startPolling,
     storageArgs,
@@ -411,7 +319,7 @@ export function useRenderJob({
       if (!enabledRef.current || !designCode) return;
       const targets =
         cameras ??
-        failedCameras(data).map((c) => ({
+        failedRenderCameras(data).map((c) => ({
           camera_zone_id: c.camera_zone_id,
           camera_id: c.camera_id,
         }));
@@ -420,41 +328,16 @@ export function useRenderJob({
         send,
         designCode,
         targets.map((c) => c.camera_id),
-        { mockLog: mockUe },
       );
-      const draft = loadDraft(
-        streamProjectId,
-        backendProjectId,
-        layoutCode,
-        apartmentId,
-      );
-      const retryKey =
-        draft?.prepareIdempotencyKey ||
-        draft?.retryIdempotencyKey ||
-        newIdempotencyKey();
-      patchDraft(storageArgs, {
-        prepareIdempotencyKey: retryKey,
-        retryIdempotencyKey: retryKey,
-      });
+      const retryKey = retryKeyFromDraft();
       try {
         await retryRenders(designCode, targets, retryKey);
         startPolling();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Retry failed");
+        setError(apiErrorMessage(err, "Retry failed"));
       }
     },
-    [
-      apartmentId,
-      backendProjectId,
-      data,
-      designCode,
-      layoutCode,
-      mockUe,
-      send,
-      startPolling,
-      storageArgs,
-      streamProjectId,
-    ],
+    [data, designCode, retryKeyFromDraft, send, startPolling],
   );
 
   const retryRoom = useCallback(
@@ -493,41 +376,16 @@ export function useRenderJob({
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
-  const rooms = useMemo(() => roomsFromRenders(session, data), [session, data]);
+  const rooms = useMemo(() => roomsFromRenders(data, session), [session, data]);
 
   const stills: LightboxStill[] = useMemo(
-    () =>
-      (data?.camera_zones ?? []).flatMap((zone) =>
-        zone.cameras
-          .filter((c) => c.render_s3_url)
-          .map((c) => {
-            const zoneName =
-              zone.camera_zone_name?.trim() ||
-              session?.zones.find((z) => z.id === zone.camera_zone_id)?.label ||
-              zone.camera_zone_id;
-            const cameraLabel =
-              c.camera_name?.trim() ||
-              session?.slotLabels[c.camera_id] ||
-              c.camera_id;
-            return {
-              cameraName: c.camera_id,
-              cameraLabel,
-              zoneId: zone.camera_zone_id,
-              zoneName,
-              label: `${zoneName} - ${cameraLabel}`,
-              imageUrl: c.render_s3_url as string,
-            };
-          }),
-      ),
+    () => stillsFromRenders(data, session),
     [data, session],
   );
 
   const openViewer = useCallback(
     (zoneId: string, cameraName?: string) => {
-      const index = stills.findIndex(
-        (s) =>
-          s.zoneId === zoneId && (!cameraName || s.cameraName === cameraName),
-      );
+      const index = stillIndexFor(stills, zoneId, cameraName);
       if (index >= 0) setLightboxIndex(index);
     },
     [stills],
@@ -535,8 +393,8 @@ export function useRenderJob({
 
   const confirmDisabled =
     !data?.is_all_rendered ||
-    inProgress(data) ||
-    failedCameras(data).length > 0;
+    rendersInProgress(data) ||
+    failedRenderCameras(data).length > 0;
 
   return {
     active,

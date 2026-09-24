@@ -71,7 +71,6 @@ export type ShareableConfiguratorParams = {
   zone?: string | null;
   view?: boolean;
   renders?: boolean;
-  summary?: boolean;
   streamerId?: string | null;
   sfuHost?: string | null;
   sfuPlayer?: string | null;
@@ -120,37 +119,6 @@ export type ConfiguratorSession = {
   defaults?: SelectionEntry[];
 };
 
-export type DesignConfiguration = {
-  version: 1;
-  levelName: string;
-  selections: SelectionEntry[];
-  meta?: { source?: string };
-};
-
-export type DesignContact = {
-  name: string;
-  email: string;
-  phone: string;
-};
-
-export type StoredDesign = {
-  designCode: string;
-  streamProjectId: string;
-  unitId: string;
-  configuration: DesignConfiguration;
-  contact: DesignContact;
-  price: number;
-  currency: string;
-  createdAt: string;
-};
-
-export type SubmitDesignResult = {
-  designCode: string;
-  shareUrl: string;
-  price: number;
-  currency: string;
-};
-
 export type RoomStillStatus = "queued" | "rendering" | "completed" | "error";
 
 export type RoomCameraStill = {
@@ -172,8 +140,6 @@ export type RoomRenderCard = {
   attempt: number;
   stills: RoomCameraStill[];
 };
-
-export type FinalDesignPhase = "idle" | "confirm" | "capturing" | "review";
 
 export type LocalDraft = {
   version: 3;

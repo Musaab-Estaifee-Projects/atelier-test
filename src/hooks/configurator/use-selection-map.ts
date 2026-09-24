@@ -4,7 +4,6 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { estimatePriceFromSession } from "@/lib/configurator/pricing";
 import { customMapToStored, storedToSelectionMap } from "@/lib/configurator/api-selections";
 import {
-  clearDraft,
   isDefaultEntry,
   isUsingMemoryOnlyStorage,
   loadDraft,
@@ -69,6 +68,7 @@ export function useSelectionMap(args: {
   const committedRef = useRef<SelectionMap>({});
   const mapRef = useRef<SelectionMap>({});
   const tokensRef = useRef<Record<string, number>>({});
+  // eslint-disable-next-line react-hooks/refs -- optimistic select/revert read the latest map synchronously
   mapRef.current = map;
 
   const persist = useCallback(
@@ -278,20 +278,6 @@ export function useSelectionMap(args: {
     persist(next);
   }, [persist]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const clearAfterSubmit = useCallback(() => {
-    if (session?.layoutCode) {
-      clearDraft(
-        streamProjectId,
-        backendProjectId,
-        session.layoutCode,
-        apartmentId,
-      );
-    }
-    committedRef.current = {};
-    setSaveStatus("saved");
-  }, [streamProjectId, backendProjectId, session?.layoutCode, apartmentId]);
-
   const selections = useMemo(() => mapToSelections(map), [map]);
   const optimisticPrice = useMemo(() => {
     if (!session) return 0;
@@ -323,7 +309,6 @@ export function useSelectionMap(args: {
     revertReset,
     removeSlot,
     resetAll,
-    clearAfterSubmit,
     setMapDirect: setMap,
   };
 }

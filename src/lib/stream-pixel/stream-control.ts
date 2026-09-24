@@ -6,9 +6,6 @@
  *  1) call UIControl.handleResMax / setResolution when present
  *  2) emitUIInteraction with the documented message shape
  *  3) postMessage any nested iframe as a fallback
- *
- * Screenshot: iframe `requestScreenshot` auto-downloads. We capture the
- * <video> frame ourselves (capture-frame.ts) so the viewer can display it.
  */
 
 import { setMatchViewportRes } from "@/lib/stream-pixel/fit-stream";
