@@ -57,7 +57,7 @@ export default function UeLogSidebar() {
     <>
       <button
         type="button"
-        className="pointer-events-auto absolute right-3 top-[max(10px,env(safe-area-inset-top))] z-[40] flex size-9 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white backdrop-blur-md transition hover:bg-white/15"
+        className="cfg-ue-log pointer-events-auto absolute right-3 top-[max(10px,env(safe-area-inset-top))] z-[88] flex size-9 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white backdrop-blur-md transition hover:bg-white/15"
         data-cfg-chrome
         onClick={() => setOpen(true)}
         aria-label="Open Unreal logs"
@@ -67,7 +67,7 @@ export default function UeLogSidebar() {
       </button>
 
       {open ? (
-        <aside className="pointer-events-auto absolute inset-y-0 right-0 z-[70] flex w-[min(100%,22rem)] flex-col border-l border-white/15 bg-[#0a1618]/95 text-white shadow-2xl backdrop-blur-xl sm:w-[24rem]" data-cfg-chrome>
+        <aside className="cfg-ue-log pointer-events-auto absolute inset-y-0 right-0 z-[88] flex w-[min(100%,22rem)] flex-col border-l border-white/15 bg-[#0a1618]/95 text-white shadow-2xl backdrop-blur-xl sm:w-[24rem]" data-cfg-chrome>
           <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-3">
             <div>
               <p className="font-sans text-[10px] font-medium uppercase tracking-[0.4px] text-white/50">

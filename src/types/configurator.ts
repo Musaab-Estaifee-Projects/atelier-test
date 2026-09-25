@@ -109,6 +109,13 @@ export type ConfiguratorSession = {
   levelName: string;
   layoutCode: string;
   backendProjectId: string;
+  /** From layout catalog when the API sends identity fields. */
+  residence?: {
+    projectName?: string;
+    categoryName?: string;
+    typeName?: string;
+    area?: string | null;
+  };
   cameras: CameraRule[];
   meshes: MeshOption[];
   materials: MaterialOption[];

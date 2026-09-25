@@ -35,6 +35,11 @@ const QuotationStatusClient = ({ data }: Props) => {
     <QuotationPageFrame>
       <QuotationPageHeader
         subtitle={quotationResidenceSubtitle(data.property)}
+        notice={
+          data.is_invalid
+            ? "Some Variations or Finish Types in this design may no longer be available or changed, so a few choices may have changed, and so you can not re-use this quotation's contents anymore."
+            : null
+        }
       />
 
       <div className="mt-10 flex w-full flex-1 flex-col items-stretch gap-5 md:flex-row md:items-stretch">

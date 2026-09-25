@@ -53,6 +53,48 @@ export function patchQuotationResume(
   return next;
 }
 
+/** True only for a Walk in 3D visit saved in this tab for this stream, project, and layout. */
+export function isMatchingViewResume(args: {
+  streamProjectId: string;
+  projectId: string | null;
+  layoutCode: string;
+}): boolean {
+  return isMatchingLiveResume(args, "view");
+}
+
+/**
+ * Walk in 3D or Edit for this stream, project, and layout.
+ * Edit rewrites the saved visit to mode "edit" before `view=1` leaves the URL,
+ * so that hand-off must still count as the same visit.
+ */
+export function isMatchingLiveResume(
+  args: {
+    streamProjectId: string;
+    projectId: string | null;
+    layoutCode: string;
+  },
+  mode?: "view" | "edit",
+): boolean {
+  const projectId = args.projectId?.trim() || "";
+  const layoutCode = args.layoutCode.trim();
+  const streamProjectId = args.streamProjectId.trim();
+  if (!projectId || !layoutCode || !streamProjectId) return false;
+  const resume = readQuotationResume();
+  if (!resume) return false;
+  if (mode && resume.mode !== mode) return false;
+  if (!mode && resume.mode !== "view" && resume.mode !== "edit") return false;
+  const code =
+    resume.mode === "edit"
+      ? resume.clonedDesignCode || resume.sourceDesignCode
+      : resume.sourceDesignCode;
+  return (
+    resume.streamProjectId?.trim() === streamProjectId &&
+    resume.projectId?.trim() === projectId &&
+    resume.layoutCode?.trim() === layoutCode &&
+    Boolean(code?.trim())
+  );
+}
+
 export function clearQuotationResume(): void {
   if (typeof window === "undefined") return;
   try {

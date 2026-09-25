@@ -32,6 +32,21 @@ export type LayoutCatalogZone = {
 
 export type LayoutCatalogData = {
   code: string;
+  project?: {
+    id?: number;
+    code?: string;
+    name?: string;
+  } | null;
+  category?: {
+    id?: number;
+    name?: string;
+  } | null;
+  type?: {
+    id?: number;
+    name?: string;
+  } | null;
+  /** Omitted when the layout has no area. */
+  area?: string | number | null;
   camera_zones: LayoutCatalogZone[];
 };
 

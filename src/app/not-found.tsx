@@ -17,10 +17,6 @@ export default function NotFound() {
         <AtelierMark href="/" />
 
         <div className="flex flex-col items-center justify-center gap-3">
-          <span className="mt-12 text-[0.625rem] font-medium leading-[120%] tracking-[0.01875rem] text-white uppercase">
-            Atelier by Reef
-          </span>
-
           <h1 className="font-baskerville text-[2rem] font-normal leading-[116%] tracking-[0.1125rem] text-[#F2E9D8] capitalize md:text-[2.25rem]">
             Page not found
           </h1>

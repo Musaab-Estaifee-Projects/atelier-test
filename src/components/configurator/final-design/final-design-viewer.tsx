@@ -148,9 +148,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import RenderS3Image from "@/components/configurator/final-design/render-s3-image";
 import {
   Carousel,
   CarouselContent,
@@ -281,16 +281,13 @@ const FinalDesignViewer = ({
                       className="h-full basis-full pl-0"
                     >
                       <div className="relative h-full w-full">
-                        <Image
+                        <RenderS3Image
                           src={s.imageUrl}
                           alt={s.label}
-                          fill
-                          unoptimized
+                          fit="contain"
                           quality={100}
                           priority={Math.abs(i - shownIndex) <= 1}
-                          className="object-contain pointer-events-none select-none"
                           sizes="100vw"
-                          draggable={false}
                         />
                       </div>
                     </CarouselItem>

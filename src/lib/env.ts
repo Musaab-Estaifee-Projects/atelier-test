@@ -22,6 +22,16 @@ const publicEnvSchema = z.object({
     .string()
     .optional()
     .transform((raw) => raw === "true"),
+  /** When "true", only one tab may hold a stream for the same stream, project, and layout. */
+  NEXT_PUBLIC_SINGLE_TAB_STREAM: z
+    .string()
+    .optional()
+    .transform((raw) => raw === "true"),
+  /** When "true", the Unreal command log is shown in production. Otherwise development only. */
+  NEXT_PUBLIC_SHOW_UE_LOG: z
+    .string()
+    .optional()
+    .transform((raw) => raw === "true"),
   NEXT_PUBLIC_STREAM_AFK_TIMEOUT: optionalSeconds,
   NEXT_PUBLIC_STREAM_AFK_WARNING: optionalSeconds,
 });
@@ -32,6 +42,8 @@ function parsePublicEnv(): PublicEnv {
   const parsed = publicEnvSchema.safeParse({
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     NEXT_PUBLIC_SHOW_DEV_TOOLS: process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS,
+    NEXT_PUBLIC_SINGLE_TAB_STREAM: process.env.NEXT_PUBLIC_SINGLE_TAB_STREAM,
+    NEXT_PUBLIC_SHOW_UE_LOG: process.env.NEXT_PUBLIC_SHOW_UE_LOG,
     NEXT_PUBLIC_STREAM_AFK_TIMEOUT: process.env.NEXT_PUBLIC_STREAM_AFK_TIMEOUT,
     NEXT_PUBLIC_STREAM_AFK_WARNING: process.env.NEXT_PUBLIC_STREAM_AFK_WARNING,
   });

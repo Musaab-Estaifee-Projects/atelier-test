@@ -9,6 +9,8 @@ import TitleRule from "../icons/title-rule";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DoorOpen from "../icons/configurator/door-open";
 import CloudSlash from "../icons/configurator/cloud-slash";
+import { SessionBackdrop } from "./loading-components/session-backdrop";
+import { HintCard } from "./loading-components/hint-card";
 
 export type { StreamOverlayKind };
 
@@ -32,21 +34,6 @@ type Props = {
   onRetryBoot?: () => void;
   progressLabel?: string | null;
   endedMessage?: string | null;
-};
-
-const SessionBackdrop = ({ src }: { src: string }) => {
-  return (
-    <div className="pointer-events-none absolute inset-0 opacity-70">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        className="h-full w-full object-cover object-left"
-      />
-      <div className="absolute inset-0 bg-[linear-gradient(270deg,#00272D_28.5%,rgba(0,39,45,0)_64.92%)]" />
-      {/* <div className="absolute inset-0 bg-gradient-to-l from-[#00272d] from-[28%] to-transparent to-[65%]" /> */}
-    </div>
-  );
 };
 
 const LoadingUnit = ({
@@ -150,26 +137,6 @@ const ReconnectingUnit = ({
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
-  );
-};
-
-const HintCard = ({
-  icon,
-  iconClass,
-  label,
-}: {
-  icon: string;
-  iconClass: string;
-  label: string;
-}) => {
-  return (
-    <div className="flex flex-col items-center gap-5 border border-white/10 p-5.25">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={icon} alt="" className={iconClass} />
-      <p className="text-center text-[12px] leading-[1.2] text-white">
-        {label}
-      </p>
     </div>
   );
 };

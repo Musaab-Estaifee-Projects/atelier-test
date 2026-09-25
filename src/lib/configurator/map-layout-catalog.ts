@@ -15,6 +15,7 @@ export function mapLayoutCatalogToSession(args: {
   streamProjectId: string;
   backendProjectId: string;
   unitId?: string | null;
+  residence?: ConfiguratorSession["residence"] | null;
 }): ConfiguratorSession {
   const cameras: CameraRule[] = [];
   const meshes: MeshOption[] = [];
@@ -99,6 +100,14 @@ export function mapLayoutCatalogToSession(args: {
     levelName: args.catalog.code,
     layoutCode: args.catalog.code,
     backendProjectId: args.backendProjectId,
+    residence: args.residence
+      ? {
+          projectName: args.residence.projectName,
+          categoryName: args.residence.categoryName,
+          typeName: args.residence.typeName,
+          area: args.residence.area,
+        }
+      : undefined,
     cameras,
     meshes,
     materials,

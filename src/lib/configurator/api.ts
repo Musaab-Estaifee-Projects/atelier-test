@@ -2,6 +2,7 @@
  * Configurator API façade.
  */
 import { mapLayoutCatalogToSession } from "@/lib/configurator/map-layout-catalog";
+import { applyCatalogResidence } from "@/lib/configurator/residence-label";
 import { getLayoutCatalog } from "@/services/get-layout-catalog.service";
 import { isBackendProjectId } from "@/lib/projects/project-id";
 import type { ConfiguratorSession } from "@/types/configurator";
@@ -33,11 +34,13 @@ export async function getConfiguratorSession(args: {
   }
   try {
     const catalog = await getLayoutCatalog(layoutCode, backendProjectId);
+    const residence = applyCatalogResidence(catalog);
     return mapLayoutCatalogToSession({
       catalog,
       streamProjectId: args.streamProjectId,
       backendProjectId,
       unitId: args.unitId,
+      residence,
     });
   } catch (err) {
     const message =

@@ -25,6 +25,8 @@ type Args = {
   apartmentId: string | null;
   unitId: string | null;
   viewOnly: boolean;
+  /** Skip catalog and design bootstrap (missing view visit, or tab lock still pending/blocked). */
+  paused?: boolean;
   setParams: (
     patch: Partial<ShareableConfiguratorParams>,
     options?: { replace?: boolean },
@@ -42,6 +44,7 @@ export function useConfiguratorBoot({
   apartmentId,
   unitId,
   viewOnly,
+  paused = false,
   setParams,
 }: Args) {
   const [journeyReady, setJourneyReady] = useState<boolean | null>(null);
@@ -68,12 +71,16 @@ export function useConfiguratorBoot({
   }, [viewOnly]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- nothing to load until the gate passes
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- gate closed; do not show the catalog loader
+    if (paused) {
+      setSessionLoading(false);
+      return;
+    }
     if (journeyReady === false) setSessionLoading(false);
-  }, [journeyReady]);
+  }, [paused, journeyReady]);
 
   useEffect(() => {
-    if (journeyReady !== true) return;
+    if (paused || journeyReady !== true) return;
     let cancelled = false;
     (async () => {
       setSessionLoading(true);
@@ -164,7 +171,7 @@ export function useConfiguratorBoot({
     // Boot once per project/layout/apartment; viewOnly and unitId changes
     // during the session must not re-run the catalog + design bootstrap.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [journeyReady, projectId, catalogApiProjectId, layoutCode, apartmentId]);
+  }, [paused, journeyReady, projectId, catalogApiProjectId, layoutCode, apartmentId]);
 
   return {
     journeyReady,

@@ -30,7 +30,13 @@ const QuotationPageFrame = ({ children }: Props) => {
 
 export default QuotationPageFrame;
 
-export const QuotationPageHeader = ({ subtitle }: { subtitle?: string }) => {
+export const QuotationPageHeader = ({
+  subtitle,
+  notice,
+}: {
+  subtitle?: string;
+  notice?: string | null;
+}) => {
   return (
     <header className="flex shrink-0 flex-col items-center">
       <AtelierMark href="/" />
@@ -60,6 +66,15 @@ export const QuotationPageHeader = ({ subtitle }: { subtitle?: string }) => {
             className="h-full w-full"
           />
         </div>
+
+        {notice ? (
+          <p
+            role="status"
+            className="mt-2 max-w-lg text-center text-[13px] leading-normal text-[#FF8585]"
+          >
+            {notice}
+          </p>
+        ) : null}
       </div>
     </header>
   );

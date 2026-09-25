@@ -4,11 +4,11 @@ import "@/app/configurator/configurator.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isUnstartedRendersDraft, loadDraft } from "@/lib/configurator/storage";
 import {
-  isUnstartedRendersDraft,
-  loadDraft,
-} from "@/lib/configurator/storage";
-import { readQuotationResume } from "@/lib/quotation/resume-intent";
+  readQuotationResume,
+  isMatchingLiveResume,
+} from "@/lib/quotation/resume-intent";
 import { deriveStreamOverlay } from "@/lib/configurator/stream-overlay";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
 import {
@@ -17,7 +17,11 @@ import {
   isStreamProjectId,
 } from "@/lib/projects/project-id";
 import { readJourney } from "@/lib/journey";
-import { currentResidenceSubtitle } from "@/lib/configurator/residence-label";
+import { env } from "@/lib/env";
+import {
+  currentResidenceSubtitle,
+  residenceSubtitle,
+} from "@/lib/configurator/residence-label";
 import { setStreamResolution } from "@/lib/stream-pixel/stream-control";
 import { logUeSend } from "@/lib/stream-pixel/ue-logger";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
@@ -37,6 +41,7 @@ import { useFrozenDesign } from "@/hooks/configurator/use-frozen-design";
 import { useQuotationViewEdit } from "@/hooks/configurator/use-quotation-view-edit";
 import { useConfirmSelection } from "@/hooks/configurator/use-confirm-selection";
 import { useLeaveGuard } from "@/hooks/configurator/use-leave-guard";
+import { useStreamTabLock } from "@/hooks/configurator/use-stream-tab-lock";
 import StreamViewport from "./stream-viewport";
 import LoadingOverlay from "./loading-overlay";
 import AfkWarningOverlay from "./afk-warning-overlay";
@@ -50,6 +55,8 @@ import FinalDesignProgress from "./final-design/final-design-progress";
 import FinalDesignViewer from "./final-design/final-design-viewer";
 import ReviewSelections from "./review-selections";
 import JourneyGate from "./journey-gate";
+import ViewVisitRequiredDialog from "./view-visit-required-dialog";
+import StreamTabLockDialog from "./stream-tab-lock-dialog";
 import ConfiguratorStage from "./configurator-stage";
 import ConfiguratorDialogs from "./configurator-dialogs";
 import SelectStyle from "@/components/pages/styles/select-style";
@@ -68,6 +75,24 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   );
   const storageProjectId = catalogApiProjectId || "";
   const layoutCode = params.layoutCode?.trim() || "";
+  const missingViewVisit =
+    viewOnly &&
+    !isMatchingLiveResume({
+      streamProjectId: projectId,
+      projectId: catalogApiProjectId,
+      layoutCode,
+    });
+  const tabLock = useStreamTabLock({
+    active:
+      env.NEXT_PUBLIC_SINGLE_TAB_STREAM &&
+      !missingViewVisit &&
+      Boolean(catalogApiProjectId && layoutCode),
+    streamProjectId: projectId,
+    projectId: catalogApiProjectId,
+    layoutCode,
+  });
+  const streamTabBlocked = tabLock.status === "blocked";
+  const waitingForTabLock = tabLock.status === "pending";
 
   const boot = useConfiguratorBoot({
     projectId,
@@ -76,6 +101,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     apartmentId,
     unitId,
     viewOnly,
+    paused: missingViewVisit || streamTabBlocked || waitingForTabLock,
     setParams,
   });
   const {
@@ -141,6 +167,16 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const holdStreamForQuotation =
     !designCode &&
     (quotationResume?.mode === "edit" || quotationResume?.mode === "fresh");
+  const streamMayStart =
+    !holdStreamForQuotation &&
+    !missingViewVisit &&
+    !streamTabBlocked &&
+    !waitingForTabLock;
+  // Stopping the player disposes the Web SDK for this page load. Once it has
+  // started, keep it up through Edit / URL updates. Another tab still blocks it.
+  const keepStreamRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs
+  if (streamMayStart) keepStreamRef.current = true;
 
   const stream = useStreamPixel({
     projectId,
@@ -150,7 +186,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     onUeResponse: handleUeResponse,
     videoContainerRef,
     fullscreenTargetRef: shellRef,
-    enabled: !holdStreamForQuotation,
+    // eslint-disable-next-line react-hooks/refs
+    enabled: !streamTabBlocked && (keepStreamRef.current || streamMayStart),
   });
 
   useEffect(() => {
@@ -447,14 +484,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     resetSelections();
   }, [confirm, setParams, resetSelections]);
 
-  const unitSubtitle = currentResidenceSubtitle();
+  const fromCatalog = session?.residence
+    ? residenceSubtitle(session.residence)
+    : null;
+  const unitSubtitle =
+    fromCatalog && fromCatalog !== "Your residence"
+      ? fromCatalog
+      : currentResidenceSubtitle();
 
   return (
     <div className="configurator-shell" ref={shellRef}>
       <StreamViewport ref={videoContainerRef} />
-      <UeLogSidebar />
 
-      {overlay.show ? (
+      {overlay.show && !missingViewVisit && !streamTabBlocked ? (
         <LoadingOverlay
           kind={overlay.kind}
           progress={overlay.progress}
@@ -699,6 +741,17 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
       {journeyReady === false ? (
         <JourneyGate onReady={() => boot.setJourneyReady(true)} />
+      ) : null}
+
+      <ViewVisitRequiredDialog open={missingViewVisit} onBack={goToProjects} />
+      <StreamTabLockDialog
+        open={streamTabBlocked}
+        checking={tabLock.checking}
+        onRetry={tabLock.retry}
+        onBack={goToProjects}
+      />
+      {env.NEXT_PUBLIC_SHOW_UE_LOG || process.env.NODE_ENV === "development" ? (
+        <UeLogSidebar />
       ) : null}
     </div>
   );

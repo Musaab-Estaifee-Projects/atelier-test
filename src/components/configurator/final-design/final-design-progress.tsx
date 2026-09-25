@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import AtelierMark from "@/components/icons/atelier-mark";
 import ConfirmTermsDialog from "@/components/configurator/confirm-terms-dialog";
+import RenderS3Image from "@/components/configurator/final-design/render-s3-image";
 import { AtelierSpinner } from "@/components/ui/atelier-spinner";
 import { Button } from "@/components/ui/button";
 import type { RoomRenderCard } from "@/types/configurator";
@@ -128,34 +128,34 @@ const RoomBlock = ({
           const ready = Boolean(still.imageUrl);
           const failed = room.status === "error" && !ready;
           return (
-            <button
+            <div
               key={`${still.cameraName}-${index}`}
-              type="button"
-              disabled={!ready && !failed}
-              onClick={() => {
-                if (failed) onRetry(room.zoneId);
-                else if (ready) onView(room.zoneId, still.cameraName);
-              }}
-              className="relative aspect-711/398 w-full overflow-hidden bg-[#003d43] text-left disabled:cursor-default"
+              className="relative aspect-711/398 w-full overflow-hidden bg-[#003d43]"
             >
               {ready && still.imageUrl ? (
-                <Image
+                <RenderS3Image
                   src={still.imageUrl}
                   alt={`${room.label} view ${index + 1}`}
-                  fill
-                  unoptimized
-                  className="object-cover pointer-events-none"
+                  fit="cover"
                   sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 560px"
+                  onActivate={() => onView(room.zoneId, still.cameraName)}
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <button
+                  type="button"
+                  disabled={!failed}
+                  onClick={() => {
+                    if (failed) onRetry(room.zoneId);
+                  }}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-left disabled:cursor-default"
+                >
                   <AtelierSpinner />
                   <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
                     {failed ? "Retry" : "Rendering"}
                   </p>
-                </div>
+                </button>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
