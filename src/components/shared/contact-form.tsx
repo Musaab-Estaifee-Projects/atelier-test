@@ -1,6 +1,7 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,34 @@ type Props = {
   defaultRole?: RoleId;
 };
 
+function validationSummary(
+  current: ContactFormValues,
+  errors: FieldErrors<ContactFormValues>,
+): string {
+  const missing: string[] = [];
+  if (errors.name && !current.name.trim()) missing.push("full name");
+  if (errors.email && !current.email.trim()) missing.push("email");
+  if (errors.phone && !current.phone.trim()) missing.push("phone");
+  const invalid = [
+    current.email.trim() ? errors.email?.message : null,
+    current.phone.trim() ? errors.phone?.message : null,
+  ].filter((message): message is string => Boolean(message));
+  const agreement = errors.contactOk?.message || errors.termsOk?.message || null;
+  return [
+    missing.length ? `Please enter your ${listPhrase(missing)}.` : null,
+    ...invalid,
+    agreement,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function listPhrase(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
 const ContactForm = ({
   pending = false,
   error = null,
@@ -60,7 +89,14 @@ const ContactForm = ({
     },
   });
 
+  const [validationMessage, setValidationMessage] = useState("");
+
+  const handleInvalid = (errors: FieldErrors<ContactFormValues>) => {
+    setValidationMessage(validationSummary(form.getValues(), errors));
+  };
+
   const handleSubmit = (values: ContactFormValues) => {
+    setValidationMessage("");
     onSubmit({
       name: values.name,
       email: values.email,
@@ -73,7 +109,7 @@ const ContactForm = ({
     <Form {...form}>
       <form
         noValidate
-        onSubmit={form.handleSubmit(handleSubmit)}
+        onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
         className={cn(
           "relative z-10 flex w-full max-w-116.5 flex-col gap-8 overflow-y-auto hidden-scrollbar lg:border-0",
           className,
@@ -231,27 +267,11 @@ const ContactForm = ({
           />
         </div>
 
-        {(form.formState.errors.root || error) && (
+        {(error || validationMessage) && (
           <p role="alert" className="text-sm text-[#e29584]">
-            {form.formState.errors.root?.message || error}
+            {error || validationMessage}
           </p>
         )}
-
-        {/* Show first field error if any (keeps the old single-error UX) */}
-        {!error &&
-          (form.formState.errors.name ||
-            form.formState.errors.email ||
-            form.formState.errors.phone ||
-            form.formState.errors.contactOk ||
-            form.formState.errors.termsOk) && (
-            <p role="alert" className="text-sm text-[#e29584]">
-              {form.formState.errors.name?.message ||
-                form.formState.errors.email?.message ||
-                form.formState.errors.phone?.message ||
-                form.formState.errors.contactOk?.message ||
-                form.formState.errors.termsOk?.message}
-            </p>
-          )}
 
         <Button
           type="submit"

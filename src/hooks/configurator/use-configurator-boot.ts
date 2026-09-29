@@ -71,8 +71,8 @@ export function useConfiguratorBoot({
   }, [viewOnly]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- gate closed; do not show the catalog loader
     if (paused) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessionLoading(false);
       return;
     }
@@ -171,7 +171,14 @@ export function useConfiguratorBoot({
     // Boot once per project/layout/apartment; viewOnly and unitId changes
     // during the session must not re-run the catalog + design bootstrap.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, journeyReady, projectId, catalogApiProjectId, layoutCode, apartmentId]);
+  }, [
+    paused,
+    journeyReady,
+    projectId,
+    catalogApiProjectId,
+    layoutCode,
+    apartmentId,
+  ]);
 
   return {
     journeyReady,

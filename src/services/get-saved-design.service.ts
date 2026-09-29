@@ -11,7 +11,6 @@ export type SavedDesignApartment = {
 
 export type SavedDesignData = {
   design_code: string;
-  /** Catalog/schema mismatch. `true` means the design cannot be consumed or viewed. */
   is_invalid: boolean;
   quotation: {
     priced_at: string;
@@ -112,19 +111,4 @@ export function isSavedDesignInvalid(data: SavedDesignData): boolean {
 
 export function isSavedDesignValid(data: SavedDesignData): boolean {
   return !isSavedDesignInvalid(data);
-}
-
-function httpUrlOrNull(raw?: string | null): string | null {
-  const value = raw?.trim();
-  if (!value) return null;
-  try {
-    const { protocol } = new URL(value);
-    return protocol === "https:" || protocol === "http:" ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export function savedDesignPdfUrl(data: SavedDesignData): string | null {
-  return httpUrlOrNull(data.pdf_url) ?? httpUrlOrNull(data.quotation.pdf_url);
 }

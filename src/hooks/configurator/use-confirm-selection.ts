@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { clearDraft } from "@/lib/configurator/storage";
+import { clearQuotationResume } from "@/lib/quotation/resume-intent";
 import {
   confirmDesign,
   type ConfirmDesignData,
@@ -68,12 +69,15 @@ export function useConfirmSelection({
 
       setConfirmedQuote(result.data);
       setDesignCode(result.data.design_code);
+      // The draft and the quotation handoff both name this design. Leaving the
+      // handoff in the tab makes the next visit reuse the confirmed code.
       clearDraft(
         storage.streamProjectId,
         storage.projectId,
         storage.layoutCode,
         storage.apartmentId,
       );
+      clearQuotationResume();
       stopRenders();
       setParams({ renders: false }, { replace: true });
       setQuotationReady(true);

@@ -73,7 +73,8 @@ const page = async () => {
 
   return (
     <main
-      className="relative min-h-dvh bg-[#00272d] text-white lg:h-dvh lg:overflow-hidden"
+      data-lenis-prevent
+      className="relative min-h-dvh overflow-x-hidden bg-[#00272d] text-white"
       style={{
         ...pageNoiseStyle(0.11),
       }}
@@ -85,7 +86,7 @@ const page = async () => {
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full flex-col items-center px-5 pt-6 pb-6 sm:px-8 sm:pt-8 sm:pb-8 lg:h-dvh lg:px-10 lg:pt-6 lg:pb-8">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full flex-col items-center px-5 pt-6 pb-6 sm:px-8 sm:pt-8 sm:pb-8 lg:px-10 lg:pt-6 lg:pb-8">
         <header className="flex shrink-0 flex-col items-center">
           <AtelierMark href="/" />
           <h1 className="mt-8 font-baskerville text-[clamp(22px,2.2vw,27.4px)] leading-[1.16] font-normal tracking-wider text-white uppercase sm:mt-10">

@@ -21,7 +21,8 @@ export function isPublicEndpoint(
   if (m !== "get") return false;
   return (
     /^\/designs\/[^/]+\/?$/.test(path) ||
-    /^\/designs\/[^/]+\/configuration\/?$/.test(path)
+    /^\/designs\/[^/]+\/configuration\/?$/.test(path) ||
+    /^\/designs\/[^/]+\/quotation\/download\/?$/.test(path)
   );
 }
 

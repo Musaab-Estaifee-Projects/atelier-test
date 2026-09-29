@@ -117,6 +117,11 @@ export function markStreamPixelDisposed(): void {
   }
 }
 
+/** True once the SDK has been started in this page load (it cannot start again). */
+export function hasStreamPixelBeenUsed(): boolean {
+  return cache !== null;
+}
+
 export function peekStreamPixelCacheKey(): string | null {
   return cache?.key ?? null;
 }

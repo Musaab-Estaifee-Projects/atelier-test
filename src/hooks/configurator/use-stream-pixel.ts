@@ -47,9 +47,29 @@ function isMobileClient() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
+/** True when the stream video keeps playing (the WebRTC session survived). */
+function isVideoAdvancing(
+  video: HTMLVideoElement,
+  sampleMs: number,
+): Promise<boolean> {
+  const startTime = video.currentTime;
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      resolve(
+        !video.paused && video.readyState >= 2 && video.currentTime > startTime,
+      );
+    }, sampleMs);
+  });
+}
+
 /** Delayed teardown so React Strict Mode remounts can cancel disconnect. */
 const TEARDOWN_DELAY_MS = 100;
-const DISCONNECT_GRACE_MS = 500;
+/** Network handovers (wifi to mobile) can take several seconds to settle. */
+const DISCONNECT_GRACE_MS = 15_000;
+/** Wait for the SDK to start its own reconnect before forcing one. */
+const RECOVERY_NUDGE_MS = 6_000;
+/** SDK gives up after 60 s; fail slightly later if nothing recovered. */
+const RECOVERY_TIMEOUT_MS = 75_000;
 let teardownTimer: ReturnType<typeof setTimeout> | null = null;
 let activeInitKey: string | null = null;
 let streamEventsBound = false;
@@ -211,6 +231,86 @@ export function useStreamPixel({
     DISCONNECT_COPY.dropped,
   );
   const [resolutionEnabled, setResolutionEnabled] = useState(false);
+  const [streamUnsupported, setStreamUnsupported] = useState(false);
+  const finishVideoReadyRef = useRef<(() => void) | null>(null);
+  const failRef = useRef<((copy: DisconnectOverlayCopy) => void) | null>(null);
+  const recoveryCapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryNudgeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nudgedRef = useRef(false);
+  const sdkProgressAtRef = useRef(0);
+
+  const clearRecoveryTimers = useCallback(() => {
+    if (recoveryCapRef.current) {
+      clearTimeout(recoveryCapRef.current);
+      recoveryCapRef.current = null;
+    }
+    if (recoveryNudgeRef.current) {
+      clearTimeout(recoveryNudgeRef.current);
+      recoveryNudgeRef.current = null;
+    }
+    nudgedRef.current = false;
+  }, []);
+
+  const isRecoveryPending = useCallback(
+    () =>
+      mountedRef.current &&
+      !streamReadyRef.current &&
+      !failedRef.current &&
+      !idleTimedOutRef.current,
+    [],
+  );
+
+  const armRecoveryCap = useCallback(() => {
+    if (recoveryCapRef.current) return;
+    recoveryCapRef.current = setTimeout(() => {
+      recoveryCapRef.current = null;
+      if (!isRecoveryPending()) return;
+      failRef.current?.(DISCONNECT_COPY.reconnectFailed);
+    }, RECOVERY_TIMEOUT_MS);
+  }, [isRecoveryPending]);
+
+  const findStreamVideo = useCallback((): HTMLVideoElement | null => {
+    const appStream = appStreamRef.current;
+    const root = appStream?.rootElement as HTMLElement | null | undefined;
+    const found =
+      appStream?.stream?.videoElementParent?.querySelector?.("video") ??
+      root?.querySelector?.("video") ??
+      videoContainerRef.current?.querySelector?.("video");
+    return found instanceof HTMLVideoElement ? found : null;
+  }, [videoContainerRef]);
+
+  /** After online / tab visible: reveal a stream that survived, else force a reconnect once. */
+  const scheduleRecoveryNudge = useCallback(() => {
+    if (recoveryNudgeRef.current || nudgedRef.current) return;
+    const scheduledAt = Date.now();
+    recoveryNudgeRef.current = setTimeout(async () => {
+      recoveryNudgeRef.current = null;
+      if (!isRecoveryPending()) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        return;
+      }
+      if (sdkProgressAtRef.current > scheduledAt) return;
+
+      const video = findStreamVideo();
+      if (video && (await isVideoAdvancing(video, 1200))) {
+        if (!isRecoveryPending()) return;
+        finishVideoReadyRef.current?.();
+        return;
+      }
+      if (!isRecoveryPending() || sdkProgressAtRef.current > scheduledAt) {
+        return;
+      }
+
+      const pixelStreaming = pixelStreamingRef.current;
+      if (typeof pixelStreaming?.reconnect !== "function") return;
+      nudgedRef.current = true;
+      try {
+        pixelStreaming.reconnect();
+      } catch (err) {
+        console.warn("[StreamPixel] manual reconnect failed", err);
+      }
+    }, RECOVERY_NUDGE_MS);
+  }, [findStreamVideo, isRecoveryPending]);
 
   const safeHideDefaultUi = useCallback((appStream: any) => {
     try {
@@ -338,6 +438,7 @@ export function useStreamPixel({
         clearTimeout(disconnectGraceRef.current);
         disconnectGraceRef.current = null;
       }
+      clearRecoveryTimers();
       failedRef.current = true;
       streamReadyRef.current = false;
       isReconnecting.current = false;
@@ -380,7 +481,9 @@ export function useStreamPixel({
       setLoadingSubtitle(LOADING_CONFIG.reconnectingSubtitle);
       setLoadingStatus(status);
       setLoadingProgress(progress);
+      armRecoveryCap();
     };
+    failRef.current = (copy) => fail(copy);
 
     const start = async () => {
       failedRef.current = false;
@@ -415,6 +518,9 @@ export function useStreamPixel({
               "[StreamPixel] Unsupported browser / codec capabilities",
               result,
             );
+            setStreamUnsupported(true);
+            fail(DISCONNECT_COPY.unsupportedBrowser);
+            return;
           } else {
             console.error(
               "[StreamPixel] Missing appStream/pixelStreaming (SDK already initialized or reload required)",
@@ -479,6 +585,11 @@ export function useStreamPixel({
         const revealStream = () => {
           if (cancelled || !mountedRef.current || failedRef.current) return;
           streamReadyRef.current = true;
+          clearRecoveryTimers();
+          if (disconnectGraceRef.current) {
+            clearTimeout(disconnectGraceRef.current);
+            disconnectGraceRef.current = null;
+          }
           setLoadingProgress(LOADING_PROGRESS.ready);
           registerUeListeners(pixelStreaming);
           window.setTimeout(() => {
@@ -590,10 +701,14 @@ export function useStreamPixel({
           } catch (err) {
             console.error("[StreamPixel] onVideoInitialized error", err);
             revealingRef.current = false;
+            clearRecoveryTimers();
             setStreamPhase("loading");
             setIsLoading(false);
             streamReadyRef.current = true;
           }
+        };
+        finishVideoReadyRef.current = () => {
+          void finishVideoReady();
         };
 
         const PROGRESS_BY_EVENT: Record<
@@ -634,10 +749,16 @@ export function useStreamPixel({
             fail(DISCONNECT_COPY.dropped, "idle");
             return;
           }
-          if (isReconnecting.current || failedRef.current) return;
-          if (disconnectGraceRef.current) {
-            clearTimeout(disconnectGraceRef.current);
+          if (failedRef.current) return;
+          if (isReconnecting.current) {
+            armRecoveryCap();
+            return;
           }
+          if (disconnectGraceRef.current) return;
+          const goneAt = Date.now();
+          // Keep the session soft while the network settles; the SDK may
+          // reconnect on its own within this window.
+          if (hasEverBeenReadyRef.current) beginReconnecting();
           disconnectGraceRef.current = setTimeout(() => {
             disconnectGraceRef.current = null;
             if (
@@ -645,8 +766,12 @@ export function useStreamPixel({
               !mountedRef.current ||
               idleTimedOutRef.current ||
               failedRef.current ||
-              isReconnecting.current
+              streamReadyRef.current
             ) {
+              return;
+            }
+            if (sdkProgressAtRef.current > goneAt) {
+              armRecoveryCap();
               return;
             }
             fail(DISCONNECT_COPY.dropped);
@@ -654,15 +779,29 @@ export function useStreamPixel({
         };
 
         streamEventHandlers.onProgress = (event) => {
-          if (cancelled || !mountedRef.current || failedRef.current) return;
+          if (cancelled || !mountedRef.current) return;
+          sdkProgressAtRef.current = Date.now();
+          if (failedRef.current) return;
           const mapped = PROGRESS_BY_EVENT[event];
           if (!mapped) return;
           setLoadingStatus(mapped.status);
           setLoadingProgress((p) => Math.max(p, mapped.pct));
+          if (
+            event === "playStream" &&
+            isReconnecting.current &&
+            hasEverBeenReadyRef.current &&
+            !streamReadyRef.current
+          ) {
+            void finishVideoReady();
+          }
         };
 
         streamEventHandlers.onWebRtcFailed = () => {
           if (idleTimedOutRef.current || isReconnecting.current) return;
+          if (hasEverBeenReadyRef.current) {
+            onWebRtcGone();
+            return;
+          }
           fail(DISCONNECT_COPY.dropped);
         };
 
@@ -689,6 +828,7 @@ export function useStreamPixel({
         streamEventHandlers.onReconnectState = (data) => {
           if (cancelled || !mountedRef.current || idleTimedOutRef.current)
             return;
+          sdkProgressAtRef.current = Date.now();
 
           switch (data?.status) {
             case "connecting":
@@ -717,6 +857,9 @@ export function useStreamPixel({
               setLoadingProgress((p) =>
                 Math.max(p, LOADING_PROGRESS.reconnected),
               );
+              armRecoveryCap();
+              // The SDK does not re-fire the first-load path; reveal here.
+              void finishVideoReady();
               break;
             case "disconnected": {
               if (isRetryableDisconnect(data.code, data.reason)) {
@@ -796,6 +939,9 @@ export function useStreamPixel({
         clearTimeout(disconnectGraceRef.current);
         disconnectGraceRef.current = null;
       }
+      clearRecoveryTimers();
+      finishVideoReadyRef.current = null;
+      failRef.current = null;
 
       try {
         pixelStreamingRef.current?.removeResponseEventListener?.("cameraZone");
@@ -844,12 +990,14 @@ export function useStreamPixel({
     safeHideDefaultUi,
     videoContainerRef,
     enabled,
+    armRecoveryCap,
+    clearRecoveryTimers,
   ]);
 
   useEffect(() => {
-    const showInterrupted = () => {
-      if (idleTimedOutRef.current || failedRef.current) return;
-      if (!hasEverBeenReadyRef.current) return;
+    const showInterrupted = (): boolean => {
+      if (idleTimedOutRef.current || failedRef.current) return false;
+      if (!hasEverBeenReadyRef.current) return false;
       if (disconnectGraceRef.current) {
         clearTimeout(disconnectGraceRef.current);
         disconnectGraceRef.current = null;
@@ -865,21 +1013,24 @@ export function useStreamPixel({
       setLoadingSubtitle(LOADING_CONFIG.interruptedSubtitle);
       setLoadingStatus(DISCONNECT_COPY.interrupted.status);
       setLoadingProgress(LOADING_PROGRESS.reconnecting);
+      armRecoveryCap();
+      return true;
     };
 
-    const onOffline = () => showInterrupted();
+    const onOffline = () => {
+      showInterrupted();
+    };
     const onOnline = () => {
       if (failedRef.current || idleTimedOutRef.current) return;
-      if (!streamReadyRef.current && hasEverBeenReadyRef.current) {
-        showInterrupted();
-      }
+      if (streamReadyRef.current || !hasEverBeenReadyRef.current) return;
+      if (showInterrupted()) scheduleRecoveryNudge();
     };
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       if (idleTimedOutRef.current || failedRef.current) return;
       if (streamReadyRef.current) return;
       if (!hasEverBeenReadyRef.current) return;
-      showInterrupted();
+      if (showInterrupted()) scheduleRecoveryNudge();
     };
 
     window.addEventListener("offline", onOffline);
@@ -890,7 +1041,7 @@ export function useStreamPixel({
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [armRecoveryCap, scheduleRecoveryNudge]);
 
   const toggleMute = useCallback(() => {
     const appStream = appStreamRef.current;
@@ -1090,6 +1241,7 @@ export function useStreamPixel({
     appStreamRef,
     uiControlRef,
     streamReadyRef,
+    streamUnsupported,
     isLoading,
     streamPhase,
     loadingTitle,

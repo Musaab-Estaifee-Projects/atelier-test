@@ -9,6 +9,8 @@ export const ENDPOINTS = {
   CREATE_CUSTOMER: "/customers",
   CREATE_DESIGN: "/designs",
   GET_DESIGN: (designCode: string) => `/designs/${seg(designCode)}`,
+  DOWNLOAD_QUOTATION: (designCode: string) =>
+    `/designs/${seg(designCode)}/quotation/download`,
   GET_DESIGN_CONFIGURATION: (designCode: string) =>
     `/designs/${seg(designCode)}/configuration`,
   CONFIRM_DESIGN: (designCode: string) =>

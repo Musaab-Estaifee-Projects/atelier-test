@@ -27,7 +27,7 @@ const glassPill =
   "pointer-events-auto flex max-w-[calc(100vw-24px)] items-center rounded-full border-[0.5px] border-white/25 bg-gradient-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1 backdrop-blur-[25px]";
 
 const chip =
-  "h-8 shrink-0 rounded-full px-[13px] font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white whitespace-nowrap transition hover:bg-white/10 disabled:opacity-40";
+  "h-8 shrink-0 rounded-full border border-transparent px-[13px] font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white whitespace-nowrap outline-none transition hover:bg-white/10 focus:outline-none focus-visible:outline-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
 const ZoneTopBar = ({
   zones,
@@ -61,6 +61,8 @@ const ZoneTopBar = ({
       <nav className={glassPill} aria-label="Apartment zones">
         <ul className="m-0 flex list-none items-center overflow-x-auto p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {zones.map((z) => {
+            // const active =
+            //   !freeCameraActive && zoneSelected && activeZoneId === z.id;
             const active = zoneSelected && activeZoneId === z.id;
             return (
               <li key={z.id}>
@@ -96,7 +98,8 @@ const ZoneTopBar = ({
           <ul className="m-0 flex list-none items-center overflow-x-auto p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {cameras.map((cam) => {
               const key = cameraKey(cam);
-              const active = activeCameraKey === key;
+              // const active = activeCameraKey === key;
+              const active = !freeCameraActive && activeCameraKey === key;
               return (
                 <li key={key}>
                   <button

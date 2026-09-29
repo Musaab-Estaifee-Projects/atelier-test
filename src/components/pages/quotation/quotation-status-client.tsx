@@ -158,9 +158,12 @@ const QuotationStatusClient = ({ data }: Props) => {
                         variant="pill-solid"
                         size="pill"
                         disabled={busy}
+                        aria-busy={actions.pending === "download"}
                         onClick={() => actions.request("download")}
                       >
-                        Download My Quotation
+                        {actions.pending === "download"
+                          ? `Downloading ${actions.downloadProgress ?? 0}%`
+                          : "Download My Quotation"}
                       </Button>
                       <Button
                         type="button"

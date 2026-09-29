@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { hasDraftForLayout } from "@/lib/configurator/storage";
 import {
@@ -9,9 +9,9 @@ import {
   type QuotationResumeMode,
 } from "@/lib/quotation/resume-intent";
 import { quotationKeepPath } from "@/lib/quotation/share-url";
+import { downloadQuotationPdf } from "@/services/download-quotation.service";
 import {
   isSavedDesignValid,
-  savedDesignPdfUrl,
   type SavedDesignData,
 } from "@/services/get-saved-design.service";
 
@@ -46,8 +46,11 @@ export function useQuotationActions(data: SavedDesignData) {
   const router = useRouter();
   const expired = Boolean(data.quotation.is_expired);
   const valid = isSavedDesignValid(data);
-  const pdfUrl = savedDesignPdfUrl(data);
   const [pending, setPending] = useState<QuotationAction | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(
+    null,
+  );
+  const pendingRef = useRef<QuotationAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [overrideAction, setOverrideAction] = useState<QuotationAction | null>(
     null,
@@ -86,16 +89,26 @@ export function useQuotationActions(data: SavedDesignData) {
   };
 
   const run = async (action: QuotationAction) => {
+    if (pendingRef.current) return;
     setError(null);
     const streamId = data.property.project.streampixel_app_id?.trim();
     const projectId = String(data.property.project.id);
     const layoutCode = data.property.layout.code;
     if (action === "download") {
-      if (!pdfUrl) {
-        setError("The PDF quotation is not available yet.");
-        return;
+      pendingRef.current = "download";
+      setPending("download");
+      setDownloadProgress(0);
+      try {
+        const result = await downloadQuotationPdf(
+          data.design_code,
+          setDownloadProgress,
+        );
+        if (!result.ok) setError(result.message);
+      } finally {
+        pendingRef.current = null;
+        setPending(null);
+        setDownloadProgress(null);
       }
-      window.open(pdfUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
@@ -158,8 +171,8 @@ export function useQuotationActions(data: SavedDesignData) {
   return {
     expired,
     valid,
-    pdfUrl,
     pending,
+    downloadProgress,
     error,
     overrideOpen: overrideAction != null,
     expiredDialogOpen,

@@ -11,6 +11,7 @@ import {
 } from "@/lib/quotation/resume-intent";
 import { deriveStreamOverlay } from "@/lib/configurator/stream-overlay";
 import { AFK_CONFIG } from "@/lib/stream-pixel/afk";
+import { hasStreamPixelBeenUsed } from "@/lib/stream-pixel/ensure-application";
 import {
   backendProjectIdFromUrl,
   isBackendProjectId,
@@ -75,7 +76,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   );
   const storageProjectId = catalogApiProjectId || "";
   const layoutCode = params.layoutCode?.trim() || "";
+  // The Web SDK starts once per page load. Re-entering the configurator after a
+  // client-side navigation needs a fresh document instead of a dead player.
+  const [needsFreshLoad] = useState(() => hasStreamPixelBeenUsed());
   const missingViewVisit =
+    !needsFreshLoad &&
     viewOnly &&
     !isMatchingLiveResume({
       streamProjectId: projectId,
@@ -85,6 +90,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   const tabLock = useStreamTabLock({
     active:
       env.NEXT_PUBLIC_SINGLE_TAB_STREAM &&
+      !needsFreshLoad &&
       !missingViewVisit &&
       Boolean(catalogApiProjectId && layoutCode),
     streamProjectId: projectId,
@@ -101,7 +107,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     apartmentId,
     unitId,
     viewOnly,
-    paused: missingViewVisit || streamTabBlocked || waitingForTabLock,
+    paused:
+      needsFreshLoad ||
+      missingViewVisit ||
+      streamTabBlocked ||
+      waitingForTabLock,
     setParams,
   });
   const {
@@ -140,6 +150,12 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   );
   const { allowNavigation, allowReload } = guard;
 
+  useEffect(() => {
+    if (!needsFreshLoad) return;
+    allowReload();
+    window.location.replace(window.location.href);
+  }, [allowReload, needsFreshLoad]);
+
   const sceneConfig: MeshRulesConfig = useMemo(
     () =>
       session
@@ -168,6 +184,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     !designCode &&
     (quotationResume?.mode === "edit" || quotationResume?.mode === "fresh");
   const streamMayStart =
+    !needsFreshLoad &&
     !holdStreamForQuotation &&
     !missingViewVisit &&
     !streamTabBlocked &&
@@ -439,6 +456,10 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     allowReload();
     window.location.reload();
   }, [allowReload]);
+  // Reloading cannot fix a browser without a supported video codec.
+  const showUnsupported = stream.streamUnsupported && !sessionError;
+  const reconnectAction =
+    canReconnect && !stream.streamUnsupported ? reloadSession : undefined;
 
   const goToProjects = useCallback(() => {
     allowNavigation();
@@ -506,26 +527,28 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           reconnectTitle={stream.loadingTitle}
           reconnectSubtitle={stream.loadingSubtitle}
           endedEyebrow={
-            overlay.kind === "error"
+            overlay.kind === "error" && !showUnsupported
               ? sessionError
                 ? "Unable to load"
                 : "Unable to open"
               : stream.endedCopy.eyebrow
           }
           endedTitle={
-            overlay.kind === "error"
+            overlay.kind === "error" && !showUnsupported
               ? sessionError
                 ? "This apartment could not be loaded"
                 : "The 3D session could not open"
               : stream.endedCopy.title
           }
           endedMessage={
-            overlay.kind === "error"
-              ? sessionError ||
-                "We couldn’t open the 3D session. Try reconnecting."
-              : null
+            showUnsupported
+              ? stream.endedCopy.status
+              : overlay.kind === "error"
+                ? sessionError ||
+                  "We couldn’t open the 3D session. Try reconnecting."
+                : null
           }
-          onReconnect={canReconnect ? reloadSession : undefined}
+          onReconnect={reconnectAction}
           onContinueToSummary={() => {
             setStreamOverlayDismissed(true);
             setQuoteDialogOpen(false);
@@ -677,7 +700,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
             confirmError={renderJob.active ? null : renderJob.error}
             actionsDisabled={overlay.blocking && !overlay.offline}
             streamOffline={overlay.offline}
-            onReconnect={canReconnect ? reloadSession : undefined}
+            onReconnect={reconnectAction}
             onBack={closeReviewAndQuote}
             onConfirm={async () => {
               const ok = await renderJob.start();
@@ -739,7 +762,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
         viewEdit={viewEdit}
       />
 
-      {journeyReady === false ? (
+      {journeyReady === false && !needsFreshLoad ? (
         <JourneyGate onReady={() => boot.setJourneyReady(true)} />
       ) : null}
 

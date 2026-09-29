@@ -69,10 +69,11 @@ const SelectStyle = ({
 
   return (
     <Wrapper
+      data-lenis-prevent
       className={`relative bg-[#00272d] text-white ${
         overlay
           ? "absolute inset-0 z-50 overflow-y-auto"
-          : "min-h-dvh! h-auto 2xl:h-dvh! overflow-x-hidden overflow-y-auto"
+          : "min-h-dvh overflow-x-hidden"
       }`}
       style={{
         ...pageNoiseStyle(0.11),
@@ -87,7 +88,7 @@ const SelectStyle = ({
       </div>
 
       {/* max-w-[1280px] */}
-      <div className="relative z-10 mx-auto flex h-full w-full flex-col items-center px-4 pt-8 pb-10 sm:px-8 sm:pt-10">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full flex-col items-center px-4 pt-8 pb-10 sm:px-8 sm:pt-10">
         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
         <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-wider text-white sm:mt-12">

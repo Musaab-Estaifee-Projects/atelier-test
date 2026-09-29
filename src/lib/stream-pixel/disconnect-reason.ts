@@ -58,6 +58,12 @@ export const DISCONNECT_COPY = {
     title: "No 3D session is available right now",
     status: "Not available.",
   },
+  unsupportedBrowser: {
+    eyebrow: "Browser not supported",
+    title: "This browser can't play the 3D session",
+    status:
+      "Please open this page in the latest Chrome, Edge, Safari or Firefox.",
+  },
   interrupted: {
     eyebrow: "Connection interrupted",
     title: "Reconnecting to your session",

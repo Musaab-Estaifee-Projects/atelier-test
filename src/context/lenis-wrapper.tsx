@@ -47,8 +47,10 @@ const LenisWrapper = () => {
         smoothWheel: true,
         stopInertiaOnNavigate: true,
         autoRaf: true,
-        // !Lenis for Mobile:
-        syncTouch: true,
+        // Native touch scrolling. Lenis touch sync drops vertical scroll on some phones and tablets.
+        syncTouch: false,
+        // // !Lenis for Mobile:
+        // syncTouch: true,
         // syncTouchLerp: 0.08,
         // touchMultiplier: 1.2,
         // touchInertiaMultiplier: 30,

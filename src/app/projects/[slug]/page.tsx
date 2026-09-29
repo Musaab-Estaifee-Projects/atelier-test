@@ -46,7 +46,8 @@ const page = async ({ params }: PageProps) => {
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[#00272d] text-white lg:h-dvh"
+      data-lenis-prevent
+      className="relative min-h-dvh overflow-x-hidden bg-[#00272d] text-white"
       style={pageNoiseStyle(0.11)}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
@@ -67,7 +68,7 @@ const page = async ({ params }: PageProps) => {
         />
       </div>
 
-      <div className="relative z-10 flex min-h-dvh flex-col lg:h-dvh lg:flex-row">
+      <div className="relative z-10 flex min-h-dvh flex-col lg:flex-row">
         <AtelierMark
           href="/projects"
           label="Back to projects"

@@ -119,8 +119,28 @@ const SelectStep = ({
 
   const applyApartmentToSelects = useCallback(
     (item: TApartmentSearchItem) => {
-      form.setValue("categoryId", String(item.layout.category.id));
-      form.setValue("typeId", String(item.layout.type.id));
+      const category =
+        project.categories?.find((c) => c.id === item.layout.category.id) ??
+        project.categories?.find(
+          (c) =>
+            c.name.trim().toLowerCase() ===
+            item.layout.category.name.trim().toLowerCase(),
+        );
+      const matchedType =
+        category?.types.find((t) => t.id === item.layout.type.id) ??
+        category?.types.find(
+          (t) => (t.code?.trim() || t.layout_code) === item.layout.code.trim(),
+        ) ??
+        category?.types.find(
+          (t) =>
+            t.name.trim().toLowerCase() ===
+            item.layout.type.name.trim().toLowerCase(),
+        );
+      form.setValue(
+        "categoryId",
+        String(category?.id ?? item.layout.category.id),
+      );
+      form.setValue("typeId", String(matchedType?.id ?? item.layout.type.id));
       setSelectedUnit({
         id: String(item.id),
         number: item.apartment_number,
@@ -131,7 +151,7 @@ const SelectStep = ({
         area: item.layout.area,
       });
     },
-    [form],
+    [form, project.categories],
   );
 
   // Debounced first-page search
@@ -368,6 +388,27 @@ const SelectStep = ({
     );
   };
 
+  const searchLocksSelects = Boolean(selectedUnit);
+  const residenceOptions = useMemo(() => {
+    if (!searchLocksSelects || !categoryId || !selectedUnit) return categories;
+    if (categories.some((option) => option.id === categoryId)) return categories;
+    return [{ id: categoryId, label: selectedUnit.categoryName }, ...categories];
+  }, [categories, categoryId, searchLocksSelects, selectedUnit]);
+  const layoutOptions = useMemo(() => {
+    if (!searchLocksSelects || !typeId || !selectedUnit) return typeOptions;
+    if (typeOptions.some((option) => option.id === typeId)) return typeOptions;
+    const area = selectedUnit.area?.trim();
+    return [
+      {
+        id: typeId,
+        label: area
+          ? `${selectedUnit.typeName} - ${area} sq ft`
+          : selectedUnit.typeName,
+      },
+      ...typeOptions,
+    ];
+  }, [searchLocksSelects, selectedUnit, typeId, typeOptions]);
+
   const showSearchDropdown =
     openMenu === "search" &&
     (isSearching || isLoadingMore || suggestions.length > 0 || query.trim());
@@ -456,9 +497,9 @@ const SelectStep = ({
               label="Residence type"
               value={categoryId}
               placeholder="Select Residence Type"
-              options={categories}
+              options={residenceOptions}
               open={openMenu === "type"}
-              disabled={pending}
+              disabled={pending || searchLocksSelects}
               onToggle={() =>
                 setOpenMenu((v) => (v === "type" ? null : "type"))
               }
@@ -469,9 +510,9 @@ const SelectStep = ({
               label="Layout"
               value={typeId}
               placeholder="Select Layout"
-              options={typeOptions}
+              options={layoutOptions}
               open={openMenu === "layout"}
-              disabled={!categoryId || pending}
+              disabled={pending || searchLocksSelects || !categoryId}
               onToggle={() =>
                 setOpenMenu((v) => (v === "layout" ? null : "layout"))
               }
