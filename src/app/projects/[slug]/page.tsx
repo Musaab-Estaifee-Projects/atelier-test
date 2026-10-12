@@ -46,7 +46,7 @@ const page = async ({ params }: PageProps) => {
 
   return (
     <main
-      data-lenis-prevent
+      // data-lenis-prevent
       className="relative min-h-dvh overflow-x-hidden bg-[#00272d] text-white"
       style={pageNoiseStyle(0.11)}
     >
@@ -57,14 +57,22 @@ const page = async ({ params }: PageProps) => {
         />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 opacity-40 lg:hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-80 lg:hidden">
         <Image
           src={project.image}
-          alt=""
+          alt={project.name ?? "Project"}
           fill
           className="object-cover"
           sizes="100vw"
           priority
+        />
+
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0, 18, 20, 0) 0%, #001214 67.76%)",
+          }}
         />
       </div>
 

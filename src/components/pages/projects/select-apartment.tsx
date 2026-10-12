@@ -66,11 +66,7 @@ const SelectApartment = ({ project }: Props) => {
       </aside>
 
       <div className="flex flex-1 flex-col items-center justify-center px-5 py-16 sm:px-10 lg:w-[50dvw] lg:min-h-dvh">
-        <ApartmentForm
-          project={project}
-          autoFocus
-          onSubmit={handleSubmit}
-        />
+        <ApartmentForm project={project} autoFocus onSubmit={handleSubmit} />
       </div>
     </>
   );

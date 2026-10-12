@@ -3,10 +3,6 @@
 import { useEffect } from "react";
 import "./configurator.css";
 
-/**
- * Lock the document to a fixed viewport for the stream page.
- * Global Lenis sets `html.lenis body { height: auto }` which breaks %/fill layouts.
- */
 export default function ConfiguratorLayout({
   children,
 }: {

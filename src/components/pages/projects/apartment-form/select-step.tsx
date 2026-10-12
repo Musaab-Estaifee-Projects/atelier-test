@@ -23,7 +23,11 @@ import {
   TApartmentSearchItem,
 } from "@/services/search-apartments.service";
 import { isDesignCode, normalizeDesignCode } from "@/lib/projects/apartments";
-import { formatApartmentSearchLabel, apartmentNumberFromQuery } from "@/lib/projects/apartment-display";
+import {
+  formatApartmentSearchLabel,
+  apartmentNumberFromQuery,
+} from "@/lib/projects/apartment-display";
+import { pageNoiseStyle } from "@/lib/ui/page-noise";
 
 const schema = z.object({
   query: z.string(),
@@ -88,6 +92,7 @@ const SelectStep = ({
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const query = form.watch("query");
   const categoryId = form.watch("categoryId");
   const typeId = form.watch("typeId");
@@ -391,8 +396,12 @@ const SelectStep = ({
   const searchLocksSelects = Boolean(selectedUnit);
   const residenceOptions = useMemo(() => {
     if (!searchLocksSelects || !categoryId || !selectedUnit) return categories;
-    if (categories.some((option) => option.id === categoryId)) return categories;
-    return [{ id: categoryId, label: selectedUnit.categoryName }, ...categories];
+    if (categories.some((option) => option.id === categoryId))
+      return categories;
+    return [
+      { id: categoryId, label: selectedUnit.categoryName },
+      ...categories,
+    ];
   }, [categories, categoryId, searchLocksSelects, selectedUnit]);
   const layoutOptions = useMemo(() => {
     if (!searchLocksSelects || !typeId || !selectedUnit) return typeOptions;
@@ -419,7 +428,7 @@ const SelectStep = ({
         ref={rootRef}
         noValidate
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="flex w-full max-w-116.5 flex-col items-stretch gap-9"
+        className="flex w-full max-w-116.5 flex-col items-stretch gap-9 justify-between sm:justify-center min-h-[calc(100dvh-13rem)] sm:min-h-auto"
         data-lenis-prevent
       >
         <h1
@@ -496,7 +505,7 @@ const SelectStep = ({
             <DashedDropdown
               label="Residence type"
               value={categoryId}
-              placeholder="Select Residence Type"
+              placeholder="Select Residence Category"
               options={residenceOptions}
               open={openMenu === "type"}
               disabled={pending || searchLocksSelects}
@@ -509,7 +518,7 @@ const SelectStep = ({
             <DashedDropdown
               label="Layout"
               value={typeId}
-              placeholder="Select Layout"
+              placeholder="Select Type"
               options={layoutOptions}
               open={openMenu === "layout"}
               disabled={pending || searchLocksSelects || !categoryId}
@@ -538,8 +547,11 @@ const SelectStep = ({
             type="submit"
             variant="pill"
             size="pill"
-            className="w-full text-[12px] text-white"
+            className="w-full text-[12px] text-white h-12.5 max-sm:text-[0.625rem]!"
             disabled={pending}
+            style={{
+              ...pageNoiseStyle(0.11),
+            }}
           >
             {pending ? "Checking…" : "Continue"}
           </Button>

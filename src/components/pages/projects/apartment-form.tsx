@@ -3,7 +3,11 @@
 
 import { useEffect, useState } from "react";
 import ContactConfirmDialog from "./apartment-form/contact-confirm-dialog";
-import { persistCustomerSession, isJourneyValid, readJourney } from "@/lib/journey";
+import {
+  persistCustomerSession,
+  isJourneyValid,
+  readJourney,
+} from "@/lib/journey";
 import { createCustomer } from "@/services/create-customer.service";
 import { ContactInfo, TProject } from "@/types/types";
 import ContactStep from "./apartment-form/contact-step";
@@ -97,7 +101,7 @@ const ApartmentForm = ({
     setDialogOpen(false);
   };
 
-  // Avoid flash while reading localStorage
+  // Avod flash while reading localStorage
   if (contact === undefined) {
     return (
       <div className="flex w-full max-w-116.5 flex-col gap-8" aria-hidden />

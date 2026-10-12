@@ -3,9 +3,7 @@
 import Link from "next/link";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { Button } from "@/components/ui/button";
-import {
-  configuratorHref,
-} from "@/lib/projects/catalog";
+import { configuratorHref } from "@/lib/projects/catalog";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
 import Bg from "@/components/shared/bg";
@@ -17,6 +15,7 @@ import SecondColorPalette from "@/components/icons/second-color-palette";
 import ThirdColorPalette from "@/components/icons/third-color-palette";
 import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import CircleWithShadows from "@/components/icons/circle-with-shadows";
+import Cursor from "@/components/icons/cursor";
 
 type Props = {
   overlay?: boolean;
@@ -69,7 +68,7 @@ const SelectStyle = ({
 
   return (
     <Wrapper
-      data-lenis-prevent
+      // data-lenis-prevent
       className={`relative bg-[#00272d] text-white ${
         overlay
           ? "absolute inset-0 z-50 overflow-y-auto"
@@ -104,7 +103,7 @@ const SelectStyle = ({
         {/* Cards */}
         <div className="mt-10 flex w-full flex-1 flex-col items-stretch gap-5 md:flex-row md:items-stretch">
           <CustomShape
-            className="relative w-full overflow-hidden md:w-[70%]"
+            className="hidden md:block relative w-full overflow-hidden md:w-[60%] lg:w-[70%]"
             radius={{
               base: 18,
               sm: 20,
@@ -115,7 +114,7 @@ const SelectStyle = ({
             strokeWidth={1.33}
           >
             <div className="flex h-full min-h-120 w-full md:min-h-150">
-              <div className="relative flex flex-col p-7 lg:p-9 gap-8 w-[50%] lg:w-[38%] shrink-0">
+              <div className="relative flex flex-col p-7 lg:p-9 gap-8 w-full lg:w-[38%] shrink-0">
                 <div className="flex flex-col gap-3.25 relative min-h-0 flex-1">
                   <div className="relative min-h-0 flex-1 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -147,7 +146,7 @@ const SelectStyle = ({
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col gap-3.75">
                     <div className="flex flex-col items-start gap-1">
-                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-[#f2e9d8]">
+                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-white">
                         Explore Ready Styles
                       </h2>
 
@@ -162,7 +161,7 @@ const SelectStyle = ({
                 <Button
                   asChild
                   variant="outline"
-                  className="mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-[#f2e9d8] hover:bg-white/10 hover:text-white"
+                  className="mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
                 >
                   <Link href="/styles/browse-styles">
                     BROWSE ALL <ChevronRight />
@@ -171,7 +170,7 @@ const SelectStyle = ({
               </div>
 
               {/* Right column: room image fills full height of the shape */}
-              <div className="relative min-h-0 flex-1 overflow-hidden">
+              <div className="relative min-h-0 flex-1 overflow-hidden hidden lg:block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/projects/reef-996.png"
@@ -183,7 +182,83 @@ const SelectStyle = ({
           </CustomShape>
 
           <CustomShape
-            className="relative w-full overflow-hidden md:w-[30%]"
+            className="block md:hidden relative w-full overflow-hidden"
+            radius={{
+              base: 18,
+              sm: 20,
+              md: 24,
+            }}
+            fill="rgba(255,255,255,0.04)"
+            stroke="rgba(255,255,255,0.10)"
+            strokeWidth={1.33}
+          >
+            <div className="flex h-full min-h-90 w-full">
+              <div className="relative flex flex-col p-6 md:p-7 lg:p-9 gap-4 md:gap-8 w-full shrink-0">
+                <div className="flex flex-col gap-3.25 relative min-h-0 flex-1">
+                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/images/projects/reef-996.png"
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+
+                    {/* <Image
+                      src="/images/projects/reef-996.png"
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 45vw"
+                      priority={false}
+                    /> */}
+                  </div>
+
+                  <div className="flex items-start gap-1">
+                    <span className="size-1.25 rounded-full bg-[#F2E9D8]" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                    <span className="size-1.25 rounded-full bg-white/10" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2.5 md:gap-3.75">
+                    <div className="flex flex-col items-start gap-1">
+                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-white">
+                        Explore Ready Styles
+                      </h2>
+
+                      <DiamondRule className="w-21.25 h-auto" />
+                    </div>
+
+                    <p className="text-[12px] leading-[1.35] text-white/70 sm:text-[13px]">
+                      Choose a style that reflect you vision and lifestyle
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  asChild
+                  variant="outline"
+                  className="hidden md:block mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/styles/browse-styles">
+                    BROWSE ALL <ChevronRight />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            <Link
+              href="/styles/browse-styles"
+              aria-label="Browse all styles"
+              className="absolute inset-0 z-10 md:hidden"
+            />
+          </CustomShape>
+
+          <CustomShape
+            className="relative w-full overflow-hidden md:w-[40%] lg:w-[30%]"
             radius={{
               base: 18,
               sm: 20,
@@ -193,8 +268,8 @@ const SelectStyle = ({
             stroke="rgba(255,255,255,0.10)"
             strokeWidth={1}
           >
-            <div className="flex h-full min-h-120 w-full md:min-h-150">
-              <div className="relative flex flex-col p-7 lg:p-9 gap-8 w-full shrink-0">
+            <div className="flex h-full min-h-100 w-full md:min-h-150">
+              <div className="relative flex flex-col p-6 md:p-7 lg:p-9 gap-8 w-full shrink-0">
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -204,7 +279,7 @@ const SelectStyle = ({
                   />
 
                   <div
-                    className="absolute left-4 bottom-6 flex items-center gap-2 bg-[rgba(58,51,44,0.23)] rounded-full p-[0.27644rem] backdrop-blur-sm"
+                    className="absolute left-4 bottom-4 md:bottom-6 flex items-center gap-2 bg-[rgba(58,51,44,0.23)] rounded-full p-[0.27644rem] backdrop-blur-sm"
                     style={{
                       border: `0.369px solid rgba(255, 255, 255, 0.25)`,
                     }}
@@ -215,13 +290,15 @@ const SelectStyle = ({
                     {/* <span className="size-6 shrink-0 rounded-full border border-white/30 bg-[#8fbc8f] shadow-sm" /> */}
                   </div>
 
+                  <Cursor className="absolute left-10 bottom-3 md:bottom-4 size-7 md:size-auto" />
+
                   <CircleWithShadows className="absolute top-0 left-4 bottom-0 my-auto" />
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-3.75">
+                  <div className="flex flex-col gap-2.5 md:gap-3.75">
                     <div className="flex flex-col items-start gap-1">
-                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-[#f2e9d8]">
+                      <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-white">
                         Create Your Own Design
                       </h2>
 
@@ -229,24 +306,49 @@ const SelectStyle = ({
                     </div>
 
                     <p className="text-[12px] leading-[1.35] text-white sm:text-[13px] opacity-70">
-                      Choose a style that reflects your vision and lifestyle
+                      Interactive real-time configurator. Tailor cladding,
+                      materials, and wall colors.
                     </p>
                   </div>
                 </div>
+
                 {onStartCustomizing ? (
-                  <Button
-                    type="button"
-                    variant="pill"
-                    size="pill"
-                    onClick={onStartCustomizing}
-                    // className="mt-1 h-auto w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-[#f2e9d8] hover:bg-white/20 hover:text-white"
-                  >
-                    START CUSTOMIZING <ChevronRight />
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="pill"
+                      size="pill"
+                      onClick={onStartCustomizing}
+                      className="mt-1 hidden md:inline-flex text-white!"
+                    >
+                      START CUSTOMIZING <ChevronRight />
+                    </Button>
+                    <button
+                      type="button"
+                      aria-label="Start customizing"
+                      onClick={onStartCustomizing}
+                      className="absolute inset-0 z-10 md:hidden"
+                    />
+                  </>
                 ) : (
-                  <Button variant="pill" size="pill" asChild>
-                    <Link href={customizeHref}>Start customizing</Link>
-                  </Button>
+                  <>
+                    <Button
+                      variant="pill"
+                      size="pill"
+                      asChild
+                      className="mt-1 hidden md:inline-flex text-white!"
+                    >
+                      <Link href={customizeHref}>
+                        Start customizing <ChevronRight />
+                      </Link>
+                    </Button>
+
+                    <Link
+                      href={customizeHref}
+                      aria-label="Start customizing"
+                      className="absolute inset-0 z-10 md:hidden"
+                    />
+                  </>
                 )}
               </div>
             </div>

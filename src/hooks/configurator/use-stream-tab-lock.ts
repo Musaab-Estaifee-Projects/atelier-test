@@ -30,7 +30,11 @@ export function useStreamTabLock({
   streamProjectId,
   projectId,
   layoutCode,
-}: Args): { status: StreamTabLockStatus; checking: boolean; retry: () => void } {
+}: Args): {
+  status: StreamTabLockStatus;
+  checking: boolean;
+  retry: () => void;
+} {
   const flagOn = env.NEXT_PUBLIC_SINGLE_TAB_STREAM;
   const [attempt, setAttempt] = useState(0);
   const [checking, setChecking] = useState(false);
@@ -40,6 +44,7 @@ export function useStreamTabLock({
   const feedbackTimerRef = useRef<number | null>(null);
   const keyRef = useRef("");
   const statusRef = useRef(status);
+  // eslint-disable-next-line react-hooks/refs
   statusRef.current = status;
 
   const retry = useCallback(() => {
@@ -79,7 +84,6 @@ export function useStreamTabLock({
     if (keyRef.current !== name) {
       keyRef.current = name;
       if (statusRef.current === "blocked" || statusRef.current === "held") {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- URL key changed; wait for the new lock
         setStatus("pending");
       }
     }

@@ -230,9 +230,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { useEffect, useRef, useState } from "react";
 import AtelierMark from "@/components/icons/atelier-mark";
 import { CATALOG_STYLES } from "@/lib/styles/catalog";
-import {
-  configuratorHref,
-} from "@/lib/projects/catalog";
+import { configuratorHref } from "@/lib/projects/catalog";
 import { readResidenceLabel } from "@/lib/configurator/residence-label";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import DiamondRuleFull from "@/components/icons/configurator/diamond-rule-full";
@@ -357,7 +355,7 @@ const BrowseStyles = ({
               {slides.map((style, index) => (
                 <CarouselItem
                   key={`${style.slug}-${index}`}
-                  className="basis-2/3 pl-3 sm:basis-2/5 sm:pl-4 lg:basis-2/7 2xl:basis-2/9"
+                  className="basis-4/5 pl-3 sm:basis-2/5 sm:pl-4 lg:basis-2/7 2xl:basis-2/9"
                 >
                   <div className="w-full" style={{ height: cardHeight }}>
                     <StyleCard

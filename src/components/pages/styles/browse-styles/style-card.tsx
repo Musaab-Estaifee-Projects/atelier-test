@@ -172,7 +172,7 @@ const StyleCard = ({ style, href, onSelect, className }: StyleCardProps) => {
       strokeWidth={1}
     >
       <div className="flex h-full w-full flex-col gap-3 p-5 sm:gap-3.5 sm:p-6">
-        <h2 className="shrink-0 text-center font-baskerville text-[clamp(18px,1.8vw,22px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] uppercase">
+        <h2 className="shrink-0 text-center font-baskerville text-[clamp(16px,1.8vw,22px)] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] uppercase">
           {style.name}
         </h2>
 
@@ -185,7 +185,7 @@ const StyleCard = ({ style, href, onSelect, className }: StyleCardProps) => {
           />
         </div>
 
-        <p className="shrink-0 text-[10px] leading-[1.25] text-white/70 sm:text-[11px]">
+        <p className="shrink-0 text-[10px] leading-tight text-white/70 sm:text-[11px]">
           {style.description}
         </p>
 
