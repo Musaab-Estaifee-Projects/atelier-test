@@ -6,53 +6,63 @@ import ByWord from "@/components/icons/by-word";
 import ReefWord from "@/components/icons/reef-word";
 
 interface Props {
+  /** idle = hidden; enter = fade in; exit = fade out (same instance — no remount flash). */
+  phase?: "idle" | "enter" | "exit";
+  /** @deprecated use phase — kept so older call sites keep typechecking if any remain */
   reverse?: boolean;
   className?: string;
 }
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-const AnimatedMainLogo = ({ reverse = false, className }: Props) => {
+const AnimatedMainLogo = ({ phase, reverse = false, className }: Props) => {
+  const resolved: "idle" | "enter" | "exit" =
+    phase ?? (reverse ? "exit" : "enter");
+
+  const show = resolved === "enter";
+  const exiting = resolved === "exit";
+  const hidden = resolved === "idle";
+
   return (
-    <motion.div
-      className={`flex flex-col items-center ${className ?? ""}`}
-      initial={false}
+    <div
+      className={`flex flex-col items-center ${hidden ? "opacity-0" : ""} ${className ?? ""}`}
+      aria-hidden={hidden || undefined}
     >
       {/* Atelier wordmark */}
       <motion.div
-        initial={{ opacity: 0, y: reverse ? 0 : 24, filter: "blur(8px)" }}
+        // initial={false}
+        initial={{ filter: "blur(8px)" }}
         animate={{
-          opacity: reverse ? 0 : 1,
-          y: reverse ? -24 : 0,
-          filter: reverse ? "blur(8px)" : "blur(0px)",
+          opacity: show ? 1 : 0,
+          y: show ? 0 : exiting ? -24 : 24,
+          filter: exiting ? "blur(8px)" : "blur(0px)",
         }}
         transition={{
           duration: 0.55,
           ease: EASE,
-          delay: reverse ? 0.15 : 0,
+          delay: exiting ? 0.15 : show ? 0 : 0,
         }}
       >
         <AtelierLogo className="h-10.5 w-auto text-[#F5F0E8] sm:h-13" />
       </motion.div>
 
-      {/* "by REEF" */}
       <motion.div
         className="mt-2 flex flex-col items-center gap-1.5"
-        initial={{ opacity: 0, y: reverse ? 0 : 16 }}
+        initial={false}
         animate={{
-          opacity: reverse ? 0 : 1,
-          y: reverse ? -16 : 0,
+          opacity: show ? 1 : 0,
+          y: show ? 0 : exiting ? -16 : 16,
         }}
         transition={{
           duration: 0.5,
           ease: EASE,
-          delay: reverse ? 0 : 0.18,
+          delay: exiting ? 0 : show ? 0.18 : 0,
         }}
       >
         <ByWord className="h-2.75 w-auto text-[#F5F0E8]/opacity-80" />
         <ReefWord className="h-3.25 w-auto text-[#F5F0E8]" />
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
 

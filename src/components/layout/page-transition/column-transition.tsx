@@ -9,40 +9,35 @@ interface Props {
 }
 
 const DURATION = 1;
+const EASE: [number, number, number, number] = [0.76, 0, 0.24, 1];
 
+/**
+ * Curtain is the AnimatePresence child (so exit scaleX actually runs).
+ * Logo is a sibling layer — not scaled with the wipe, and kept mounted across
+ * enter→exit so flipping reverse never remounts (that caused the flash).
+ */
 const ColumnTransition = ({ active, logoPhase }: Props) => {
   return (
-    <AnimatePresence mode="wait">
-      {active && (
-        <div className="fixed inset-0 z-9999 pointer-events-auto overflow-hidden ultra:inset-[0vmax]!">
+    <>
+      <AnimatePresence>
+        {active ? (
           <motion.div
-            initial={{
-              scaleX: 0,
-              transformOrigin: "left",
-            }}
-            animate={{
-              scaleX: 1,
-              transformOrigin: "left",
-            }}
-            exit={{
-              scaleX: 0,
-              transformOrigin: "right",
-            }}
-            transition={{
-              duration: DURATION,
-              ease: [0.76, 0, 0.24, 1],
-            }}
-            className="absolute inset-0 bg-[#00272D] will-change-transform ultra:inset-[0vmax]!"
+            key="column-curtain"
+            className="fixed inset-0 z-9999 bg-[#00272D] pointer-events-auto will-change-transform ultra:inset-[0vmax]!"
+            initial={{ scaleX: 0, transformOrigin: "left center" }}
+            animate={{ scaleX: 1, transformOrigin: "left center" }}
+            exit={{ scaleX: 0, transformOrigin: "right center" }}
+            transition={{ duration: DURATION, ease: EASE }}
           />
+        ) : null}
+      </AnimatePresence>
 
-          <div className="absolute inset-0 flex items-center justify-center ultra:inset-[0vmax]!">
-            {logoPhase !== "idle" && (
-              <AnimatedMainLogo reverse={logoPhase === "exit"} />
-            )}
-          </div>
+      {active ? (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center pointer-events-none ultra:inset-[0vmax]!">
+          <AnimatedMainLogo phase={logoPhase} />
         </div>
-      )}
-    </AnimatePresence>
+      ) : null}
+    </>
   );
 };
 

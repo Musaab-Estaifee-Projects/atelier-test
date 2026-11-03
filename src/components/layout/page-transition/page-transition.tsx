@@ -22,8 +22,12 @@ function normalizePath(href: string) {
 }
 
 const COLUMN_PUSH_MS = 1200;
-const COLUMN_EXIT_START_MS = 400;
-const COLUMN_HIDE_MS = 900;
+/** Start logo fade-out after the new route is painted. */
+const COLUMN_EXIT_START_MS = 350;
+/** Unmount curtain after logo exit (~0.7s) so AnimatePresence can wipe out. */
+const COLUMN_HIDE_MS = 1100;
+/** Curtain exit duration — mark done only after wipe finishes. */
+const COLUMN_EXIT_DURATION_MS = 1000;
 const LOGO_ENTER_MS = 700;
 
 const PageTransition = ({ children }: { children: React.ReactNode }) => {
@@ -107,6 +111,7 @@ const PageTransition = ({ children }: { children: React.ReactNode }) => {
 
       e.preventDefault();
 
+      clearTimers();
       isTransitioning.current = true;
       pendingUrl.current = href;
 
@@ -126,7 +131,7 @@ const PageTransition = ({ children }: { children: React.ReactNode }) => {
 
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
-  }, [pathname, router, schedule, setTransitionDone]);
+  }, [pathname, router, schedule, setTransitionDone, clearTimers]);
 
   useEffect(() => {
     if (isFirstLoad.current) {
@@ -139,15 +144,21 @@ const PageTransition = ({ children }: { children: React.ReactNode }) => {
     }
 
     isTransitioning.current = false;
+    clearTimers();
 
+    // Fade logo out first (same mounted instance — no remount flash).
     schedule(() => setLogoPhase("exit"), COLUMN_EXIT_START_MS);
 
+    // Then let AnimatePresence run the curtain exit (do not snap logo to idle).
     schedule(() => {
       setShowColumn(false);
+    }, COLUMN_HIDE_MS);
+
+    schedule(() => {
       setLogoPhase("idle");
       markTransitionDone();
-    }, COLUMN_HIDE_MS);
-  }, [pathname, markTransitionDone, schedule]);
+    }, COLUMN_HIDE_MS + COLUMN_EXIT_DURATION_MS);
+  }, [pathname, markTransitionDone, schedule, clearTimers]);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
