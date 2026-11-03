@@ -2,21 +2,22 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Auto follows the viewport; a picked resolution must not be overwritten. */
-let matchViewportRes = true;
-
 /**
  * While the materials drawer animates the stream band, lock stretch-fill and
  * skip SDK `resizePlayerStyle` (that call letterboxes to aspect ratio mid-tween).
  */
 let streamStretchLock = false;
 
-export function setMatchViewportRes(enabled: boolean) {
-  matchViewportRes = enabled;
+/**
+ * StreamPixel disables Epic MatchViewportRes and owns sizing via
+ * UIControl.handleResMax → r.SetRes. Never re-enable MatchViewportRes.
+ */
+export function setMatchViewportRes(_enabled: boolean) {
+  /* no-op — always off */
 }
 
 export function shouldMatchViewportRes() {
-  return matchViewportRes;
+  return false;
 }
 
 export function setStreamStretchLock(locked: boolean) {
@@ -162,17 +163,14 @@ export function fitStreamDom(
   fillMedia(streamMedia(appStream, root), stretch);
 
   try {
-    pixelStreaming?.config?.setFlagEnabled?.(
-      "MatchViewportRes",
-      matchViewportRes,
-    );
+    // Must stay false — see setMatchViewportRes note above.
+    pixelStreaming?.config?.setFlagEnabled?.("MatchViewportRes", false);
   } catch {
     /* optional */
   }
 
   // Do not call resizePlayerStyle / updateVideoStreamSize here.
-  // Those fight MatchViewportRes and freeze the decoder right after a
-  // resolution change; DOM fill below is enough for layout.
+  // Those re-enter MatchViewport sizing and freeze frames after ResMax.
 
   releaseContainerGeometry(container);
   container.style.removeProperty("transform");

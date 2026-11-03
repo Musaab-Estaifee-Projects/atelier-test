@@ -18,9 +18,13 @@ export type StreamPixelInitConfig = Pick<
   | "touchInput"
   | "hoverMouse"
   | "fakeMouseWithTouches"
+  | "primaryCodec"
   | "preferredCodec"
+  | "fallBackCodec"
   | "startResolutionMobile"
+  | "startResolutionTab"
   | "maxBitrate"
+  | "minBitrate"
 >;
 
 /** SDK can return null, {}, or a codec array — not only the success shape. */

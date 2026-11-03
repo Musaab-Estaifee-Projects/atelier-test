@@ -1,15 +1,17 @@
 /**
- * StreamPixel Web SDK resolution / control helpers.
+ * StreamPixel Web SDK resolution helpers.
+ *
  * Docs:
  *  - https://docs.streampixel.io/resources/web-sdk/features/video-codecs-resolution
  *  - https://docs.streampixel.io/resources/web-sdk/api-reference/uicontrol
+ *  - https://docs.streampixel.io/resources/recipes/performance-tuning
  *
- * Runtime resolution for the Web SDK must go through UIControl.handleResMax("WxH").
- * The iframe `setResolution` postMessage API must NOT be emitUIInteraction'd to UE —
- * that freezes / confuses the video track while the data channel still works.
+ * Runtime changes: UIControl.handleResMax("WIDTHxHEIGHT") only.
+ * StreamPixel owns UE size (r.SetRes). Never enable MatchViewportRes and never
+ * emit iframe `setResolution` — both freeze the video track.
  */
 
-import { fitStreamDom, setMatchViewportRes } from "@/lib/stream-pixel/fit-stream";
+import { fitStreamDom } from "@/lib/stream-pixel/fit-stream";
 import type { ResolutionOption } from "@/lib/stream-pixel/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,6 +22,9 @@ export const RESOLUTION_1080P: ResolutionOption = {
   height: 1080,
 };
 
+/** Auto ceiling — configurator target from StreamPixel perf guide. */
+const AUTO_MAX_RES = "1920x1080";
+
 type StreamHandles = {
   pixelStreaming?: any;
   uiControl?: any;
@@ -29,6 +34,7 @@ type StreamHandles = {
 
 let lastResolution: ResolutionOption = { label: "Auto" };
 let applyTimers: number[] = [];
+let applying = false;
 
 export function getLastStreamResolution(): ResolutionOption {
   return lastResolution;
@@ -53,18 +59,21 @@ function findStreamVideo(handles: StreamHandles): HTMLVideoElement | null {
   return found instanceof HTMLVideoElement ? found : null;
 }
 
-/** Keep the decoder painting after encoder / track renegotiation. */
+/** Soft recovery: keep decoding without touching MatchViewportRes / resizePlayerStyle. */
 export function nudgeStreamVideo(handles: StreamHandles): void {
+  try {
+    handles.pixelStreaming?.config?.setFlagEnabled?.("MatchViewportRes", false);
+  } catch {
+    /* optional */
+  }
+
   const video = findStreamVideo(handles);
   if (video) {
     try {
       video.muted = true;
       video.playsInline = true;
       video.autoplay = true;
-      const play = video.play?.();
-      if (play && typeof (play as Promise<void>).catch === "function") {
-        (play as Promise<void>).catch(() => {});
-      }
+      void video.play?.()?.catch?.(() => {});
     } catch {
       /* ignore */
     }
@@ -77,88 +86,51 @@ export function nudgeStreamVideo(handles: StreamHandles): void {
   }
 }
 
-function applyMatchViewport(handles: StreamHandles, enabled: boolean) {
-  setMatchViewportRes(enabled);
-  try {
-    handles.pixelStreaming?.config?.setFlagEnabled?.(
-      "MatchViewportRes",
-      enabled,
-    );
-  } catch {
-    /* optional */
-  }
+function resMaxValue(option: ResolutionOption): string {
+  if (isAutoResolution(option)) return AUTO_MAX_RES;
+  return `${option.width}x${option.height}`;
 }
 
 /**
- * Apply max resolution via StreamPixel UIControl only (Web SDK path).
- * Avoids iframe setResolution → emitUIInteraction (wrong channel for SDK).
- */
-function applyResolutionOnce(handles: StreamHandles, option: ResolutionOption) {
-  const auto = isAutoResolution(option);
-  applyMatchViewport(handles, auto);
-
-  if (auto) {
-    try {
-      handles.uiControl?.setResolution?.({ label: "Auto" });
-    } catch {
-      /* older SDK */
-    }
-    // Ask the player to follow the viewport again without hammering r.SetRes.
-    try {
-      handles.pixelStreaming?.resizePlayerStyle?.();
-      handles.appStream?.stream?.resizePlayerStyle?.();
-    } catch {
-      /* optional */
-    }
-    nudgeStreamVideo(handles);
-    return;
-  }
-
-  const size =
-    option.width && option.height ? `${option.width}x${option.height}` : null;
-  if (!size) return;
-
-  try {
-    handles.uiControl?.handleResMax?.(size);
-  } catch {
-    /* dashboard may lock resolution */
-  }
-
-  try {
-    handles.uiControl?.setResolution?.({
-      width: option.width,
-      height: option.height,
-      label: option.label,
-    });
-  } catch {
-    /* optional helper on some SDK builds */
-  }
-
-  // Do NOT emitUIInteraction({ type: "setResolution" }) — that is the iframe
-  // postMessage API. On the Web SDK it hits UE as a custom message and can
-  // stall the video track while gameplay responses still work.
-}
-
-/**
- * Change stream resolution safely.
- * - One handleResMax / MatchViewportRes toggle
- * - Soft video.play() + DOM fit retries while the encoder settles
- * - No repeated r.SetRes / updateVideoStreamSize hammering (that freezes frames)
+ * Apply resolution the StreamPixel-documented way: one handleResMax call.
+ * Do not re-send ResMax on settle — that re-fires r.SetRes and freezes frames.
  */
 export function setStreamResolution(
   handles: StreamHandles,
   option: ResolutionOption,
 ): void {
+  if (applying) return;
+  applying = true;
+
   lastResolution = option;
   clearApplyTimers();
-  applyResolutionOnce(handles, option);
+
+  try {
+    handles.pixelStreaming?.config?.setFlagEnabled?.("MatchViewportRes", false);
+  } catch {
+    /* optional */
+  }
+
+  const value = resMaxValue(option);
+  try {
+    handles.uiControl?.handleResMax?.(value);
+  } catch {
+    /* dashboard may lock resolution */
+  }
+
   nudgeStreamVideo(handles);
+
+  window.setTimeout(() => {
+    applying = false;
+  }, 500);
 
   if (typeof window === "undefined") return;
 
-  // Encoder / SFU track swap is async — nudge playback without re-sending ResMax.
-  applyTimers = [300, 900, 2000].map((ms) =>
-    window.setTimeout(() => nudgeStreamVideo(handles), ms),
+  // Soft settle only — play + DOM fill, never another handleResMax.
+  applyTimers = [400, 1200].map((ms) =>
+    window.setTimeout(() => {
+      nudgeStreamVideo(handles);
+    }, ms),
   );
 }
 

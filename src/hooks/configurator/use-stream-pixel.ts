@@ -408,9 +408,15 @@ export function useStreamPixel({
       touchInput: false,
       hoverMouse: true,
       fakeMouseWithTouches: false,
-      preferredCodec: isMobile ? "H264" : undefined,
-      startResolutionMobile: "720p",
-      maxBitrate: isMobile ? 4_000_000 : 10_000_000,
+      // SDK reads primaryCodec / fallBackCodec (preferredCodec is ignored).
+      primaryCodec: isMobile ? "H264" : "AV1",
+      fallBackCodec: "H264",
+      // getResolutionData() requires full presets: "720p (1280x720)".
+      startResolutionMobile: "720p (1280x720)",
+      startResolutionTab: "720p (1280x720)",
+      // WebRTCMaxBitrate is kbps in the SDK (docs Mbps label is misleading).
+      maxBitrate: isMobile ? 4_000 : 10_000,
+      minBitrate: 1_000,
     };
     const initKey = streamPixelInitKey(initConfig);
     activeInitKey = initKey;

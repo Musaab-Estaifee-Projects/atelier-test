@@ -493,21 +493,19 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const handleChangeResolution = (option: ResolutionOption) => {
     setCurrentResolution(option.label);
-    const handles = {
-      pixelStreaming: stream.pixelStreamingRef.current,
-      uiControl: stream.uiControlRef.current,
-      appStream: stream.appStreamRef.current,
-      container: videoContainerRef.current,
-    };
-    setStreamResolution(handles, option);
-    // Touch wiring can die if the video node is swapped after ResMax — rebind
-    // after the encoder settles. Avoid extra resizePlayerStyle (freezes frames).
-    const settle = () => {
-      stream.rewireStreamTouches();
-      stream.refit();
-    };
-    window.setTimeout(settle, 400);
-    window.setTimeout(settle, 1200);
+    setStreamResolution(
+      {
+        pixelStreaming: stream.pixelStreamingRef.current,
+        uiControl: stream.uiControlRef.current,
+        appStream: stream.appStreamRef.current,
+        container: videoContainerRef.current,
+      },
+      option,
+    );
+    // Rebind touches after encoder settles — do not refit/resizePlayerStyle here
+    // (that fights MatchViewportRes and freezes frames after ResMax).
+    window.setTimeout(() => stream.rewireStreamTouches(), 600);
+    window.setTimeout(() => stream.rewireStreamTouches(), 1600);
     setSettingsOpen(false);
   };
 

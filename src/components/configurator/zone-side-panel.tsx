@@ -89,7 +89,7 @@ function PanelBody({
   const activeEntry = activeSlot ? selectionMap[activeSlot] : undefined;
 
   return (
-    <div className="cfg-side-panel-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-6 sm:py-8 touch-pan-y sm:gap-8 sm:px-7">
+    <div className="cfg-side-panel-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-4 sm:py-8 touch-pan-y sm:gap-8 sm:px-7">
       <header className="flex shrink-0 flex-col gap-1.5">
         <div className="flex items-center justify-between gap-1.5">
           <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
@@ -214,7 +214,8 @@ function PanelBody({
           <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
             Surface
           </h3>
-          <div className="flex flex-wrap gap-1">
+          {/* flex flex-wrap gap-1 */}
+          <div className="grid grid-cols-2 gap-1 min-[480px]:flex! min-[480px]:flex-wrap!">
             {cameras.map((cam) => {
               const key = cameraKey(cam);
               const active = activeCameraKey === key;
@@ -222,7 +223,8 @@ function PanelBody({
                 <button
                   key={key}
                   type="button"
-                  className={`h-8 min-w-22 flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
+                  // min-w-22 flex-1
+                  className={`h-8 min-w-30 flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
                     active
                       ? "border border-white/70"
                       : "border border-transparent opacity-80"
@@ -284,7 +286,7 @@ function PanelBody({
           )}
         </section>
 
-        <section className="flex flex-col gap-3.5 pb-1">
+        <section className="flex flex-col gap-3.5 pb-4">
           <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
             Variation
           </h3>
@@ -423,6 +425,7 @@ const ZoneSidePanel = ({
 
       {/* md+: keep CustomShape panel glass */}
       <CustomShape
+        enhanceOnFocus
         as="aside"
         fill="panel"
         stroke="rgba(255,255,255,0.25)"
