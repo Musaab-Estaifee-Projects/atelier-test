@@ -5,12 +5,63 @@
 /** Auto follows the viewport; a picked resolution must not be overwritten. */
 let matchViewportRes = true;
 
+/**
+ * While the materials drawer animates the stream band, lock stretch-fill and
+ * skip SDK `resizePlayerStyle` (that call letterboxes to aspect ratio mid-tween).
+ */
+let streamStretchLock = false;
+
 export function setMatchViewportRes(enabled: boolean) {
   matchViewportRes = enabled;
 }
 
 export function shouldMatchViewportRes() {
   return matchViewportRes;
+}
+
+export function setStreamStretchLock(locked: boolean) {
+  streamStretchLock = locked;
+  if (typeof document !== "undefined") {
+    const shell = document.querySelector(".configurator-shell");
+    if (shell instanceof HTMLElement) {
+      if (locked) shell.setAttribute("data-stream-stretch", "");
+      else shell.removeAttribute("data-stream-stretch");
+    }
+  }
+}
+
+export function isStreamStretchLocked() {
+  return streamStretchLock;
+}
+
+const GEOMETRY_PROPS = [
+  "inset",
+  "top",
+  "right",
+  "bottom",
+  "left",
+  "width",
+  "height",
+  "min-width",
+  "min-height",
+  "max-width",
+  "max-height",
+  "margin",
+  "padding",
+  "transform",
+] as const;
+
+/**
+ * `.stream-viewport` size is owned by CSS (full-bleed vs materials-drawer
+ * compact band). Never stamp inline geometry on the container — that would
+ * override drawer layout with `inset:0; height:100% !important`.
+ */
+function releaseContainerGeometry(el: HTMLElement) {
+  for (const prop of GEOMETRY_PROPS) {
+    el.style.removeProperty(prop);
+  }
+  el.style.setProperty("position", "absolute", "important");
+  el.style.setProperty("overflow", "hidden", "important");
 }
 
 function fillBox(el: HTMLElement | null | undefined, cover = false) {
@@ -61,6 +112,28 @@ function mediaMissesContainer(
   );
 }
 
+function fillMedia(
+  el: HTMLElement | null | undefined,
+  stretch: boolean,
+) {
+  fillBox(el, !stretch);
+  if (!el || !stretch) return;
+  // Stretch-fill — SDK aspect-fit letterbox reads as the video "shrinking".
+  el.style.setProperty("object-fit", "fill", "important");
+  el.style.setProperty("object-position", "center center", "important");
+}
+
+function shouldStretchStream(container: HTMLElement) {
+  // Only an explicit lock — materials drawer uses CSS translate (no resize).
+  return (
+    streamStretchLock ||
+    Boolean(
+      container.closest?.("[data-stream-stretch]") ||
+        document.querySelector?.(".configurator-shell[data-stream-stretch]"),
+    )
+  );
+}
+
 export function fitStreamDom(
   container: HTMLElement | null | undefined,
   appStream: any,
@@ -68,8 +141,13 @@ export function fitStreamDom(
 ) {
   if (!container) return;
 
-  fillBox(container);
-  container.style.setProperty("overflow", "hidden", "important");
+  const stretch = shouldStretchStream(container);
+
+  // Never stamp width/height/transform on the viewport — CSS owns full-bleed
+  // size and the materials-drawer translateY shift.
+  releaseContainerGeometry(container);
+  // Preserve CSS transform (drawer push); only clear stale inline transform.
+  container.style.removeProperty("transform");
 
   const root = appStream?.rootElement as HTMLElement | null | undefined;
   fillBox(root);
@@ -84,8 +162,7 @@ export function fitStreamDom(
     (root?.querySelector?.(".playerUI") as HTMLElement | null);
   fillBox(playerUi);
 
-  const media = streamMedia(appStream, root);
-  fillBox(media, true);
+  fillMedia(streamMedia(appStream, root), stretch);
 
   try {
     pixelStreaming?.config?.setFlagEnabled?.(
@@ -96,30 +173,24 @@ export function fitStreamDom(
     /* optional */
   }
 
-  try {
-    pixelStreaming?.resizePlayerStyle?.();
-    pixelStreaming?._webRtcController?.resizePlayerStyle?.();
-    pixelStreaming?._webRtcController?.videoPlayer?.resizePlayerStyle?.();
-    pixelStreaming?._webRtcController?.videoPlayer?.updateVideoStreamSize?.();
-    appStream?.stream?.resizePlayerStyle?.();
-    appStream?.stream?._webRtcController?.videoPlayer?.resizePlayerStyle?.();
-  } catch {
-    /* optional */
-  }
+  // Do not call resizePlayerStyle / updateVideoStreamSize here.
+  // Those fight MatchViewportRes and freeze the decoder right after a
+  // resolution change; DOM fill below is enough for layout.
 
-  // SDK resize letterboxes to stream aspect — stretch back to the shell.
-  fillBox(container);
+  releaseContainerGeometry(container);
+  container.style.removeProperty("transform");
   fillBox(root);
   fillBox(playerUi);
   fillBox(videoParent);
-  fillBox(streamMedia(appStream, root), true);
+  fillMedia(streamMedia(appStream, root), stretch);
 
   window.requestAnimationFrame(() => {
-    fillBox(container);
+    releaseContainerGeometry(container);
+    container.style.removeProperty("transform");
     fillBox(root);
     fillBox(playerUi);
     fillBox(videoParent);
-    fillBox(streamMedia(appStream, root), true);
+    fillMedia(streamMedia(appStream, root), stretch);
   });
 }
 
@@ -196,14 +267,17 @@ export function waitForVideoFrame(
 
   return new Promise((resolve) => {
     let settled = false;
+    let playNudge: number | null = null;
     const done = (ok: boolean) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(timer);
+      if (playNudge != null) window.clearInterval(playNudge);
       video.removeEventListener("loadeddata", onReady);
       video.removeEventListener("canplay", onReady);
       video.removeEventListener("playing", onReady);
       video.removeEventListener("resize", onReady);
+      video.removeEventListener("timeupdate", onReady);
       resolve(ok);
     };
     const onReady = () => {
@@ -214,6 +288,7 @@ export function waitForVideoFrame(
     if (typeof video.requestVideoFrameCallback === "function") {
       const onFrame = () => {
         if (video.videoWidth > 2 && video.videoHeight > 2) done(true);
+        else if (!settled) video.requestVideoFrameCallback(onFrame);
       };
       video.requestVideoFrameCallback(onFrame);
     }
@@ -222,6 +297,12 @@ export function waitForVideoFrame(
     video.addEventListener("canplay", onReady);
     video.addEventListener("playing", onReady);
     video.addEventListener("resize", onReady);
+    video.addEventListener("timeupdate", onReady);
+    // Some mobile WebRTC stacks need repeated play() before the first frame.
+    playNudge = window.setInterval(() => {
+      video.play?.().catch(() => {});
+      onReady();
+    }, 500);
     video.play?.().catch(() => {});
     onReady();
   });

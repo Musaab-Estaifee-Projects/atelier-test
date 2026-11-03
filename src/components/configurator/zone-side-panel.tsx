@@ -1,5 +1,6 @@
 "use client";
 
+import { Camera, CameraOff } from "lucide-react";
 import type {
   CameraRule,
   MaterialOption,
@@ -35,7 +36,300 @@ type Props = {
   interactionLocked?: boolean;
   tourHighlight?: boolean;
   onClose: () => void;
+  freeCameraActive?: boolean;
+  /** Same as zone top bar Free — also closes this panel. */
+  onFreeCamera?: () => void;
 };
+
+type PanelBodyProps = {
+  cameras: CameraRule[];
+  activeCameraKey: string | null;
+  onSelectCamera: (camera: CameraRule) => void;
+  meshes: MeshOption[];
+  selectionMap: SelectionMap;
+  onSelectMesh: (mesh: MeshOption) => void;
+  getMaterials: (meshId: string) => MaterialOption[];
+  onSelectMaterial: (meshId: string, material: MaterialOption) => void;
+  onRemoveSelection?: (slot: string) => void;
+  defaults?: SelectionEntry[];
+  viewOnly?: boolean;
+  interactionLocked: boolean;
+  onClose: () => void;
+  freeCameraActive: boolean;
+  onFreeCamera?: () => void;
+  activeSlot: string;
+  activeMesh: MeshOption | null;
+  selectedMaterial: MaterialOption | null;
+  variations: MaterialOption[];
+  showingDefault: boolean;
+  showClear: boolean;
+};
+
+function PanelBody({
+  cameras,
+  activeCameraKey,
+  onSelectCamera,
+  meshes,
+  onSelectMesh,
+  onSelectMaterial,
+  onRemoveSelection,
+  viewOnly,
+  interactionLocked,
+  onClose,
+  freeCameraActive,
+  onFreeCamera,
+  activeSlot,
+  activeMesh,
+  selectedMaterial,
+  variations,
+  showingDefault,
+  showClear,
+  selectionMap,
+}: PanelBodyProps) {
+  const activeEntry = activeSlot ? selectionMap[activeSlot] : undefined;
+
+  return (
+    <div className="cfg-side-panel-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-6 sm:py-8 touch-pan-y sm:gap-8 sm:px-7">
+      <header className="flex shrink-0 flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-1.5">
+          <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
+            Materials
+          </h2>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {onFreeCamera ? (
+              <button
+                type="button"
+                className={cn(
+                  "relative flex size-7 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10 cursor-pointer",
+                  !freeCameraActive && "bg-white/20!",
+                )}
+                onClick={onFreeCamera}
+                disabled={interactionLocked}
+                aria-label={
+                  freeCameraActive ? "Free camera active" : "Go to free camera"
+                }
+                aria-pressed={freeCameraActive}
+                title={
+                  freeCameraActive ? "Free camera" : "Switch to free camera"
+                }
+              >
+                {freeCameraActive ? (
+                  <CameraOff className="size-4" strokeWidth={1.75} />
+                ) : (
+                  <Camera className="size-4" strokeWidth={1.75} />
+                )}
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              className="relative flex size-4.5 shrink-0 items-center justify-center"
+              onClick={onClose}
+              disabled={interactionLocked}
+              aria-label="Close materials"
+            >
+              <span className="relative block size-2.75 overflow-clip">
+                <SidePanelClose className="h-full w-full" />
+              </span>
+            </button>
+          </div>
+        </div>
+        <p className="font-sans text-[12px] leading-[1.2] text-white/70">
+          Customize finishes for your space
+        </p>
+      </header>
+
+      <section className="flex shrink-0 flex-col gap-3.5">
+        <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white">
+          Selected
+        </h3>
+        {selectedMaterial ? (
+          <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
+            <CatalogThumb
+              src={selectedMaterial.thumbnailUrl}
+              alt=""
+              className="size-13 shrink-0 rounded-full border border-white/20"
+              sizes="52px"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
+                {selectedMaterial.displayName || selectedMaterial.id}
+              </p>
+              {showingDefault ? (
+                <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
+                  Default
+                </p>
+              ) : null}
+            </div>
+            {showClear ? (
+              <button
+                type="button"
+                className="relative size-5.5 shrink-0 overflow-clip"
+                onClick={() => onRemoveSelection?.(activeSlot)}
+                aria-label="Clear selected material"
+              >
+                <SidePanelClear className="h-full w-full" />
+              </button>
+            ) : null}
+          </div>
+        ) : activeMesh ? (
+          <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
+            <CatalogThumb
+              src={activeMesh.thumbnailUrl}
+              alt=""
+              className="size-13 shrink-0 rounded-full border border-white/20"
+              sizes="52px"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
+                {finishTypeDisplayName(activeMesh)}
+              </p>
+              {showingDefault ? (
+                <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
+                  Default
+                </p>
+              ) : null}
+            </div>
+            {showClear ? (
+              <button
+                type="button"
+                className="relative size-5.5 shrink-0 overflow-clip"
+                onClick={() => onRemoveSelection?.(activeSlot)}
+                aria-label="Clear selected finish"
+              >
+                <SidePanelClear className="h-full w-full" />
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="rounded-full bg-white/5 px-4 py-3 font-sans text-[12px] text-white/60">
+            No finish selected for this surface
+          </p>
+        )}
+      </section>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3.5">
+        <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
+          <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
+            Surface
+          </h3>
+          <div className="flex flex-wrap gap-1">
+            {cameras.map((cam) => {
+              const key = cameraKey(cam);
+              const active = activeCameraKey === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`h-8 min-w-22 flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
+                    active
+                      ? "border border-white/70"
+                      : "border border-transparent opacity-80"
+                  }`}
+                  onClick={() => onSelectCamera(cam)}
+                >
+                  {surfaceDisplayLabel(cam)}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
+          <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
+            Finish Type
+          </h3>
+          {viewOnly ? (
+            <p className="font-sans text-[12px] text-white/55">
+              View only — finishes locked
+            </p>
+          ) : meshes.length === 0 ? (
+            <p className="font-sans text-[12px] text-white/55">
+              No finish options for this surface
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {meshes.map((mesh) => {
+                const selected = activeEntry?.meshId === mesh.id;
+                return (
+                  <button
+                    key={mesh.id}
+                    type="button"
+                    aria-pressed={selected}
+                    className={`flex w-full items-center gap-1.75 rounded-full bg-white/5 py-1 pr-5 pl-1 text-left ${
+                      selected
+                        ? "border border-white/70"
+                        : "border border-transparent"
+                    }`}
+                    onClick={() => onSelectMesh(mesh)}
+                  >
+                    <CatalogThumb
+                      src={mesh.thumbnailUrl}
+                      alt=""
+                      className="size-13 shrink-0 rounded-full border border-white/20"
+                      sizes="52px"
+                    />
+                    <span
+                      className={`font-sans font-medium text-[12px] leading-[1.16] text-white ${
+                        selected ? "" : "opacity-80"
+                      }`}
+                    >
+                      {finishTypeDisplayName(mesh)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="flex flex-col gap-3.5 pb-1">
+          <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
+            Variation
+          </h3>
+          {!activeMesh ? (
+            <p className="font-sans text-[12px] text-white/55">
+              Choose a finish type to see variations
+            </p>
+          ) : variations.length === 0 ? (
+            <p className="font-sans text-[12px] text-white/55">
+              No material variations
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {variations.map((mat) => {
+                const selected = selectedMaterial?.id === mat.id;
+                return (
+                  <button
+                    key={mat.id}
+                    type="button"
+                    disabled={viewOnly}
+                    title={mat.displayName || mat.id}
+                    aria-pressed={selected}
+                    className={`rounded-full p-0.5 ${
+                      selected
+                        ? "border border-white"
+                        : "border border-transparent"
+                    }`}
+                    onClick={() => onSelectMaterial(activeMesh.id, mat)}
+                  >
+                    <CatalogThumb
+                      src={mat.thumbnailUrl}
+                      alt=""
+                      className="block size-12.25 rounded-full border border-white/20"
+                      sizes="49px"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
 
 const ZoneSidePanel = ({
   cameras,
@@ -52,6 +346,8 @@ const ZoneSidePanel = ({
   interactionLocked = false,
   tourHighlight = false,
   onClose,
+  freeCameraActive = false,
+  onFreeCamera,
 }: Props) => {
   const activeCamera =
     cameras.find((cam) => cameraKey(cam) === activeCameraKey) ?? null;
@@ -79,240 +375,64 @@ const ZoneSidePanel = ({
     !showingDefault,
   );
 
+  const bodyProps: PanelBodyProps = {
+    cameras,
+    activeCameraKey,
+    onSelectCamera,
+    meshes,
+    selectionMap,
+    onSelectMesh,
+    getMaterials,
+    onSelectMaterial,
+    onRemoveSelection,
+    defaults,
+    viewOnly,
+    interactionLocked,
+    onClose,
+    freeCameraActive,
+    onFreeCamera,
+    activeSlot,
+    activeMesh,
+    selectedMaterial,
+    variations,
+    showingDefault,
+    showClear,
+  };
+
   return (
     <div
       className={cn(
-        "cfg-side-panel absolute inset-x-3 bottom-21 z-30 flex h-[min(58dvh,560px)] max-h-[min(58dvh,560px)] flex-col overflow-hidden",
-        // Large screens: pin to the left and vertically center
-        "md:inset-auto md:left-3 md:top-1/2 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none md:-translate-y-1/2",
+        "cfg-side-panel cfg-materials-drawer absolute inset-x-0 bottom-0 z-[34] flex flex-col overflow-hidden",
+        // Desktop: floating left panel (unchanged)
+        "md:inset-auto md:left-3 md:top-1/2 md:bottom-auto md:z-30 md:h-[min(734px,calc(100dvh-150px))] md:w-[min(347px,calc(100vw-24px))] md:max-h-none md:-translate-y-1/2",
         interactionLocked ? "pointer-events-none" : "pointer-events-auto",
         tourHighlight && "z-40",
       )}
       data-cfg-chrome
       data-tour-target="materials"
+      data-materials-drawer=""
     >
+      {/* Mobile / <md: bottom drawer with default teal gradient (no CustomShape) */}
+      <aside
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden border-white/25 bg-linear-to-b from-[#00272D]/[0.98] to-[#003E47]/[0.98] md:hidden"
+        aria-label="Materials"
+        aria-disabled={interactionLocked || undefined}
+      >
+        <PanelBody {...bodyProps} />
+      </aside>
+
+      {/* md+: keep CustomShape panel glass */}
       <CustomShape
         as="aside"
         fill="panel"
         stroke="rgba(255,255,255,0.25)"
         strokeWidth={1}
         radius={{ base: 18, sm: 20, md: 24 }}
-        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+        className="hidden h-full min-h-0 w-full flex-col overflow-hidden md:flex"
         aria-label="Materials"
         aria-disabled={interactionLocked || undefined}
       >
-        <div className="cfg-side-panel-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-5 py-8 touch-pan-y sm:gap-8 sm:px-7">
-          <header className="flex shrink-0 flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-1.5">
-              <h2 className="min-w-0 font-sans font-medium text-[20px] uppercase tracking-[0.6px] text-white">
-                Materials
-              </h2>
-
-              <button
-                type="button"
-                className="relative flex size-4.5 shrink-0 items-center justify-center"
-                onClick={onClose}
-                disabled={interactionLocked}
-                aria-label="Close materials"
-              >
-                <span className="relative block size-2.75 overflow-clip">
-                  <SidePanelClose className="w-full h-full" />
-                </span>
-              </button>
-            </div>
-            <p className="font-sans text-[12px] leading-[1.2] text-white/70">
-              Customize finishes for your space
-            </p>
-          </header>
-
-        <section className="flex shrink-0 flex-col gap-3.5">
-          <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white">
-            Selected
-          </h3>
-          {selectedMaterial ? (
-            <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
-              <CatalogThumb
-                src={selectedMaterial.thumbnailUrl}
-                alt=""
-                className="size-13 shrink-0 rounded-full border border-white/20"
-                sizes="52px"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
-                  {selectedMaterial.displayName || selectedMaterial.id}
-                </p>
-                {showingDefault ? (
-                  <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
-                    Default
-                  </p>
-                ) : null}
-              </div>
-              {showClear ? (
-                <button
-                  type="button"
-                  className="relative size-5.5 shrink-0 overflow-clip"
-                  onClick={() => onRemoveSelection?.(activeSlot)}
-                  aria-label="Clear selected material"
-                >
-                  <SidePanelClear className="w-full h-full" />
-                </button>
-              ) : null}
-            </div>
-          ) : activeMesh ? (
-            <div className="flex items-center gap-2.5 rounded-full bg-white/10 py-1 pr-4 pl-1">
-              <CatalogThumb
-                src={activeMesh.thumbnailUrl}
-                alt=""
-                className="size-13 shrink-0 rounded-full border border-white/20"
-                sizes="52px"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-sans font-medium text-[14px] leading-[1.16] text-white">
-                  {finishTypeDisplayName(activeMesh)}
-                </p>
-                {showingDefault ? (
-                  <p className="mt-0.5 text-[10px] leading-[1.2] text-red-500">
-                    Default
-                  </p>
-                ) : null}
-              </div>
-              {showClear ? (
-                <button
-                  type="button"
-                  className="relative size-5.5 shrink-0 overflow-clip"
-                  onClick={() => onRemoveSelection?.(activeSlot)}
-                  aria-label="Clear selected finish"
-                >
-                  <SidePanelClear className="w-full h-full" />
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <p className="rounded-full bg-white/5 px-4 py-3 font-sans text-[12px] text-white/60">
-              No finish selected for this surface
-            </p>
-          )}
-        </section>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3.5">
-          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
-            <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
-              Surface
-            </h3>
-            <div className="flex flex-wrap gap-1">
-              {cameras.map((cam) => {
-                const key = cameraKey(cam);
-                const active = activeCameraKey === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`h-8 min-w-22 flex-1 rounded-full bg-white/5 px-4 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white ${
-                      active
-                        ? "border border-white/70"
-                        : "border border-transparent opacity-80"
-                    }`}
-                    onClick={() => onSelectCamera(cam)}
-                  >
-                    {surfaceDisplayLabel(cam)}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="flex shrink-0 flex-col gap-3.5 border-b border-white/10 pb-4.5">
-            <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
-              Finish Type
-            </h3>
-            {viewOnly ? (
-              <p className="font-sans text-[12px] text-white/55">
-                View only — finishes locked
-              </p>
-            ) : meshes.length === 0 ? (
-              <p className="font-sans text-[12px] text-white/55">
-                No finish options for this surface
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {meshes.map((mesh) => {
-                  const selected = activeEntry?.meshId === mesh.id;
-                  return (
-                    <button
-                      key={mesh.id}
-                      type="button"
-                      aria-pressed={selected}
-                      className={`flex w-full items-center gap-1.75 rounded-full bg-white/5 py-1 pr-5 pl-1 text-left ${
-                        selected
-                          ? "border border-white/70"
-                          : "border border-transparent"
-                      }`}
-                      onClick={() => onSelectMesh(mesh)}
-                    >
-                      <CatalogThumb
-                        src={mesh.thumbnailUrl}
-                        alt=""
-                        className="size-13 shrink-0 rounded-full border border-white/20"
-                        sizes="52px"
-                      />
-                      <span
-                        className={`font-sans font-medium text-[12px] leading-[1.16] text-white ${
-                          selected ? "" : "opacity-80"
-                        }`}
-                      >
-                        {finishTypeDisplayName(mesh)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-3.5 pb-1">
-            <h3 className="font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-white/50">
-              Variation
-            </h3>
-            {!activeMesh ? (
-              <p className="font-sans text-[12px] text-white/55">
-                Choose a finish type to see variations
-              </p>
-            ) : variations.length === 0 ? (
-              <p className="font-sans text-[12px] text-white/55">
-                No material variations
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1">
-                {variations.map((mat) => {
-                  const selected = selectedMaterial?.id === mat.id;
-                  return (
-                    <button
-                      key={mat.id}
-                      type="button"
-                      disabled={viewOnly}
-                      title={mat.displayName || mat.id}
-                      aria-pressed={selected}
-                      className={`rounded-full p-0.5 ${
-                        selected
-                          ? "border border-white"
-                          : "border border-transparent"
-                      }`}
-                      onClick={() => onSelectMaterial(activeMesh.id, mat)}
-                    >
-                      <CatalogThumb
-                        src={mat.thumbnailUrl}
-                        alt=""
-                        className="block size-12.25 rounded-full border border-white/20"
-                        sizes="49px"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </div>
-        </div>
+        <PanelBody {...bodyProps} />
       </CustomShape>
     </div>
   );

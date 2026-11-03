@@ -44,6 +44,7 @@ import { useConfirmSelection } from "@/hooks/configurator/use-confirm-selection"
 import { useLeaveGuard } from "@/hooks/configurator/use-leave-guard";
 import { useStreamTabLock } from "@/hooks/configurator/use-stream-tab-lock";
 import StreamViewport from "./stream-viewport";
+import BackToProjects from "./back-to-projects";
 import LoadingOverlay from "./loading-overlay";
 import AfkWarningOverlay from "./afk-warning-overlay";
 import QuotationDialog from "./quotation-dialog";
@@ -466,6 +467,11 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
     router.push("/projects");
   }, [allowNavigation, router]);
 
+  /** Back button uses column transition; only release the leave guard here. */
+  const prepareLeaveToProjects = useCallback(() => {
+    allowNavigation();
+  }, [allowNavigation]);
+
   const handleOpenQuote = useCallback(() => {
     setSelectionsOpen(false);
     setSettingsOpen(false);
@@ -487,15 +493,21 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
 
   const handleChangeResolution = (option: ResolutionOption) => {
     setCurrentResolution(option.label);
-    setStreamResolution(
-      {
-        pixelStreaming: stream.pixelStreamingRef.current,
-        uiControl: stream.uiControlRef.current,
-        appStream: stream.appStreamRef.current,
-        container: videoContainerRef.current,
-      },
-      option,
-    );
+    const handles = {
+      pixelStreaming: stream.pixelStreamingRef.current,
+      uiControl: stream.uiControlRef.current,
+      appStream: stream.appStreamRef.current,
+      container: videoContainerRef.current,
+    };
+    setStreamResolution(handles, option);
+    // Touch wiring can die if the video node is swapped after ResMax — rebind
+    // after the encoder settles. Avoid extra resizePlayerStyle (freezes frames).
+    const settle = () => {
+      stream.rewireStreamTouches();
+      stream.refit();
+    };
+    window.setTimeout(settle, 400);
+    window.setTimeout(settle, 1200);
     setSettingsOpen(false);
   };
 
@@ -516,6 +528,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
   return (
     <div className="configurator-shell" ref={shellRef}>
       <StreamViewport ref={videoContainerRef} />
+
+      <BackToProjects onPrepareLeave={prepareLeaveToProjects} />
 
       {overlay.show && !missingViewVisit && !streamTabBlocked ? (
         <LoadingOverlay

@@ -45,6 +45,7 @@ type Props = {
   error?: string | null;
   autoFocus: boolean;
   onSubmit: (choice: ApartmentChoice) => void;
+  resolveHref?: (choice: ApartmentChoice) => string;
 };
 
 const DEBOUNCE_MS = 350;
@@ -57,6 +58,7 @@ const SelectStep = ({
   error,
   autoFocus,
   onSubmit,
+  resolveHref,
 }: Props) => {
   const generatedTitleId = useId();
   const headingId = titleId ?? generatedTitleId;
@@ -296,9 +298,23 @@ const SelectStep = ({
     (choice: ApartmentChoice) => {
       setLocalError(null);
       setOpenMenu(null);
+
+      if (resolveHref) {
+        const href = resolveHref(choice);
+
+        const a = document.createElement("a");
+        a.href = href;
+        a.setAttribute("data-transition-href", href);
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
       onSubmit(choice);
     },
-    [onSubmit],
+    [onSubmit, resolveHref],
   );
 
   const handleCategory = (id: string) => {

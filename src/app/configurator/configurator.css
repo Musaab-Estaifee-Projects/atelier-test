@@ -57,7 +57,8 @@ html.configurator-active body > div {
   overscroll-behavior: none;
 }
 
-/* StreamPixel / Epic player tree must fill the viewport */
+/* StreamPixel / Epic player tree must fill the viewport.
+   Use 100% (not 100vw/100vh) so overflow never steals mobile touches from chrome. */
 .stream-viewport #playerUI,
 .stream-viewport #videoElementParent,
 .stream-viewport #player,
@@ -67,8 +68,8 @@ html.configurator-active body > div {
   inset: 0 !important;
   top: 0 !important;
   left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0 !important;
@@ -533,6 +534,89 @@ html.configurator-active #afkOverlay {
   z-index: 30;
 }
 
+/*
+ * Mobile materials drawer (< md):
+ * - Hide zone top bar + dock while the panel is open
+ * - Keep stream at full width/height (no scale, no layout resize).
+ *   Only translateY up by (drawer + 1rem) so it clears the panel with a gap.
+ *   Shell overflow clips the top; scene size is unchanged for the SDK.
+ * Desktop (md+) is unchanged — side panel stays a floating left card.
+ */
+@media (max-width: 767.98px) {
+  .configurator-shell {
+    /* Responsive drawer; leave room for the stream on short phones */
+    /* 220px,
+    38dvh, */
+    --cfg-materials-drawer-h: clamp(
+      350px,
+      50dvh,
+      min(500px, calc(100dvh - 12rem))
+    );
+    --cfg-materials-drawer-gap: 1rem;
+    /* Nudge up only — not the full drawer height (that clipped too much). */
+    --cfg-materials-stream-shift: clamp(
+      2.5rem,
+      15dvh,
+      calc(
+        var(--cfg-materials-drawer-h) * 0.3 + var(--cfg-materials-drawer-gap)
+      )
+    );
+  }
+
+  .cfg-side-panel.cfg-materials-drawer {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--cfg-materials-drawer-h);
+    max-height: var(--cfg-materials-drawer-h);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    z-index: 34;
+  }
+
+  .configurator-shell .stream-viewport {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  /*
+   * Same box size — translate only (no scale).
+   * Bottom of video sits 1rem above the drawer; no overlap.
+   */
+  .configurator-shell:has([data-materials-drawer]) .stream-viewport,
+  .configurator-shell[data-materials-open] .stream-viewport {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    clip-path: none;
+    transform: translate3d(
+      0,
+      calc(-1 * var(--cfg-materials-stream-shift)),
+      0
+    ) !important;
+  }
+
+  .configurator-shell .cfg-zone-bar,
+  .configurator-shell .cfg-dock-wrap {
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease;
+  }
+
+  .configurator-shell:has([data-materials-drawer]) .cfg-zone-bar,
+  .configurator-shell:has([data-materials-drawer]) .cfg-dock-wrap,
+  .configurator-shell[data-materials-open] .cfg-zone-bar,
+  .configurator-shell[data-materials-open] .cfg-dock-wrap {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
 /* Visible custom scrollbar for the materials panel body */
 .cfg-side-panel-scroll {
   scrollbar-gutter: stable;
@@ -739,15 +823,15 @@ html.configurator-active #afkOverlay {
   position: absolute;
   bottom: calc(100% + 10px);
   right: 0;
-  min-width: 148px;
-  padding: 6px;
-  border-radius: 20px;
-  border: 0.5px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(
+  min-width: 158px;
+  padding: 8px;
+  /* border-radius: 20px; */
+  /* border: 0.5px solid rgba(255, 255, 255, 0.25); */
+  /* background: linear-gradient(
     to left,
     rgba(173, 165, 153, 0.55),
     rgba(77, 69, 57, 0.55)
-  );
+  ); */
   backdrop-filter: blur(25px);
   display: flex;
   flex-direction: column;

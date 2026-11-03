@@ -666,21 +666,12 @@ export function useStreamPixel({
                 appStream,
                 pixelStreaming,
               );
-              const last = getLastStreamResolution();
-              if (last.label !== "Auto") {
-                setStreamResolution(
-                  {
-                    pixelStreaming,
-                    uiControl: UIControl,
-                    appStream,
-                    container: videoContainerRef.current,
-                  },
-                  last,
-                );
-              }
+              videoElement?.play?.().catch(() => {});
             }, 100);
 
-            const painted = await waitForVideoFrame(videoElement, 25000);
+            // Wait for a real decoded frame before any ResMax restore —
+            // applying resolution before the first frame freezes the track.
+            const painted = await waitForVideoFrame(videoElement, 20000);
             if (cancelled || !mountedRef.current || failedRef.current) return;
 
             safeHideDefaultUi(appStream);
@@ -690,14 +681,40 @@ export function useStreamPixel({
               STREAM_PIXEL_AFK_TIMEOUT_SECS,
             );
             fitStreamDom(videoContainerRef.current, appStream, pixelStreaming);
+            videoElement?.play?.().catch(() => {});
 
             if (!painted) {
               console.warn(
                 "[StreamPixel] video element present but no frame yet — revealing anyway",
               );
+              // Keep trying to start playback after reveal.
+              window.setTimeout(() => videoElement?.play?.().catch(() => {}), 500);
+              window.setTimeout(() => videoElement?.play?.().catch(() => {}), 1500);
             }
 
             revealStream();
+
+            // Restore a prior fixed resolution only once frames are flowing.
+            const last = getLastStreamResolution();
+            if (last.label !== "Auto" && painted) {
+              window.setTimeout(() => {
+                if (cancelled || !mountedRef.current || failedRef.current) return;
+                setStreamResolution(
+                  {
+                    pixelStreaming,
+                    uiControl: UIControl,
+                    appStream,
+                    container: videoContainerRef.current,
+                  },
+                  last,
+                );
+                unwireTouchesRef.current?.();
+                unwireTouchesRef.current = wireStreamMouseFromTouches(
+                  appStream,
+                  pixelStreaming,
+                );
+              }, 600);
+            }
           } catch (err) {
             console.error("[StreamPixel] onVideoInitialized error", err);
             revealingRef.current = false;
@@ -1067,7 +1084,18 @@ export function useStreamPixel({
     );
   }, [videoContainerRef]);
 
-  // Keep stream filling the viewport on resize / fullscreen toggles
+  /** Re-bind touch→mouse after resolution / DOM changes so mobile control stays alive. */
+  const rewireStreamTouches = useCallback(() => {
+    const appStream = appStreamRef.current;
+    if (!appStream) return;
+    unwireTouchesRef.current?.();
+    unwireTouchesRef.current = wireStreamMouseFromTouches(
+      appStream,
+      pixelStreamingRef.current,
+    );
+  }, []);
+
+  // Keep stream filling the viewport on resize / fullscreen / materials-drawer layout
   useEffect(() => {
     const onResize = () => refit();
     const onFs = () => {
@@ -1077,6 +1105,22 @@ export function useStreamPixel({
     window.addEventListener("resize", onResize);
     document.addEventListener("fullscreenchange", onFs);
     document.addEventListener("webkitfullscreenchange", onFs as EventListener);
+
+    const container = videoContainerRef.current;
+    let ro: ResizeObserver | null = null;
+    let roRaf = 0;
+    if (container && typeof ResizeObserver !== "undefined") {
+      // Coalesce RO bursts (materials open/close) into one fill pass per frame.
+      ro = new ResizeObserver(() => {
+        if (roRaf) return;
+        roRaf = window.requestAnimationFrame(() => {
+          roRaf = 0;
+          refit();
+        });
+      });
+      ro.observe(container);
+    }
+
     return () => {
       window.removeEventListener("resize", onResize);
       document.removeEventListener("fullscreenchange", onFs);
@@ -1084,8 +1128,10 @@ export function useStreamPixel({
         "webkitfullscreenchange",
         onFs as EventListener,
       );
+      if (roRaf) window.cancelAnimationFrame(roRaf);
+      ro?.disconnect();
     };
-  }, [refit]);
+  }, [refit, videoContainerRef]);
 
   const requestFullscreen = useCallback(() => {
     // Prefer the shell (controls stay visible); fall back to stream viewport
@@ -1258,5 +1304,7 @@ export function useStreamPixel({
     endedCopy,
     hasEverBeenReady,
     resolutionEnabled,
+    refit,
+    rewireStreamTouches,
   };
 }

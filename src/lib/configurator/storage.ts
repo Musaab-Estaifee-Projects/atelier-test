@@ -6,29 +6,59 @@ import type {
 } from "@/types/configurator";
 import type { StoredSelection } from "@/types/stored-selection";
 
+/**
+ * Canonical draft key is stream + project + layout only.
+ * Apartment id lives inside the draft object, not in the key.
+ */
 export function draftStorageKey(
   streamProjectId: string,
   projectId: string,
   layoutCode: string,
-  apartmentId?: string | null,
+  _apartmentId?: string | null,
 ): string {
-  const base = `atelier:config:${streamProjectId}:${projectId}:${layoutCode}`;
-  const id = apartmentId?.trim();
-  return id ? `${base}:${id}` : base;
+  return `atelier:config:${streamProjectId}:${projectId}:${layoutCode}`;
 }
 
+/** Canonical key plus legacy apartment-suffixed / `:none` keys for migration. */
 function draftStorageKeyCandidates(
   streamProjectId: string,
   projectId: string,
   layoutCode: string,
   apartmentId?: string | null,
 ): string[] {
-  const base = `atelier:config:${streamProjectId}:${projectId}:${layoutCode}`;
+  const base = draftStorageKey(streamProjectId, projectId, layoutCode);
+  const keys = [base, `${base}:none`];
   const id = apartmentId?.trim();
-  const keys = [draftStorageKey(streamProjectId, projectId, layoutCode, apartmentId)];
-  if (id) keys.push(base);
-  keys.push(`${base}:none`);
+  if (id) keys.push(`${base}:${id}`);
   return [...new Set(keys)];
+}
+
+function collectLayoutDraftKeys(
+  streamProjectId: string,
+  projectId: string,
+  layoutCode: string,
+  apartmentId?: string | null,
+): string[] {
+  const prefix = draftStorageKey(streamProjectId, projectId, layoutCode);
+  const keys = new Set(
+    draftStorageKeyCandidates(streamProjectId, projectId, layoutCode, apartmentId),
+  );
+  for (const key of Object.keys(memoryFallback)) {
+    if (key === prefix || key.startsWith(`${prefix}:`)) keys.add(key);
+  }
+  if (typeof window !== "undefined") {
+    try {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (key && (key === prefix || key.startsWith(`${prefix}:`))) {
+          keys.add(key);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return [...keys];
 }
 
 export type StorageWriteResult =
@@ -112,13 +142,8 @@ export function loadDraft(
   layoutCode: string,
   apartmentId?: string | null,
 ): LocalDraft | null {
-  const canonical = draftStorageKey(
-    streamProjectId,
-    projectId,
-    layoutCode,
-    apartmentId,
-  );
-  for (const key of draftStorageKeyCandidates(
+  const canonical = draftStorageKey(streamProjectId, projectId, layoutCode);
+  for (const key of collectLayoutDraftKeys(
     streamProjectId,
     projectId,
     layoutCode,
@@ -132,6 +157,17 @@ export function loadDraft(
     });
     if (migrated) {
       memoryFallback[canonical] = migrated;
+      // Promote legacy apartment-suffixed keys to the canonical key.
+      if (key !== canonical && typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(canonical, JSON.stringify(migrated));
+          if (key.startsWith(`${canonical}:`)) {
+            window.localStorage.removeItem(key);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       return migrated;
     }
   }
@@ -143,9 +179,15 @@ export function saveDraft(draft: LocalDraft): StorageWriteResult {
     draft.streamProjectId,
     draft.projectId,
     draft.layoutCode,
-    draft.apartmentId,
   );
-  const prev = memoryFallback[key] ?? null;
+  const prev =
+    memoryFallback[key] ??
+    loadDraft(
+      draft.streamProjectId,
+      draft.projectId,
+      draft.layoutCode,
+      draft.apartmentId,
+    );
   const merged: LocalDraft = {
     ...prev,
     ...draft,
@@ -166,8 +208,18 @@ export function saveDraft(draft: LocalDraft): StorageWriteResult {
   }
   try {
     window.localStorage.setItem(key, JSON.stringify(merged));
-    const noneKey = `atelier:config:${draft.streamProjectId}:${draft.projectId}:${draft.layoutCode}:none`;
-    if (noneKey !== key) window.localStorage.removeItem(noneKey);
+    // Drop legacy keys so apartment never remains in the storage key.
+    for (const legacy of collectLayoutDraftKeys(
+      draft.streamProjectId,
+      draft.projectId,
+      draft.layoutCode,
+      draft.apartmentId,
+    )) {
+      if (legacy !== key) {
+        window.localStorage.removeItem(legacy);
+        delete memoryFallback[legacy];
+      }
+    }
     return { ok: true };
   } catch (err) {
     storageWarned = true;
@@ -236,7 +288,7 @@ export function clearDraft(
   layoutCode: string,
   apartmentId?: string | null,
 ): void {
-  const keys = draftStorageKeyCandidates(
+  const keys = collectLayoutDraftKeys(
     streamProjectId,
     projectId,
     layoutCode,

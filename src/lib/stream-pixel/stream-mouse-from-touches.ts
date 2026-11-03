@@ -23,7 +23,9 @@ const LOOK_PX = 12;
 const DOUBLE_TAP_LOOK_PX = 28;
 
 type Coord = { x: number; y: number };
-type Handlers = { get: (name: string) => ((args?: unknown) => void) | undefined };
+type Handlers = {
+  get: (name: string) => ((args?: unknown) => void) | undefined;
+};
 
 function isChromeTouch(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -58,7 +60,10 @@ function walk(obj: unknown, depth = 0): unknown[] {
   ].filter(Boolean);
 }
 
-function findHandlers(app: PlayerRoot, pixelStreaming?: unknown): Handlers | null {
+function findHandlers(
+  app: PlayerRoot,
+  pixelStreaming?: unknown,
+): Handlers | null {
   const seen = new Set<unknown>();
   const queue: unknown[] = [app, pixelStreaming, app.stream];
   while (queue.length) {
@@ -69,8 +74,14 @@ function findHandlers(app: PlayerRoot, pixelStreaming?: unknown): Handlers | nul
     const smc = rec.streamMessageController as
       | { toStreamerHandlers?: Handlers }
       | undefined;
-    const handlers = smc?.toStreamerHandlers ?? (rec.toStreamerHandlers as Handlers | undefined);
-    if (handlers && typeof handlers.get === "function" && handlers.get("MouseMove")) {
+    const handlers =
+      smc?.toStreamerHandlers ??
+      (rec.toStreamerHandlers as Handlers | undefined);
+    if (
+      handlers &&
+      typeof handlers.get === "function" &&
+      handlers.get("MouseMove")
+    ) {
       return handlers;
     }
     for (const next of walk(cur)) queue.push(next);
@@ -114,7 +125,11 @@ function localPoint(surface: HTMLElement, clientX: number, clientY: number) {
   };
 }
 
-function unsignedFallback(surface: HTMLElement, clientX: number, clientY: number): Coord {
+function unsignedFallback(
+  surface: HTMLElement,
+  clientX: number,
+  clientY: number,
+): Coord {
   const p = localPoint(surface, clientX, clientY);
   return {
     x: clamp16((p.x / p.w) * 65536),
@@ -165,20 +180,11 @@ type StreamMouse = {
   enter: () => void;
   down: (clientX: number, clientY: number) => void;
   up: (clientX: number, clientY: number) => void;
-  move: (
-    clientX: number,
-    clientY: number,
-    dx: number,
-    dy: number,
-  ) => void;
+  move: (clientX: number, clientY: number, dx: number, dy: number) => void;
   dbl: (clientX: number, clientY: number) => void;
 };
 
-function sendClick(
-  handlers: Handlers,
-  x: number,
-  y: number,
-) {
+function sendClick(handlers: Handlers, x: number, y: number) {
   handlers.get("MouseDown")?.([0, x, y]);
   handlers.get("MouseUp")?.([0, x, y]);
 }
@@ -193,7 +199,8 @@ function createStreamMouse(
 
   const toUnsigned = (clientX: number, clientY: number) => {
     const p = localPoint(surface, clientX, clientY);
-    if (converter?.translateUnsigned) return converter.translateUnsigned(p.x, p.y);
+    if (converter?.translateUnsigned)
+      return converter.translateUnsigned(p.x, p.y);
     return unsignedFallback(surface, clientX, clientY);
   };
   const toSigned = (dx: number, dy: number) => {
@@ -224,7 +231,8 @@ function createStreamMouse(
         sendClick(handlers, c.x, c.y);
         const dbl = handlers.get("MouseDouble");
         if (dbl) dbl([0, c.x, c.y]);
-        else dispatchOnSurface(surface, "dblclick", clientX, clientY, 0, 0, 0, 2);
+        else
+          dispatchOnSurface(surface, "dblclick", clientX, clientY, 0, 0, 0, 2);
       },
     };
   }
@@ -254,21 +262,43 @@ export function wireStreamMouseFromTouches(
   app: PlayerRoot,
   pixelStreaming?: unknown,
 ): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
   const parent =
     app.stream?.videoElementParent ??
     app.rootElement ??
-    null;
-  const video = (parent?.querySelector?.("video") as HTMLElement | null) ?? null;
-  const surface =
-    video ??
-    parent ??
-    (typeof document !== "undefined"
-      ? (document.querySelector(".stream-viewport video") as HTMLElement | null)
-      : null);
-  if (!surface || typeof window === "undefined") return () => undefined;
+    (document.querySelector(
+      ".stream-viewport #videoElementParent",
+    ) as HTMLElement | null) ??
+    (document.querySelector(".stream-viewport") as HTMLElement | null);
 
-  const mouse = createStreamMouse(surface, app, pixelStreaming);
+  const resolveSurface = (): HTMLElement | null => {
+    const liveParent =
+      app.stream?.videoElementParent ?? app.rootElement ?? parent;
+    return (
+      (liveParent?.querySelector?.("video") as HTMLElement | null) ??
+      liveParent ??
+      (document.querySelector(".stream-viewport video") as HTMLElement | null)
+    );
+  };
+
+  // Listen on the parent — video nodes can be replaced after resolution changes.
+  const listenTarget = parent ?? resolveSurface();
+  if (!listenTarget) return () => undefined;
+
+  let surface = resolveSurface() ?? listenTarget;
+  let mouse = createStreamMouse(surface, app, pixelStreaming);
   mouse.enter();
+
+  const refreshMouse = () => {
+    const next = resolveSurface();
+    if (!next) return;
+    if (next !== surface) {
+      surface = next;
+      mouse = createStreamMouse(surface, app, pixelStreaming);
+      mouse.enter();
+    }
+  };
 
   let activeId: number | null = null;
   let lastX = 0;
@@ -309,6 +339,7 @@ export function wireStreamMouseFromTouches(
 
   const onStart = (event: TouchEvent) => {
     if (isChromeTouch(event.target)) return;
+    refreshMouse();
     if (event.touches.length !== 1) {
       if (activeId != null) endLook(lastX, lastY);
       activeId = null;
@@ -393,15 +424,27 @@ export function wireStreamMouseFromTouches(
   };
 
   const opts: AddEventListenerOptions = { capture: true, passive: false };
-  surface.addEventListener("touchstart", onStart as EventListener, opts);
-  surface.addEventListener("touchmove", onMove as EventListener, opts);
-  surface.addEventListener("touchend", onEnd as EventListener, opts);
-  surface.addEventListener("touchcancel", onEnd as EventListener, opts);
+  listenTarget.addEventListener("touchstart", onStart as EventListener, opts);
+  listenTarget.addEventListener("touchmove", onMove as EventListener, opts);
+  listenTarget.addEventListener("touchend", onEnd as EventListener, opts);
+  listenTarget.addEventListener("touchcancel", onEnd as EventListener, opts);
 
   return () => {
-    surface.removeEventListener("touchstart", onStart as EventListener, opts);
-    surface.removeEventListener("touchmove", onMove as EventListener, opts);
-    surface.removeEventListener("touchend", onEnd as EventListener, opts);
-    surface.removeEventListener("touchcancel", onEnd as EventListener, opts);
+    listenTarget.removeEventListener(
+      "touchstart",
+      onStart as EventListener,
+      opts,
+    );
+    listenTarget.removeEventListener(
+      "touchmove",
+      onMove as EventListener,
+      opts,
+    );
+    listenTarget.removeEventListener("touchend", onEnd as EventListener, opts);
+    listenTarget.removeEventListener(
+      "touchcancel",
+      onEnd as EventListener,
+      opts,
+    );
   };
 }

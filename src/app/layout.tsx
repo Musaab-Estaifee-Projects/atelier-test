@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Baskervville, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import { JotaiProvider } from "@/lib/jotai-provider";
 import { Suspense } from "react";
 import ScrollToTop from "@/components/shared/scroll-to-top";
 import LenisWrapper from "@/context/lenis-wrapper";
 import QueryProvider from "@/providers/query-provider";
-// import PageLoaderWrapper from "@/components/layout/page-loader/page-loader-wrapper";
+import SiteNavHost from "@/components/layout/site-nav-host";
+import PageTransition from "@/components/layout/page-transition/page-transition";
 
 const generalSans = localFont({
   src: "./fonts/GeneralSans-Variable.woff2",
@@ -55,13 +56,14 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <JotaiProvider>
-          {/* <PageLoaderWrapper> */}
-          <Suspense>
-            <ScrollToTop />
-          </Suspense>
-          <LenisWrapper />
-          <QueryProvider>{children}</QueryProvider>
-          {/* </PageLoaderWrapper> */}
+          <PageTransition>
+            <Suspense>
+              <ScrollToTop />
+            </Suspense>
+            <LenisWrapper />
+            <SiteNavHost />
+            <QueryProvider>{children}</QueryProvider>
+          </PageTransition>
         </JotaiProvider>
       </body>
     </html>

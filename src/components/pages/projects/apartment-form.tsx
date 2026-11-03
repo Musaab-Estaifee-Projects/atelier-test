@@ -35,6 +35,7 @@ type Props = {
   error?: string | null;
   autoFocus?: boolean;
   onSubmit: (choice: ApartmentChoice) => void;
+  resolveHref?: (choice: ApartmentChoice) => string;
 };
 
 const ApartmentForm = ({
@@ -45,6 +46,7 @@ const ApartmentForm = ({
   error,
   autoFocus = false,
   onSubmit,
+  resolveHref,
 }: Props) => {
   const [contact, setContact] = useState<ContactInfo | null | undefined>(
     undefined,
@@ -118,6 +120,7 @@ const ApartmentForm = ({
         error={error}
         autoFocus={autoFocus}
         onSubmit={onSubmit}
+        resolveHref={resolveHref}
       />
     );
   }

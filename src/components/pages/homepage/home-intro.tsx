@@ -7,9 +7,9 @@ import AtelierLogo from "@/components/icons/atelier-logo";
 import ByWord from "@/components/icons/by-word";
 import ReefWord from "@/components/icons/reef-word";
 import Star from "@/components/icons/star";
-import Link from "next/link";
 import { pageNoiseStyle } from "@/lib/ui/page-noise";
 import { RoundedRect } from "@/components/shared/rounded-rect";
+import SiteNav from "@/components/layout/site-nav";
 import { Volume2, VolumeOff } from "lucide-react";
 
 function getBreakpoint() {
@@ -24,11 +24,8 @@ function getBreakpoint() {
 
 function useBreakpoint() {
   const [bp, setBp] = useState(getBreakpoint);
-  const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHasMounted(true);
     const md = window.matchMedia("(min-width: 768px)");
     const lg = window.matchMedia("(min-width: 1024px)");
     const update = () => setBp({ isMd: md.matches, isLg: lg.matches });
@@ -41,7 +38,7 @@ function useBreakpoint() {
     };
   }, []);
 
-  return { ...bp, hasMounted };
+  return bp;
 }
 
 function layoutFromBp(isMd: boolean, isLg: boolean) {
@@ -54,12 +51,6 @@ function layoutFromBp(isMd: boolean, isLg: boolean) {
     logoScaleFinal: isLg ? 0.75 : 0.65,
   };
 }
-
-const NAV_LINKS = [
-  { href: "/about", label: "ABOUT" },
-  { href: "/projects", label: "PROJECTS" },
-  { href: "/quotation", label: "REFERENCE NUMBER" },
-] as const;
 
 const INTRO_LOOP_VIDEO = "/real-estate-video.mp4";
 const INTRO_DONE_MS = 5200;
@@ -74,34 +65,6 @@ function staged(
 ) {
   return introDone ? SNAP : { delay, duration, ease };
 }
-
-const HamburgerIcon = ({ open }: { open: boolean }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="25"
-    height="8"
-    viewBox="0 0 25 8"
-    fill="none"
-    aria-hidden
-  >
-    <motion.path
-      d="M0 0.5H24.5"
-      stroke="white"
-      strokeWidth={1}
-      style={{ originX: "12.25px", originY: "0.5px" }}
-      animate={open ? { rotate: 28, y: 3.25 } : { rotate: 0, y: 0 }}
-      transition={{ duration: 0.35, ease: EASE }}
-    />
-    <motion.path
-      d="M0 7H24.5"
-      stroke="white"
-      strokeWidth={1}
-      style={{ originX: "12.25px", originY: "7px" }}
-      animate={open ? { rotate: -28, y: -3.25 } : { rotate: 0, y: 0 }}
-      transition={{ duration: 0.35, ease: EASE }}
-    />
-  </svg>
-);
 
 const SoundIcon = ({ on }: { on: boolean }) => (
   <span
@@ -401,7 +364,8 @@ const CtaStage = ({
       >
         <RoundedRect
           as="button"
-          onClick={() => onNavigate("/projects")}
+          data-transition-href="/projects"
+          // onClick={() => onNavigate("/projects")}
           className="relative z-10 mx-auto cursor-pointer border-none bg-transparent px-6 py-7 font-baskerville text-[0.87944rem]! uppercase tracking-[0.14069rem] text-white sm:px-14 sm:py-8 sm:text-[13px] md:tracking-[0.32625rem] lg:w-[40vw]! lg:max-w-800! lg:py-[2.5vmax] xl:text-lg"
           initial={{ "--shape-fill": "rgba(20, 62, 71, 0.4)" }}
           animate={{ "--shape-fill": "rgba(29, 60, 39, 0.1)" }}
@@ -452,128 +416,9 @@ const CtaStage = ({
   );
 };
 
-// For stage 7
-const NavStage = ({
-  introDone,
-  showDesktopNav,
-  menuOpen,
-  setMenuOpen,
-  onNavigate,
-}: {
-  introDone: boolean;
-  showDesktopNav: boolean;
-  menuOpen: boolean;
-  setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  onNavigate: (href: string) => void;
-}) => {
-  const navTransition = introDone
-    ? SNAP
-    : { delay: 4.5, duration: 0.6, ease: "easeOut" as const };
-
-  if (showDesktopNav) {
-    return (
-      <motion.nav
-        className="absolute top-[3%] right-[2%] z-10 flex gap-5 font-general-sans text-[10px] uppercase tracking-[0.22em] text-white lg:gap-6"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={navTransition}
-      >
-        {NAV_LINKS.map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate(href);
-            }}
-          >
-            {label}
-          </Link>
-        ))}
-      </motion.nav>
-    );
-  }
-
-  return (
-    <>
-      <motion.button
-        type="button"
-        aria-label={menuOpen ? "Close menu" : "Open menu"}
-        aria-expanded={menuOpen}
-        className="absolute top-[1%] max-[475px]:right-0.5 right-[2%] sm:right-[3%] z-20 flex h-10 w-10 items-center justify-center"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={navTransition}
-        onClick={() => setMenuOpen((o) => !o)}
-      >
-        <HamburgerIcon open={menuOpen} />
-      </motion.button>
-
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            key="mobile-menu"
-            className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: EASE }}
-            onClick={() => setMenuOpen(false)}
-          >
-            <motion.nav
-              className="flex flex-col items-center gap-8 font-general-sans text-[13px] uppercase tracking-[0.28em] text-white"
-              initial="closed"
-              animate="open"
-              exit="closed"
-              variants={{
-                open: {
-                  transition: { staggerChildren: 0.07, delayChildren: 0.08 },
-                },
-                closed: {
-                  transition: { staggerChildren: 0.04, staggerDirection: -1 },
-                },
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {NAV_LINKS.map(({ href, label }) => (
-                <motion.div
-                  key={href}
-                  variants={{
-                    open: {
-                      opacity: 1,
-                      y: 0,
-                      transition: { duration: 0.4, ease: EASE },
-                    },
-                    closed: {
-                      opacity: 0,
-                      y: 12,
-                      transition: { duration: 0.25 },
-                    },
-                  }}
-                >
-                  <Link
-                    href={href}
-                    className="block py-1"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onNavigate(href);
-                    }}
-                  >
-                    {label}
-                  </Link>
-                </motion.div>
-              ))}
-            </motion.nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-};
-
 const HomeIntro = () => {
   const router = useRouter();
-  const { isMd, isLg, hasMounted } = useBreakpoint();
+  const { isMd, isLg } = useBreakpoint();
   const [isVisible, setIsVisible] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
@@ -608,8 +453,17 @@ const HomeIntro = () => {
 
   const handleNavigate = (href: string) => {
     setMenuOpen(false);
-    setIsVisible(false);
-    setTimeout(() => router.push(href), 500);
+
+    // Only hide the intro if we are NOT going through the column transition
+    // (for external links or special cases)
+    if (!href.startsWith("/")) {
+      setIsVisible(false);
+      setTimeout(() => router.push(href), 50);
+      return;
+    }
+
+    // For internal links the global PageTransition handler will do the work.
+    // Just close the menu – do NOT set isVisible(false) here.
   };
 
   const toggleSound = () => {
@@ -636,9 +490,9 @@ const HomeIntro = () => {
               linear-gradient(0deg, rgba(0, 39, 45, 0.50) 0%, rgba(0, 39, 45, 0.50) 100%)
             `,
           }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 1 }}
           transition={{
-            opacity: { duration: 0.85, ease: [0.4, 0, 0.2, 1] },
+            opacity: { duration: 0 },
             backgroundColor: { delay: 3.8, duration: 1.0, ease: EASE },
           }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
@@ -666,9 +520,9 @@ const HomeIntro = () => {
 
           <CtaStage introDone={introDone} onNavigate={handleNavigate} />
 
-          <NavStage
+          <SiteNav
+            variant="intro"
             introDone={introDone}
-            showDesktopNav={hasMounted && isMd}
             menuOpen={menuOpen}
             setMenuOpen={setMenuOpen}
             onNavigate={handleNavigate}

@@ -14,6 +14,7 @@ import Reset from "../icons/configurator/reset";
 import Pen from "../icons/configurator/pen";
 import EmptySelectionIcon from "../icons/configurator/empty-selection-icon";
 import CatalogThumb from "./catalog-thumb";
+import { CustomShape } from "../shared/custom-shape";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
@@ -131,7 +132,7 @@ const ConfiguratorDock = ({
       data-tour-target="dock"
     >
       <div
-        className="cfg-dock pointer-events-auto flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
+        className="cfg-dock pointer-events-auto flex max-sm:flex-col max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1.5 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.5)] to-[rgba(77,69,57,0.5)] p-1.5 backdrop-blur-[25px] sm:flex-nowrap sm:gap-2 sm:rounded-full sm:p-1.5"
         role="toolbar"
         aria-label="Configurator tools"
       >
@@ -148,6 +149,7 @@ const ConfiguratorDock = ({
                 Cancel <LucideX className="size-[0.75625rem]" />
               </Button>
             ) : null}
+
             {onViewEdit ? (
               <Button
                 type="button"
@@ -168,7 +170,7 @@ const ConfiguratorDock = ({
         ) : !materialsOpen && onShowMaterials ? (
           <button
             type="button"
-            className="flex h-8 shrink-0 items-center justify-center gap-1.25 rounded-full bg-[#00272d] px-3.25 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
+            className="hidden sm:flex h-8 shrink-0 items-center justify-center gap-1.25 rounded-full bg-[#00272d] px-3.25 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
             onClick={onShowMaterials}
             disabled={viewOnly}
           >
@@ -183,165 +185,218 @@ const ConfiguratorDock = ({
           </button>
         ) : null}
 
-        {viewOnly ? null : (
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              {selectedItems.length > 0 ? (
-                <span className="relative flex items-center">
-                  <span className="flex items-center">
-                    {selectedItems.slice(0, 3).map((item, index, list) => (
-                      <CatalogThumb
-                        key={item.slot}
-                        src={item.thumbnailUrl}
-                        alt=""
-                        className={`size-8 rounded-full border-[1.2px] border-white ${
-                          index < list.length - 1 ? "-mr-2.5" : ""
-                        }`}
-                        sizes="32px"
-                      />
-                    ))}
-                  </span>
-                  <button
-                    type="button"
-                    className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
-                    onClick={onToggleSelections}
-                    aria-pressed={selectionsOpen}
-                    aria-label="Edit selected items"
-                    title="Edit selected items"
-                  >
-                    <span className="relative block size-[10.5px] overflow-clip">
-                      <Pen className="w-full h-full" />
+        <div className="flex max-w-full sm:max-w-[65vw] items-center justify-center gap-1.5 rounded-[28px] flex-nowrap sm:gap-2">
+          {viewOnly ? null : (
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                {selectedItems.length > 0 ? (
+                  <span className="relative flex items-center">
+                    <span className="flex items-center">
+                      {selectedItems.slice(0, 3).map((item, index, list) => (
+                        <CatalogThumb
+                          key={item.slot}
+                          src={item.thumbnailUrl}
+                          alt=""
+                          className={`size-8 rounded-full border-[1.2px] border-white ${
+                            index < list.length - 1 ? "-mr-3.5 sm:-mr-2.5" : ""
+                          }`}
+                          sizes="32px"
+                        />
+                      ))}
                     </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="relative -ml-1 flex size-5.5 items-center justify-center rounded-full bg-[#1a5e63]"
+                      onClick={onToggleSelections}
+                      aria-pressed={selectionsOpen}
+                      aria-label="Edit selected items"
+                      title="Edit selected items"
+                    >
+                      <span className="relative block size-[10.5px] overflow-clip">
+                        <Pen className="w-full h-full" />
+                      </span>
+                    </button>
+                  </span>
+                ) : (
+                  <EmptySelectionIcon />
+                )}
+                <button
+                  type="button"
+                  // hidden sm:flex
+                  className="min-w-0 flex-col items-start gap-1 flex max-w-[80%] sm:max-w-full"
+                  onClick={onToggleSelections}
+                  aria-pressed={selectionsOpen}
+                  title="Selected items"
+                >
+                  <span className="font-sans text-[55%] md:text-[0.625rem] uppercase tracking-[0.06875rem] text-white/70 truncate max-w-full">
+                    Selected Items
+                  </span>
+                  {/* md:max-w-36  */}
+                  <span className="max-w-full truncate font-sans text-[70%] md:text-[0.8125rem] leading-[1.16] text-white">
+                    {summary}
+                  </span>
+                </button>
+              </div>
+
+              <DockIcon
+                icon={<Reset className="w-full h-full" />}
+                label="Reset selections"
+                onClick={onReset}
+                disabled={viewOnly || selectedItems.length === 0}
+              />
+
+              {(saveStatus === "saving" || selectedItems.length > 0) && (
+                <span
+                  className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
+                    saveStatus === "saving"
+                      ? "opacity-70"
+                      : saveStatus === "failed"
+                        ? "opacity-90"
+                        : ""
+                  }`}
+                  title={saveLabel(saveStatus, viewOnly)}
+                  aria-label={saveLabel(saveStatus, viewOnly)}
+                >
+                  {saveStatus === "saving" ? (
+                    <Loader2 className="size-4.5 animate-spin text-white" />
+                  ) : saveStatus === "failed" ? (
+                    <CloudSlash className="size-4.5" />
+                  ) : (
+                    <CloudSaved className="w-full h-full" />
+                  )}
                 </span>
-              ) : (
-                <EmptySelectionIcon />
               )}
-              <button
-                type="button"
-                className="hidden min-w-0 flex-col items-start gap-1 sm:flex"
-                onClick={onToggleSelections}
-                aria-pressed={selectionsOpen}
-                title="Selected items"
-              >
-                <span className="font-sans text-[0.625rem] uppercase tracking-[0.06875rem] text-white/70">
-                  Selected Items
-                </span>
-                <span className="max-w-36 truncate font-sans text-[0.8125rem] leading-[1.16] text-white">
-                  {summary}
-                </span>
-              </button>
+            </div>
+          )}
+
+          {/* sm and above */}
+          {viewOnly ? null : onQuote ? (
+            <Button
+              type="button"
+              variant="pill"
+              className="h-8 rounded-full border-transparent bg-[#00272d] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#003840] hidden sm:block"
+              onClick={onQuote}
+              disabled={viewOnly}
+            >
+              <span className="inline uppercase">Get My Quotation</span>
+              {/* <span className="sm:hidden uppercase">Quote</span> */}
+            </Button>
+          ) : null}
+
+          <span className="hidden h-8 w-px self-stretch bg-white/45 sm:block" />
+
+          <div className="flex items-center gap-1.5">
+            <div className="cfg-dock-settings relative">
+              <DockIcon
+                icon={<Settings className="w-full h-full" />}
+                label="Stream settings"
+                onClick={onToggleSettings}
+                active={settingsOpen}
+              />
+              {settingsOpen ? (
+                <div className="cfg-settings-pop">
+                  <CustomShape
+                    as="aside"
+                    fill="panel"
+                    stroke="rgba(255,255,255,0.25)"
+                    strokeWidth={1}
+                    radius={{ base: 10, sm: 12, md: 16 }}
+                    className="min-w-39.5 p-2 flex h-full min-h-0 w-full flex-col overflow-hidden"
+                    aria-label="Stream Resolution Settings"
+                  >
+                    {levels.length > 0 && onLoadLevel ? (
+                      <>
+                        <p className="cfg-settings-title">Floor plan</p>
+                        {levels.map((levelName) => (
+                          <button
+                            key={levelName}
+                            type="button"
+                            className={`cfg-settings-opt${
+                              activeLevel === levelName ? " is-active" : ""
+                            }`}
+                            disabled={viewOnly}
+                            onClick={() => onLoadLevel(levelName)}
+                          >
+                            {levelName}
+                          </button>
+                        ))}
+                        <div className="cfg-settings-divider" />
+                      </>
+                    ) : null}
+                    <p className="cfg-settings-title">Stream resolution</p>
+                    {!resolutionEnabled ? (
+                      <p className="cfg-muted">Resolution locked by stream</p>
+                    ) : null}
+                    {RESOLUTION_OPTIONS.map((option) => (
+                      <button
+                        key={option.label}
+                        type="button"
+                        className={`cfg-settings-opt${
+                          currentResolution === option.label ? " is-active" : ""
+                        }`}
+                        disabled={!resolutionEnabled && option.width != null}
+                        onClick={() => onChangeResolution(option)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </CustomShape>
+                </div>
+              ) : null}
             </div>
 
             <DockIcon
-              icon={<Reset className="w-full h-full" />}
-              label="Reset selections"
-              onClick={onReset}
-              disabled={viewOnly || selectedItems.length === 0}
+              icon={<Expand className="w-full h-full" />}
+              label="Fullscreen"
+              onClick={onFullscreen}
             />
 
-            {(saveStatus === "saving" || selectedItems.length > 0) && (
-              <span
-                className={`relative flex size-8 shrink-0 items-center justify-center overflow-clip ${
-                  saveStatus === "saving"
-                    ? "opacity-70"
-                    : saveStatus === "failed"
-                      ? "opacity-90"
-                      : ""
-                }`}
-                title={saveLabel(saveStatus, viewOnly)}
-                aria-label={saveLabel(saveStatus, viewOnly)}
-              >
-                {saveStatus === "saving" ? (
-                  <Loader2 className="size-4.5 animate-spin text-white" />
-                ) : saveStatus === "failed" ? (
-                  <CloudSlash className="size-4.5" />
-                ) : (
-                  <CloudSaved className="w-full h-full" />
-                )}
-              </span>
-            )}
-          </div>
-        )}
-
-        {viewOnly ? null : onQuote ? (
-          <Button
-            type="button"
-            variant="pill"
-            className="h-8 rounded-full border-transparent bg-[#00272d] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#003840]"
-            onClick={onQuote}
-            disabled={viewOnly}
-          >
-            <span className="hidden sm:inline uppercase">Get My Quotation</span>
-            <span className="sm:hidden uppercase">Quote</span>
-          </Button>
-        ) : null}
-
-        <span className="hidden h-8 w-px self-stretch bg-white/45 sm:block" />
-
-        <div className="flex items-center gap-1.5">
-          <div className="cfg-dock-settings relative">
-            <DockIcon
-              icon={<Settings className="w-full h-full" />}
-              label="Stream settings"
-              onClick={onToggleSettings}
-              active={settingsOpen}
-            />
-            {settingsOpen ? (
-              <div className="cfg-settings-pop">
-                {levels.length > 0 && onLoadLevel ? (
-                  <>
-                    <p className="cfg-settings-title">Floor plan</p>
-                    {levels.map((levelName) => (
-                      <button
-                        key={levelName}
-                        type="button"
-                        className={`cfg-settings-opt${
-                          activeLevel === levelName ? " is-active" : ""
-                        }`}
-                        disabled={viewOnly}
-                        onClick={() => onLoadLevel(levelName)}
-                      >
-                        {levelName}
-                      </button>
-                    ))}
-                    <div className="cfg-settings-divider" />
-                  </>
-                ) : null}
-                <p className="cfg-settings-title">Stream resolution</p>
-                {!resolutionEnabled ? (
-                  <p className="cfg-muted">Resolution locked by stream</p>
-                ) : null}
-                {RESOLUTION_OPTIONS.map((option) => (
-                  <button
-                    key={option.label}
-                    type="button"
-                    className={`cfg-settings-opt${
-                      currentResolution === option.label ? " is-active" : ""
-                    }`}
-                    disabled={!resolutionEnabled && option.width != null}
-                    onClick={() => onChangeResolution(option)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+            {onReplayTour ? (
+              <DockIcon
+                icon={
+                  <Info className="size-full text-white" strokeWidth={1.33} />
+                }
+                label="Replay tour"
+                onClick={onReplayTour}
+              />
             ) : null}
           </div>
+        </div>
 
-          <DockIcon
-            icon={<Expand className="w-full h-full" />}
-            label="Fullscreen"
-            onClick={onFullscreen}
-          />
-          {onReplayTour ? (
-            <DockIcon
-              icon={
-                <Info className="size-full text-white" strokeWidth={1.33} />
-              }
-              label="Replay tour"
-              onClick={onReplayTour}
-            />
+        {/* mobile only */}
+        <div className="grid w-full grid-cols-1 gap-2 sm:hidden has-[>:nth-child(2)]:grid-cols-2 transition-all duration-300">
+          {viewOnly ? (
+            <></>
+          ) : !materialsOpen && onShowMaterials ? (
+            <button
+              type="button"
+              className="flex h-8 shrink-0 items-center justify-center gap-1.25 rounded-full bg-[#00272d] px-3.25 font-sans font-medium text-[10px] uppercase tracking-[0.3px] text-[#f2e9d8] transition hover:bg-[#003840] disabled:opacity-45"
+              onClick={onShowMaterials}
+              disabled={viewOnly}
+            >
+              <span className="relative block size-2.75 overflow-clip">
+                <Diamond className="w-full h-full" />
+              </span>
+              <span className="inline uppercase truncate">Show Materials</span>
+              {/* <span className="sm:hidden">Materials</span> */}
+              <span className="relative block size-2.75 overflow-clip">
+                <Diamond className="w-full h-full" />
+              </span>
+            </button>
+          ) : null}
+
+          {viewOnly ? null : onQuote ? (
+            <Button
+              type="button"
+              variant="pill"
+              className="h-8 rounded-full border-transparent bg-[#00272d] px-3.25 text-[10px] tracking-[0.3px] hover:bg-[#003840]"
+              onClick={onQuote}
+              disabled={viewOnly}
+            >
+              <span className="inline uppercase truncate">
+                Get My Quotation
+              </span>
+            </Button>
           ) : null}
         </div>
       </div>

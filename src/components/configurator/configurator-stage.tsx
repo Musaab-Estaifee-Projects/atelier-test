@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import type { useCatalogNavigation } from "@/hooks/configurator/use-catalog-navigation";
 import { useConfiguratorTour } from "@/hooks/configurator/use-configurator-tour";
 import type { useSelectionActions } from "@/hooks/configurator/use-selection-actions";
@@ -89,6 +89,18 @@ const ConfiguratorStage = ({
         Boolean(nav.activeZoneId) &&
         !nav.freeCameraActive));
 
+  // Mark shell for CSS translate (stream stays full-size; no refit or resize).
+  useLayoutEffect(() => {
+    const shell = document.querySelector(".configurator-shell");
+    if (!(shell instanceof HTMLElement)) return;
+    const mobile = window.matchMedia("(max-width: 767.98px)").matches;
+    if (showMaterialsPanel && mobile) {
+      shell.setAttribute("data-materials-open", "");
+    } else {
+      shell.removeAttribute("data-materials-open");
+    }
+  }, [showMaterialsPanel]);
+
   const chromeInert = inert || tour.active;
   const tourActiveCameraKey =
     nav.activeCameraKey ??
@@ -129,6 +141,8 @@ const ConfiguratorStage = ({
             interactionLocked={tour.forceMaterialsPanel}
             tourHighlight={tour.active && tour.step?.id === "materials"}
             onClose={() => nav.setSidePanelOpen(false)}
+            freeCameraActive={nav.freeCameraActive}
+            onFreeCamera={nav.handleFreeCamera}
           />
         ) : null}
 
