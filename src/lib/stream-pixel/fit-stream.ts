@@ -112,10 +112,7 @@ function mediaMissesContainer(
   );
 }
 
-function fillMedia(
-  el: HTMLElement | null | undefined,
-  stretch: boolean,
-) {
+function fillMedia(el: HTMLElement | null | undefined, stretch: boolean) {
   fillBox(el, !stretch);
   if (!el || !stretch) return;
   // Stretch-fill — SDK aspect-fit letterbox reads as the video "shrinking".
@@ -129,7 +126,7 @@ function shouldStretchStream(container: HTMLElement) {
     streamStretchLock ||
     Boolean(
       container.closest?.("[data-stream-stretch]") ||
-        document.querySelector?.(".configurator-shell[data-stream-stretch]"),
+      document.querySelector?.(".configurator-shell[data-stream-stretch]"),
     )
   );
 }

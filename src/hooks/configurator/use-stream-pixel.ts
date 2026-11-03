@@ -688,8 +688,14 @@ export function useStreamPixel({
                 "[StreamPixel] video element present but no frame yet — revealing anyway",
               );
               // Keep trying to start playback after reveal.
-              window.setTimeout(() => videoElement?.play?.().catch(() => {}), 500);
-              window.setTimeout(() => videoElement?.play?.().catch(() => {}), 1500);
+              window.setTimeout(
+                () => videoElement?.play?.().catch(() => {}),
+                500,
+              );
+              window.setTimeout(
+                () => videoElement?.play?.().catch(() => {}),
+                1500,
+              );
             }
 
             revealStream();
@@ -698,7 +704,8 @@ export function useStreamPixel({
             const last = getLastStreamResolution();
             if (last.label !== "Auto" && painted) {
               window.setTimeout(() => {
-                if (cancelled || !mountedRef.current || failedRef.current) return;
+                if (cancelled || !mountedRef.current || failedRef.current)
+                  return;
                 setStreamResolution(
                   {
                     pixelStreaming,
