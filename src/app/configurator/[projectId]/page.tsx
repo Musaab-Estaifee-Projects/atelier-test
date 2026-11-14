@@ -3,7 +3,7 @@ import ConfiguratorClient from "./configurator-client";
 
 export const metadata: Metadata = {
   title: "ATELIER · Configurator",
-  description: "Customize your apartment finishes in real time.",
+  description: "Customize your residence finishes in real time.",
   robots: { index: false, follow: false },
 };
 

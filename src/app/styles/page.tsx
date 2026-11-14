@@ -5,7 +5,7 @@ import { streamAppIdForProjectCode } from "@/lib/projects/stream-app-id";
 export const metadata: Metadata = {
   title: "ATELIER · Select a style",
   description:
-    "Choose a ready interior style or start customizing your apartment from scratch.",
+    "Choose a ready interior style or start customizing your residence from scratch.",
 };
 
 type PageProps = {

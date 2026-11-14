@@ -15,52 +15,52 @@ export const RETRYABLE_CLOSE_CODES = new Set([1005, 1006]);
 export const DISCONNECT_COPY = {
   dropped: {
     eyebrow: "Connection lost",
-    title: "The 3D session dropped",
+    title: "Connection lost",
     status: "Disconnected from stream.",
   },
   reconnectFailed: {
     eyebrow: "Connection lost",
-    title: "Unable to restore the 3D session",
+    title: "Unable to restore the session",
     status: "Unable to reconnect. Please refresh the page.",
   },
   maxRuntime: {
     eyebrow: "Session ended",
-    title: "This 3D session reached its time limit",
+    title: "This session reached its time limit",
     status: "Maximum runtime reached.",
   },
   projectInactive: {
     eyebrow: "Unavailable",
-    title: "This 3D experience is currently unavailable",
+    title: "This experience is currently unavailable",
     status: "Project inactive.",
   },
   workerUnavailable: {
     eyebrow: "All sessions busy",
-    title: "No 3D session is available right now",
+    title: "No session is available right now",
     status: "Worker node unavailable.",
   },
   applicationNotFound: {
     eyebrow: "Unavailable",
-    title: "This 3D experience could not be found",
+    title: "This experience could not be found",
     status: "Application not found.",
   },
   applicationError: {
     eyebrow: "Session ended",
-    title: "The 3D session encountered an error",
+    title: "The session encountered an error",
     status: "Application error.",
   },
   noStreamer: {
     eyebrow: "Connection lost",
-    title: "The 3D session is not running",
+    title: "The session is not running",
     status: "No streamer connected.",
   },
   notAvailable: {
     eyebrow: "All sessions busy",
-    title: "No 3D session is available right now",
+    title: "No session is available right now",
     status: "Not available.",
   },
   unsupportedBrowser: {
     eyebrow: "Browser not supported",
-    title: "This browser can't play the 3D session",
+    title: "This browser can't play the session",
     status:
       "Please open this page in the latest Chrome, Edge, Safari or Firefox.",
   },
@@ -77,8 +77,14 @@ const TERMINAL_REASON_COPY: Array<{
 }> = [
   { match: /maximum runtime/i, copy: DISCONNECT_COPY.maxRuntime },
   { match: /project inactive/i, copy: DISCONNECT_COPY.projectInactive },
-  { match: /worker node unavailable/i, copy: DISCONNECT_COPY.workerUnavailable },
-  { match: /application not found/i, copy: DISCONNECT_COPY.applicationNotFound },
+  {
+    match: /worker node unavailable/i,
+    copy: DISCONNECT_COPY.workerUnavailable,
+  },
+  {
+    match: /application not found/i,
+    copy: DISCONNECT_COPY.applicationNotFound,
+  },
   { match: /application error/i, copy: DISCONNECT_COPY.applicationError },
   { match: /no streamer connected/i, copy: DISCONNECT_COPY.noStreamer },
   { match: /not available/i, copy: DISCONNECT_COPY.notAvailable },
@@ -116,6 +122,7 @@ export function overlayCopyForQueueMessage(
   if (/application not found/i.test(message)) {
     return DISCONNECT_COPY.applicationNotFound;
   }
-  if (/application error/i.test(message)) return DISCONNECT_COPY.applicationError;
+  if (/application error/i.test(message))
+    return DISCONNECT_COPY.applicationError;
   return null;
 }

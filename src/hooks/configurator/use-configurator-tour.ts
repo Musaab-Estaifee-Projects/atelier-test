@@ -17,21 +17,35 @@ export const CONFIGURATOR_TOUR_STEPS: ConfiguratorTourStep[] = [
   {
     id: "zones",
     title: "Welcome to Atelier by Reef",
-    body: "Pick a room above to jump there, or simply walk in. Surfaces appear once a room is selected so you can lock the camera to a finish.",
+    body: "Select a room from the navigation above to jump directly to that space or walk through your home freely to explore.",
     placement: "below",
     nextLabel: "Next",
   },
   {
     id: "materials",
-    title: "Welcome to Atelier by Reef",
-    body: "Use the materials panel to choose surfaces, finish types, and variations for the room you are viewing.",
+    title: "make this 3 steps :",
+    body: `
+    <ol class="list-decimal list-outside flex flex-col gap-2 pl-3">
+      <li>
+        <span class="font-medium">Select Your Surface:</span>
+        <p>Choose the surface you would like to customize.</p>
+      </li>
+      <li>
+        <span class="font-medium">Choose Your Finish:</span>
+        <p>Explore the available finish types for the selected surface.</p>
+      </li>
+      <li>
+        <span class="font-medium">Select Your Variation:</span>
+        <p>Choose your preferred color/material variation to complete your customization.</p>
+      </li>
+    </ol>`,
     placement: "right",
     nextLabel: "Next",
   },
   {
     id: "dock",
-    title: "Welcome to Atelier by Reef",
-    body: "The dock keeps your selections, reset, settings, fullscreen, and quotation actions within reach.",
+    title: "Action Bar",
+    body: "Generate your quotation, access your material selections, track saving status, explore materials, and manage configurator settings, all in one place.",
     placement: "above",
     nextLabel: "Done",
   },

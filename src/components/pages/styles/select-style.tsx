@@ -91,7 +91,7 @@ const SelectStyle = ({
         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
         <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-wider text-white sm:mt-12">
-          Begin Your Journey
+          Your Design Journey Starts Here
         </h1>
 
         <DiamondRuleFull className="mt-3 h-4 w-44" />
@@ -147,24 +147,25 @@ const SelectStyle = ({
                   <div className="flex flex-col gap-3.75">
                     <div className="flex flex-col items-start gap-1">
                       <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-white">
-                        Explore Ready Styles
+                        Explore Atelier Collections
                       </h2>
 
                       <DiamondRule className="w-21.25 h-auto" />
                     </div>
 
                     <p className="text-[12px] leading-[1.35] text-white/70 sm:text-[13px]">
-                      Choose a style that reflect you vision and lifestyle
+                      A collection of signature interior design concepts, each
+                      offering a distinctive style for your residence.
                     </p>
                   </div>
                 </div>
                 <Button
                   asChild
                   variant="outline"
-                  className="mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
+                  className="mt-1 h-auto w-fit rounded-full border-white/20 bg-white/5 px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
                 >
                   <Link href="/styles/browse-styles">
-                    BROWSE ALL <ChevronRight />
+                    BROWSE <ChevronRight />
                   </Link>
                 </Button>
               </div>
@@ -226,14 +227,15 @@ const SelectStyle = ({
                   <div className="flex flex-col gap-2.5 md:gap-3.75">
                     <div className="flex flex-col items-start gap-1">
                       <h2 className="font-baskerville text-[clamp(16px,1.6vw,20px)] font-normal tracking-[0.04em] text-white">
-                        Explore Ready Styles
+                        Explore Atelier Collections
                       </h2>
 
                       <DiamondRule className="w-21.25 h-auto" />
                     </div>
 
                     <p className="text-[12px] leading-[1.35] text-white/70 sm:text-[13px]">
-                      Choose a style that reflect you vision and lifestyle
+                      A collection of signature interior design concepts, each
+                      offering a distinctive style for your residence.
                     </p>
                   </div>
                 </div>
@@ -241,10 +243,10 @@ const SelectStyle = ({
                 <Button
                   asChild
                   variant="outline"
-                  className="hidden md:block mt-1 h-auto w-fit rounded-full border-white/20 bg-transparent px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
+                  className="hidden md:block mt-1 h-auto w-fit rounded-full border-white/20 bg-white/5 px-4 py-2 text-[11px] font-medium tracking-[0.06em] text-white hover:bg-white/10 hover:text-white"
                 >
                   <Link href="/styles/browse-styles">
-                    BROWSE ALL <ChevronRight />
+                    BROWSE <ChevronRight />
                   </Link>
                 </Button>
               </div>
@@ -252,7 +254,7 @@ const SelectStyle = ({
 
             <Link
               href="/styles/browse-styles"
-              aria-label="Browse all styles"
+              aria-label="Browse styles"
               className="absolute inset-0 z-10 md:hidden"
             />
           </CustomShape>
@@ -306,8 +308,9 @@ const SelectStyle = ({
                     </div>
 
                     <p className="text-[12px] leading-[1.35] text-white sm:text-[13px] opacity-70">
-                      Interactive real-time configurator. Tailor cladding,
-                      materials, and wall colors.
+                      Personalize your residence with an interactive
+                      configurator by choosing your preferred materials,
+                      finishes, and colors.
                     </p>
                   </div>
                 </div>

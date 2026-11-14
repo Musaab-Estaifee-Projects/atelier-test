@@ -14,7 +14,10 @@ export default function ConfiguratorError({
   const router = useRouter();
 
   useEffect(() => {
-    console.error("[configurator] segment error", error.digest ?? error.message);
+    console.error(
+      "[configurator] segment error",
+      error.digest ?? error.message,
+    );
   }, [error]);
 
   return (
@@ -23,7 +26,7 @@ export default function ConfiguratorError({
       kind="error"
       progress={0}
       unitSubtitle="Your residence"
-      endedMessage="Something went wrong while opening the configurator. Please try again, or go back and choose another apartment."
+      endedMessage="Something went wrong while opening the configurator. Please try again, or go back and choose another residence."
       onReconnect={retry}
       onBackHome={() => router.push("/projects")}
     />

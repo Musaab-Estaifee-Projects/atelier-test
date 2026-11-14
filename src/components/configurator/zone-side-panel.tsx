@@ -136,7 +136,7 @@ function PanelBody({
           </div>
         </div>
         <p className="font-sans text-[12px] leading-[1.2] text-white/70">
-          Customize finishes for your space
+          Customize the finishes for your space
         </p>
       </header>
 

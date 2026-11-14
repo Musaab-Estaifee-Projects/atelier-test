@@ -107,7 +107,7 @@ const AfkWarningOverlay = ({ countdown, total = 60, onStay }: Props) => {
               </h2>
 
               <p className="text-sm text-white opacity-70">
-                The 3D session will end due to inactivity.
+                The session will end due to inactivity.
               </p>
             </div>
 

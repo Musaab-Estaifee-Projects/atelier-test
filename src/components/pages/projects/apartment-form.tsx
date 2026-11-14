@@ -40,7 +40,7 @@ type Props = {
 
 const ApartmentForm = ({
   project,
-  title = "Select Apartment",
+  title = "Select Residence",
   titleId,
   pending = false,
   error,

@@ -52,7 +52,7 @@ const DEBOUNCE_MS = 350;
 
 const SelectStep = ({
   project,
-  title = "Select Apartment",
+  title = "Select Residence",
   titleId,
   pending,
   error,
@@ -404,8 +404,8 @@ const SelectStep = ({
 
     setLocalError(
       trimmed
-        ? "We couldn’t find that unit. Try a unit number or choose type and layout."
-        : "Search for a unit number, or select residence type and layout.",
+        ? "We couldn’t find that Residence. Try a Residence number or choose type and layout."
+        : "Search for a Residence number, or select residence type and layout.",
     );
   };
 
@@ -464,7 +464,9 @@ const SelectStep = ({
                 <FormItem className="space-y-0">
                   <FormControl>
                     <label className="flex w-full items-center gap-2 border-b border-dashed border-white/35 py-3.5">
-                      <span className="sr-only">Search for unit number</span>
+                      <span className="sr-only">
+                        Search for Residence number
+                      </span>
                       <input
                         {...field}
                         ref={(el) => {
@@ -480,7 +482,7 @@ const SelectStep = ({
                         onFocus={() => {
                           if (query.trim()) setOpenMenu("search");
                         }}
-                        placeholder="Search for unit number"
+                        placeholder="Search for Residence number"
                         autoComplete="off"
                         spellCheck={false}
                         disabled={pending}
@@ -534,7 +536,7 @@ const SelectStep = ({
             <DashedDropdown
               label="Layout"
               value={typeId}
-              placeholder="Select Type"
+              placeholder="Select Residence Type"
               options={layoutOptions}
               open={openMenu === "layout"}
               disabled={pending || searchLocksSelects || !categoryId}

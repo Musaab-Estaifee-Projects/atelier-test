@@ -258,13 +258,13 @@ const PageLoader = memo(function PageLoader({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 2.5, duration: 0.7, ease: EASE }}
           >
-            <span className="font-baskerville text-[11px] font-medium tracking-[0.28em] text-[#F5F0E8]/70">
+            <span className="font-baskerville text-[11px] md:text-[1.22113rem] font-medium tracking-[0.28em] text-[#F5F0E8]/70 leading-3">
               STEP INTO
             </span>
-            <span className="font-snell-roundhand text-[42px] leading-none text-[#F5F0E8] sm:text-[52px]">
+            <span className="font-snell-roundhand text-[42px] md:text-[5.23138rem] leading-none text-[#F5F0E8] sm:text-[52px]">
               Personalized
             </span>
-            <span className="mt-2 font-baskerville text-[15px] tracking-[0.22em] text-[#F5F0E8]">
+            <span className="font-baskerville text-[15px] md:text-[1.8rem] tracking-[0.22em] text-[#F5F0E8]">
               LUXURY
             </span>
           </motion.div>

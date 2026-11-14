@@ -114,7 +114,7 @@ function startSync(args: SyncToUeArgs, key: string): Promise<UeSyncResult> {
     }
 
     if (!args.skipLoadLevel && args.layoutCode) {
-      args.onProgress?.("Opening your apartment…");
+      args.onProgress?.("Opening your residence…");
       loadLevel = await loadLevelOnUe(args.send, args.layoutCode);
       if (!loadLevel) {
         console.warn("[UE sync] LoadLevel emit was not accepted");

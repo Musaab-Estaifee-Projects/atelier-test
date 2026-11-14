@@ -48,29 +48,29 @@ function emailCopy(
   const at = email ? (
     <>
       {" "}
-      at <span className="text-white/80">{email}</span>
+      <span className="text-white/80 underline">{email}</span>
     </>
   ) : null;
   if (kind === "complete") {
     return (
       <>
-        We&apos;ve sent a detailed PDF quotation to your email{at} for your
-        records.
+        A detailed PDF quotation has also been sent to your registered email
+        address,{at}, for your reference.
       </>
     );
   }
   if (kind === "failed") {
     return (
       <>
-        We could not email the PDF quotation{at} yet. A design consultant will
-        follow up.
+        We could not email the PDF quotation at {at} yet. A design consultant
+        will follow up.
       </>
     );
   }
   return (
     <>
-      We&apos;re sending a detailed PDF quotation to your email{at} for your
-      records.
+      We&apos;re sending a detailed PDF quotation to your email address,{at},
+      for your reference.
     </>
   );
 }
@@ -110,7 +110,7 @@ const QuotationReady = ({
         <AtelierMark />
         <h1
           id="quotation-ready-title"
-          className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] sm:text-[36px]"
+          className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] sm:text-[36px] capitalize"
         >
           Your Quotation is Ready
         </h1>
@@ -133,12 +133,12 @@ const QuotationReady = ({
           >
             <div className="flex h-full flex-col items-center justify-between px-6 py-8 text-center">
               <div>
-                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8]">
-                  Get Your Reference Number
+                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8] capitalize">
+                  Your Design Reference
                 </h2>
                 <p className="mt-3 text-[13px] leading-[1.4] text-white/70">
-                  you can use this reference number to go back to your design
-                  whenever you want.
+                  Use this reference number to return to your customized design
+                  whenever you need.
                 </p>
               </div>
 
@@ -178,7 +178,7 @@ const QuotationReady = ({
           >
             <div className="flex h-full flex-col items-center justify-between px-6 py-8 text-center">
               <div>
-                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8]">
+                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8] capitalize">
                   Your PDF Quotation
                 </h2>
                 <p className="mt-3 text-[13px] leading-[1.4] text-white/70">
@@ -212,11 +212,12 @@ const QuotationReady = ({
           >
             <div className="flex h-full flex-col items-center justify-between px-6 py-8 text-center">
               <div>
-                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8]">
+                <h2 className="font-baskerville text-[22px] leading-[1.16] tracking-wider text-[#f2e9d8] capitalize">
                   Share Your Design
                 </h2>
                 <p className="mt-3 text-[13px] leading-[1.4] text-white/70">
-                  Anyone with this link can walk through your design.
+                  Share your design link with others so they can explore your
+                  customized residence.
                 </p>
               </div>
 
@@ -244,24 +245,24 @@ const QuotationReady = ({
           </CustomShape>
         </div>
 
-        <h2 className="mt-16 text-center font-baskerville text-[22px] tracking-wider text-[#f2e9d8] sm:text-[26px]">
-          What Happens Next
+        <h2 className="mt-16 text-center font-baskerville text-[22px] tracking-wider text-[#f2e9d8] sm:text-[26px] capitalize">
+          What Happens Next?
         </h2>
         <p className="mt-3 max-w-md text-center text-[13px] leading-normal text-white/70">
-          A design consultant will contact you within one business day to
-          confirm the design.
+          A REEF design consultant will contact you within one business day to
+          review and confirm your design.
         </p>
 
         <div className="mt-6 mb-6 flex flex-wrap items-center justify-center gap-3">
           <Button asChild variant="pill" size="pill" className="min-w-40">
-            <Link href="/">Return to Home</Link>
+            <Link href="/">RETURN TO HOME</Link>
           </Button>
           <Button
             asChild
             size="pill"
             className="min-w-48 rounded-full bg-[#f2e9d8] text-[#00272d] hover:bg-[#f2e9d8]/90"
           >
-            <Link href="/styles">Explore Ready Styles</Link>
+            <Link href="/styles">EXPLORE ATELIER COLLECTIONS</Link>
           </Button>
         </div>
 

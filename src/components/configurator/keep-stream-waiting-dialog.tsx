@@ -15,7 +15,7 @@ const KeepStreamWaitingDialog = ({ open }: Props) => {
       titleHidden
       closeOnOutsideClick={false}
       onOpenChange={() => undefined}
-      title="Waiting for the 3D session"
+      title="Waiting for the session"
       blur={false}
       overlayClassName="z-[91]"
       contentClassName="z-[91] w-[min(100%-2rem,674px)] flex items-center justify-center"
@@ -38,10 +38,10 @@ const KeepStreamWaitingDialog = ({ open }: Props) => {
                 strokeWidth={1.4}
               />
               <h2 className="font-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem]">
-                Waiting for the 3D session
+                Waiting for the session
               </h2>
               <p className="text-sm leading-[1.6] text-white/70">
-                The live view is reconnecting or still opening your apartment.
+                The live view is reconnecting or still opening your residence.
                 Please stay with us — this can take a minute on a slower
                 connection, then we&apos;ll save your finishes automatically.
               </p>

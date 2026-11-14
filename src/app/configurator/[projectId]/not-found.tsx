@@ -12,7 +12,7 @@ export default function ConfiguratorNotFound() {
       progress={0}
       unitSubtitle="Your residence"
       endedTitle="This residence could not be found"
-      endedMessage="Go back and choose another apartment to start customizing."
+      endedMessage="Go back and choose another residence to start customizing."
       onBackHome={() => router.push("/projects")}
     />
   );

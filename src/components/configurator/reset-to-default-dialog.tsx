@@ -46,7 +46,7 @@ const ResetToDefaultDialog = ({ open, onCancel, onConfirm }: Props) => {
               </h2>
 
               <p className="text-sm leading-[1.6] text-white/70">
-                All custom selections will be cleared and the apartment will
+                All custom selections will be cleared and the residence will
                 return to its standard finishes.
               </p>
             </div>

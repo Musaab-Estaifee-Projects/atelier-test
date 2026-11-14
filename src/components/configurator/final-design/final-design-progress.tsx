@@ -172,7 +172,7 @@ const FinalDesignProgress = ({
   confirmPending = false,
   confirmDisabled = false,
   confirmError = null,
-  title = "Creating Final Renders",
+  title = "Your Renders Are Being Generated",
   skeleton = false,
   onConfirm,
   onView,
@@ -208,7 +208,13 @@ const FinalDesignProgress = ({
           >
             {title}
           </h1>
-          <p className="mt-4 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
+
+          <p className="mt-2 text-center text-[14px] leading-[1.2] text-white/70">
+            Please allow the system a few moments to generate the final images
+            of your customized residence.
+          </p>
+
+          <p className="mt-6 text-center text-[14px] leading-[1.2] text-white/70 capitalize">
             {unitSubtitle}
           </p>
 

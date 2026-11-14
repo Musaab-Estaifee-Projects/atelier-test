@@ -297,7 +297,7 @@ const ReviewSelections = ({
               id="review-selections-title"
               className="mt-8 text-center font-baskerville text-[28px] leading-[1.16] font-normal tracking-wider text-[#f2e9d8] sm:mt-10 sm:text-[36px]"
             >
-              Review your selections
+              Review Your Selections
             </h1>
             <p className="mt-4 text-center text-[13px] leading-[1.2] text-white/70 sm:text-[14px] capitalize">
               {subtitle}
@@ -500,8 +500,8 @@ const ReviewSelections = ({
                     })}
 
                     <div className="flex items-center justify-between bg-white/6 px-2 py-3">
-                      <p className="font-medium text-[14px] leading-[1.16] text-white uppercase">
-                        Total
+                      <p className="font-medium text-[14px] leading-[1.16] text-white capitalize">
+                        sub-total
                       </p>
                       <p className="flex items-center gap-2 font-baskerville text-[22px] leading-[1.16] tracking-wider text-white sm:text-[24px]">
                         <Dirham size="md" />
@@ -519,8 +519,9 @@ const ReviewSelections = ({
               Note
             </p>
             <p className="text-[14px] leading-[1.6] text-[#ff8585]/70">
-              The items that were not chosen will be quoted as the standard
-              finish, at no extra cost.
+              Any items not customized will be provided with the standard
+              materials and finishes specified for the residence, at no
+              additional cost.
             </p>
             <p className="text-[12px] leading-[1.6] text-white/50 italic">
               T &amp; C apply
@@ -532,7 +533,7 @@ const ReviewSelections = ({
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-4 md:pb-10">
         <div className="pointer-events-auto flex w-full max-w-187.25 flex-col gap-3 rounded-[28px] border-[0.5px] border-white/25 bg-linear-to-l from-[rgba(173,165,153,0.2)] to-[rgba(77,69,57,0.2)] py-3 pr-3 pl-5 backdrop-blur-[25px] md:min-h-13 md:flex-row md:items-center md:justify-between md:gap-3 md:rounded-full md:py-1.5 md:pr-1.5 md:pl-6.25">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <p className="font-baskerville text-[14px] leading-[1.16] tracking-wider text-white">
+            <p className="font-baskerville text-[15px] leading-[1.16] tracking-wider text-white">
               Total :
             </p>
             <p className="flex items-center gap-0.5 font-baskerville text-[24px] leading-[1.16] tracking-wider text-white sm:text-[28px]">
@@ -546,10 +547,7 @@ const ReviewSelections = ({
               variant="pill"
               size="pill"
               className="h-10 w-full gap-2 bg-white/10 px-3.25 text-[10px] tracking-[0.03em] md:w-44.5"
-                disabled={
-                  confirmPending ||
-                  (streamOffline && !onReconnect)
-                }
+              disabled={confirmPending || (streamOffline && !onReconnect)}
               onClick={streamOffline && onReconnect ? onReconnect : onBack}
             >
               {streamOffline && onReconnect ? (

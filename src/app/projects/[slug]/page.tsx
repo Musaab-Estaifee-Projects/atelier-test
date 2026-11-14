@@ -27,7 +27,7 @@ export async function generateMetadata({
     };
   } catch {
     return {
-      title: "ATELIER · Select apartment",
+      title: "ATELIER · Select Residence",
       description:
         "Select your residence type and layout to start configuring.",
     };

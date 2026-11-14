@@ -548,8 +548,8 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
           endedTitle={
             overlay.kind === "error" && !showUnsupported
               ? sessionError
-                ? "This apartment could not be loaded"
-                : "The 3D session could not open"
+                ? "This residence could not be loaded"
+                : "The session could not open"
               : stream.endedCopy.title
           }
           endedMessage={
@@ -557,7 +557,7 @@ const ConfiguratorShell = ({ projectId }: { projectId: string }) => {
               ? stream.endedCopy.status
               : overlay.kind === "error"
                 ? sessionError ||
-                  "We couldn’t open the 3D session. Try reconnecting."
+                  "We couldn’t open the session. Try reconnecting."
                 : null
           }
           onReconnect={reconnectAction}

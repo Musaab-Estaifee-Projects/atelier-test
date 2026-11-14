@@ -43,9 +43,10 @@ const QuotationDialog = ({ open, onBack, onGoToSummary }: Props) => {
               </h2>
 
               <p className="text-sm leading-[1.6] text-white/70">
-                We’ll create final renders based on your selected materials and
-                finishes. You’ll be able to review your design and prices before
-                requesting your final quote.
+                Your Design Is Ready for Review <br /> Your residence
+                customization is complete. You can go back to make changes or
+                proceed to review your selected materials, finishes and pricing
+                before requesting your final quotation.
               </p>
             </div>
 

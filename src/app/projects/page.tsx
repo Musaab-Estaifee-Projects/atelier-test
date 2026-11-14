@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "ATELIER · Select a project",
-  description: "Choose a REEF residence to begin configuring your apartment.",
+  description: "Choose a REEF residence to begin configuring your residence.",
 };
 
 const page = async () => {

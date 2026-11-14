@@ -233,17 +233,23 @@ const ConfiguratorTour = ({
 
               <h2
                 id="cfg-tour-title"
-                className="mt-1.5 font-sans text-[1.125rem] font-medium uppercase tracking-[0.03375rem] text-white"
+                className="mt-1.5 font-sans text-[1.125rem] font-medium capitalize tracking-[0.03375rem] text-white"
               >
                 {step.title}
               </h2>
 
-              <p
+              {/* <p
                 id="cfg-tour-body"
                 className="mt-1 text-xs leading-normal text-white/70"
               >
                 {step.body}
-              </p>
+              </p> */}
+
+              <p
+                id="cfg-tour-body"
+                className="mt-1 text-xs leading-normal text-white/70"
+                dangerouslySetInnerHTML={{ __html: step.body }}
+              />
 
               <div className="mt-4 flex items-center justify-end gap-3">
                 <button

@@ -101,7 +101,7 @@ export function useQuotationViewEdit({
       if (!saved) {
         return {
           ok: false as const,
-          message: "Could not save this design to the 3D session.",
+          message: "Could not save this design to the session.",
         };
       }
 

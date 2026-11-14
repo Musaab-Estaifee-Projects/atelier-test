@@ -147,7 +147,7 @@
 //         {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
 //         <h1 className="mt-10 max-w-[18em] text-center font-baskerville text-[clamp(24px,3.2vw,34px)] leading-[1.16] font-normal tracking-wider text-white sm:mt-12">
-//           How Would You Like To Start Your Unit?
+//           Atelier Collections
 //         </h1>
 
 //         <DiamondRuleFull className="mt-5 h-4 w-[176px]" />
@@ -323,13 +323,14 @@ const BrowseStyles = ({
           {overlay ? <AtelierMark /> : <AtelierMark href="/" />}
 
           <h1 className="mt-6 max-w-[22em] text-center font-baskerville text-[clamp(20px,3vw,32px)] leading-[1.16] font-normal tracking-wider text-white sm:mt-8">
-            How Would You Like To Start Your Unit?
+            Atelier Collections
           </h1>
 
-          <DiamondRuleFull className="mt-3 h-4 w-40 sm:mt-4 sm:w-44" />
+          <DiamondRuleFull className="mt-3 h-4 w-44" />
 
           <p className="mt-2.5 max-w-[320px] text-center text-[12px] leading-[1.2] text-white/70 sm:mt-3 sm:text-[14px]">
-            Choose a style that reflect you vision and lifestyle
+            A collection of signature interior design concepts, each offering a
+            distinctive style for your residence.
           </p>
         </div>
 

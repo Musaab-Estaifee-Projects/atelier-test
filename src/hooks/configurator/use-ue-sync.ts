@@ -128,7 +128,7 @@ export function useUeSync({
         } else if (!appliedReadyRef.current) {
           setSceneReady(false);
           setUeSyncStatus(null);
-          setUeSyncError("Waiting for the 3D session to be ready…");
+          setUeSyncError("Waiting for the session to be ready…");
         } else {
           setUeSyncStatus(null);
           setUeSyncError("Could not restore finishes. Retry when ready.");

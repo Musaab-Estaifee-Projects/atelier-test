@@ -27,8 +27,13 @@ type Pair = {
   responses: UeLogEntry[];
 };
 
-function pairLogs(entries: UeLogEntry[]): { pairs: Pair[]; orphans: UeLogEntry[] } {
-  const sendIds = new Set(entries.filter((e) => e.kind === "send").map((e) => e.id));
+function pairLogs(entries: UeLogEntry[]): {
+  pairs: Pair[];
+  orphans: UeLogEntry[];
+} {
+  const sendIds = new Set(
+    entries.filter((e) => e.kind === "send").map((e) => e.id),
+  );
   const pairs: Pair[] = [];
   for (const entry of entries) {
     if (entry.kind !== "send") continue;
@@ -40,7 +45,9 @@ function pairLogs(entries: UeLogEntry[]): { pairs: Pair[]; orphans: UeLogEntry[]
     });
   }
   const orphans = entries.filter(
-    (e) => e.kind === "response" && (e.inReplyTo == null || !sendIds.has(e.inReplyTo)),
+    (e) =>
+      e.kind === "response" &&
+      (e.inReplyTo == null || !sendIds.has(e.inReplyTo)),
   );
   return {
     pairs: pairs.slice().reverse(),
@@ -67,7 +74,10 @@ export default function UeLogSidebar() {
       </button>
 
       {open ? (
-        <aside className="cfg-ue-log pointer-events-auto absolute inset-y-0 right-0 z-[88] flex w-[min(100%,22rem)] flex-col border-l border-white/15 bg-[#0a1618]/95 text-white shadow-2xl backdrop-blur-xl sm:w-[24rem]" data-cfg-chrome>
+        <aside
+          className="cfg-ue-log pointer-events-auto absolute inset-y-0 right-0 z-[88] flex w-[min(100%,22rem)] flex-col border-l border-white/15 bg-[#0a1618]/95 text-white shadow-2xl backdrop-blur-xl sm:w-[24rem]"
+          data-cfg-chrome
+        >
           <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-3">
             <div>
               <p className="font-sans text-[10px] font-medium uppercase tracking-[0.4px] text-white/50">
@@ -97,7 +107,7 @@ export default function UeLogSidebar() {
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             {pairs.length === 0 && orphans.length === 0 ? (
               <p className="px-1 text-sm text-white/50">
-                Interact with the apartment to see send / response pairs here.
+                Interact with the residence to see send / response pairs here.
               </p>
             ) : (
               <ul className="flex flex-col gap-2.5">
@@ -121,7 +131,10 @@ export default function UeLogSidebar() {
                       </p>
                     ) : (
                       pair.responses.map((res) => (
-                        <div key={res.id} className="mt-1.5 border-t border-white/10 pt-1.5">
+                        <div
+                          key={res.id}
+                          className="mt-1.5 border-t border-white/10 pt-1.5"
+                        >
                           <LogBlock entry={res} />
                         </div>
                       ))
@@ -153,7 +166,9 @@ function LogBlock({ entry }: { entry: UeLogEntry }) {
         <p className={`font-mono text-[11px] font-medium ${tone}`}>
           {label} · {entry.name}
         </p>
-        <span className="font-mono text-[10px] text-white/40">{timeLabel(entry.at)}</span>
+        <span className="font-mono text-[10px] text-white/40">
+          {timeLabel(entry.at)}
+        </span>
       </div>
       <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-[1.45] text-white/70">
         {pretty(entry.payload)}

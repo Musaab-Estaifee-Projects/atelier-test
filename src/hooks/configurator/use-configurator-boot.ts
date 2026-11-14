@@ -89,7 +89,7 @@ export function useConfiguratorBoot({
       try {
         if (!catalogApiProjectId) {
           throw new Error(
-            "A valid project or layout is required to load this apartment catalog.",
+            "A valid project or layout is required to load this residence catalog.",
           );
         }
 

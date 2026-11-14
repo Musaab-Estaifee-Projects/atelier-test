@@ -6,10 +6,10 @@ import OverlayDialog from "@/components/ui/overlay-dialog";
 import { CustomShape } from "@/components/shared/custom-shape";
 
 const TERMS = [
-  "Rendered visuals are for reference and may vary slightly from final materials.",
-  "Prices and material availability are subject to confirmation in the final quote.",
-  "Changes to your selections may affect pricing.",
-  "You will have 7 days to review and confirm your final design and quote.",
+  "All rendered visuals are indicative representations and may vary from the actual materials and finishes.",
+  "Final pricing and material availability are subject to confirmation at the quotation stage.",
+  "Any amendments to the selected materials or finishes may result in changes to the quoted price.",
+  "The final design and quotation must be reviewed and confirmed within 7 days.",
 ] as const;
 
 type Props = {
@@ -49,12 +49,16 @@ const ConfirmTermsDialog = ({
           strokeWidth={1}
         >
           <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-8 sm:px-11.5 sm:py-11.5">
-            <div className="flex w-full flex-col items-center gap-6 text-center">
+            <div className="flex w-full flex-col items-center gap-4 text-center">
               <h2 className="font-baskerville text-[1.25rem] font-normal leading-[1.16] text-[#f2e9d8] capitalize md:text-[1.625rem]">
                 Confirm Our Terms
               </h2>
 
-              <ol className="mt-4 flex w-full max-w-104.75 flex-col gap-1.75 text-left">
+              <strong className="mt-2 font-medium text-[15px] leading-[1.16] text-white capitalize self-start">
+                Important Information:
+              </strong>
+
+              <ol className="flex w-full max-w-104.75 flex-col gap-1.75 text-left">
                 {TERMS.map((line, index) => (
                   <li key={line} className="flex items-start gap-3">
                     <span
@@ -96,6 +100,7 @@ const ConfirmTermsDialog = ({
             <p className="w-full max-w-104.75 text-center text-[0.625rem] leading-[1.6] text-white/70">
               Having any question? please check our{" "}
               <Link
+                target="_blank"
                 href={termsHref}
                 className="text-white/70 underline underline-offset-2"
               >

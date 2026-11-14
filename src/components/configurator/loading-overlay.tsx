@@ -11,6 +11,7 @@ import DoorOpen from "../icons/configurator/door-open";
 import CloudSlash from "../icons/configurator/cloud-slash";
 import { SessionBackdrop } from "./loading-components/session-backdrop";
 import { HintCard } from "./loading-components/hint-card";
+import Link from "next/link";
 
 export type { StreamOverlayKind };
 
@@ -54,7 +55,7 @@ const LoadingUnit = ({
   return (
     <div className="flex w-full max-w-130 flex-col items-center">
       <h1 className="text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
-        Loading Your Unit
+        Loading Your Residence
       </h1>
       {unitSubtitle === "Your residence" ? (
         <p className="mt-3 text-center text-[14px] leading-[1.2] text-white/70 capitalize animate-pulse">
@@ -143,6 +144,7 @@ const ReconnectingUnit = ({
 
 const QueueWait = ({
   position,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onBrowseStyles,
 }: {
   position: number;
@@ -152,10 +154,10 @@ const QueueWait = ({
     <div className="flex w-full max-w-130 flex-col items-center px-2">
       <AtelierSpinner className="mb-7" />
       <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#f2e9d8] uppercase">
-        All 3D sessions are busy
+        All sessions are busy
       </p>
       <h1 className="mt-3 text-center font-baskerville text-[clamp(26px,4vw,36px)] leading-[1.16] font-normal tracking-wider text-white">
-        You&apos;re{" "}
+        You are No.{" "}
         <span className="text-[#ada599]">
           {position > 0 ? position : "next"}
         </span>{" "}
@@ -165,16 +167,28 @@ const QueueWait = ({
       <TitleRule className="mt-4 h-px w-31.25" />
 
       <p className="mt-6 max-w-105 text-center text-[14px] leading-[1.2] text-white/70">
-        You can wait here, or take a look on the styles we prepared for you.
+        While you wait, explore the exclusive styles in Atelier Collections.
       </p>
-      <Button
+
+      {/* <Button
         type="button"
         variant="pill"
         size="pill"
         className="mt-6 w-full max-w-71 whitespace-normal"
         onClick={onBrowseStyles}
       >
-        Browse ready styles
+        Browse Atelier Collections
+      </Button> */}
+
+      <Button
+        asChild
+        variant="pill"
+        size="pill"
+        className="mt-6 w-full max-w-71 whitespace-normal"
+      >
+        <Link target="_blank" href="/styles/browse-styles">
+          Browse Atelier Collections
+        </Link>
       </Button>
     </div>
   );
@@ -190,7 +204,7 @@ const SessionEnded = ({
   onReconnect,
   onSecondary,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   icon: React.ReactNode;
   title: string;
   selectionCount: number;
@@ -202,22 +216,26 @@ const SessionEnded = ({
   const saved =
     message ??
     (selectionCount > 0
-      ? `Your selections are saved — ${selectionCount} items. Nothing was lost.`
+      ? `Your selections are saved: ${selectionCount} items. Nothing was lost.`
       : "In case you have selections. Nothing will be lost. All of your selections will be saved.");
 
   return (
     <div className="flex w-full max-w-180 flex-col items-center px-2">
       {icon}
 
-      <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#e29584] uppercase">
-        {eyebrow}
-      </p>
+      {eyebrow && (
+        <p className="text-[12px] leading-[1.2] tracking-[0.07em] text-[#e29584] uppercase">
+          {eyebrow}
+        </p>
+      )}
 
-      <h1 className="mt-3 text-center font-baskerville text-[2rem] md:text-[2.25rem] leading-[1.16] font-normal tracking-wider text-white capitalize">
+      <h1
+        className={`${eyebrow ? "mt-3" : "mt-0"} text-center font-baskerville text-[2rem] md:text-[2.25rem] leading-[1.16] font-normal tracking-wider text-white capitalize`}
+      >
         {title}
       </h1>
 
-      <TitleRule className="mt-4 h-px w-31.25" />
+      <TitleRule className={`${eyebrow ? "mt-4" : "mt-1"} h-px w-31.25`} />
 
       <p className="mt-6 text-center text-[14px] leading-[1.2] text-white/70">
         {saved}
@@ -364,9 +382,9 @@ const LoadingOverlay = ({
 
           {kind === "disconnected" ? (
             <SessionEnded
-              eyebrow={endedEyebrow ?? "Connection lost"}
-              icon={<CloudSlash className="mb-6 h-12.75 w-15" />}
-              title={endedTitle ?? "The 3D session dropped"}
+              // eyebrow={endedEyebrow ?? "Connection lost"}
+              icon={<CloudSlash className="mb-4 h-12.75 w-15" />}
+              title={endedTitle ?? "Connection lost"}
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
@@ -376,13 +394,13 @@ const LoadingOverlay = ({
 
           {kind === "error" ? (
             <SessionEnded
-              eyebrow={endedEyebrow ?? "Unable to load"}
-              icon={<CloudSlash className="mb-6 h-12.75 w-15" />}
-              title={endedTitle ?? "The 3D session could not open"}
+              // eyebrow={endedEyebrow ?? "Unable to load"}
+              icon={<CloudSlash className="mb-4 h-12.75 w-15" />}
+              title={endedTitle ?? "The session could not open"}
               selectionCount={0}
               message={
                 endedMessage ??
-                "Please try again, or go back and choose another apartment."
+                "Please try again, or go back and choose another residence."
               }
               secondaryLabel="Start new customization"
               onReconnect={onReconnect}
@@ -394,7 +412,7 @@ const LoadingOverlay = ({
             <SessionEnded
               eyebrow="Session ended"
               icon={<DoorOpen className="mb-6 size-16!" />}
-              title="The 3D session ended due to inactivity"
+              title="The session ended due to inactivity"
               selectionCount={selectionCount}
               secondaryLabel="Continue to the summary page"
               onReconnect={onReconnect}
