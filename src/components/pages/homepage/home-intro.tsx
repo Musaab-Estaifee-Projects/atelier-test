@@ -155,6 +155,7 @@ const VideoLayer = ({
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SoundToggle = ({
   introDone,
   soundOn,
